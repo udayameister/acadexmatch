@@ -1,0 +1,5 @@
+import RequireRole from '@/components/RequireRole';
+
+export default function Layout({ children }: { children: React.ReactNode }) {
+  return <RequireRole roles={['super_admin']}>{children}</RequireRole>;
+}

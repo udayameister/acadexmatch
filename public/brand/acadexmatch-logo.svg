@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 64">
+  <style>@import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,700&amp;display=swap'); text{font-family:'DM Sans',Arial,sans-serif;font-weight:700;letter-spacing:-0.8px}</style>
+  <g transform="translate(8 8)">
+    <rect width="48" height="48" rx="12" fill="#800000"/>
+    <path d="M13 13 L22 24 L13 35" fill="none" stroke="#FFFFFF" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M35 13 L26 24 L35 35" fill="none" stroke="#C6A15B" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="24" cy="10.5" r="3" fill="#C6A15B"/>
+  </g>
+  <text x="68" y="43" font-size="30"><tspan fill="#5A1020">Acade</tspan><tspan fill="#B48A3E">X</tspan><tspan fill="#5A1020">Match</tspan></text>
+</svg>

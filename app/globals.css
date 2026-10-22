@@ -1,0 +1,89 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #FFFDF8;
+  --foreground: #5A1020;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: var(--font-dm-sans), 'DM Sans', system-ui, sans-serif;
+  overflow-x: hidden;
+}
+
+/* Crisp Professional Light Scrollbar */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+::-webkit-scrollbar-track {
+  background: #F8F3EF;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #D6C5BB;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #A48F8D;
+}
+
+/* Light academic helper classes */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(12px);
+  border: 1px solid #EADFD6;
+}
+
+.gold-gradient-text {
+  background: linear-gradient(135deg, #94702F 0%, #C6A15B 50%, #7A5B26 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.blue-gradient-text {
+  background: linear-gradient(135deg, #5A1020 0%, #800000 55%, #8E1B2B 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* DM Sans site-wide, including form controls */
+button, input, select, textarea { font-family: inherit; }
+
+/* Smooth in-page scrolling, clear keyboard focus, reduced motion */
+html { scroll-behavior: smooth; }
+:focus-visible { outline: 2px solid #800000; outline-offset: 2px; border-radius: 6px; }
+::selection { background: #F4DEDF; color: #5A1020; }
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+}
+
+/* Subtle maroon/gold hero backdrop */
+.hero-backdrop {
+  background:
+    radial-gradient(60rem 30rem at 85% -10%, rgba(128, 0, 0, 0.10), transparent 60%),
+    radial-gradient(40rem 26rem at -10% 110%, rgba(198, 161, 91, 0.16), transparent 60%),
+    #FFFDF8;
+}
+.hero-pattern {
+  background-image: radial-gradient(circle at 1px 1px, rgba(128, 0, 0, 0.09) 1px, transparent 0);
+  background-size: 26px 26px;
+  mask-image: linear-gradient(to bottom, black, transparent 80%);
+  -webkit-mask-image: linear-gradient(to bottom, black, transparent 80%);
+}
+.gold-rule { height: 2px; width: 3rem; background: linear-gradient(90deg, #C6A15B, rgba(198,161,91,0)); border-radius: 2px; }
+
+/* Printing (invoices, CV, committee sheets): hide the site's menu bar and footer. */
+@media print {
+  body > header, header.sticky, body footer, .no-print { display: none !important; }
+  body { background: #fff !important; }
+  main { padding: 0 !important; }
+  a { text-decoration: none; }
+  @page { margin: 14mm; }
+}
