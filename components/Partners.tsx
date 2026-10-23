@@ -59,7 +59,7 @@ export function PartnersPanel() {
         <h4 className="font-semibold text-slate-900">{form.id ? 'Edit partner' : 'Add a partner'}</h4>
         <div className="grid sm:grid-cols-2 gap-3">
           <label className="block"><span className="text-xs font-semibold text-slate-700">Name</span><input className={input} required maxLength={120} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></label>
-          <label className="block"><span className="text-xs font-semibold text-slate-700">Website</span><input className={input} required type="url" placeholder="https://" value={form.url} onChange={e => setForm({ ...form, url: e.target.value })} /></label>
+          <label className="block"><span className="text-xs font-semibold text-slate-700">Website</span><input className={input} required type="text" inputMode="url" autoCapitalize="none" spellCheck={false} placeholder="https://" value={form.url} onChange={e => setForm({ ...form, url: e.target.value })} /></label>
           <label className="block"><span className="text-xs font-semibold text-slate-700">Category</span><select className={input} value={form.category} onChange={e => setForm({ ...form, category: e.target.value as Partner['category'] })}>{CATEGORIES.map(c => <option key={c}>{c}</option>)}</select></label>
           <label className="block"><span className="text-xs font-semibold text-slate-700">Offer for members (optional)</span><input className={input} maxLength={160} placeholder="15% off for AcadeXMatch members" value={form.offer} onChange={e => setForm({ ...form, offer: e.target.value })} /></label>
         </div>

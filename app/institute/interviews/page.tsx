@@ -86,7 +86,7 @@ export default function InterviewSlotsPage() {
             </div>
             {f.platform.startsWith('In-Person')
               ? <label className="block"><span className="text-xs font-semibold text-slate-700">Venue</span><input className={field} value={f.roomVenue} onChange={e => setF({ ...f, roomVenue: e.target.value })} placeholder="Board room, Admin block, 2nd floor" /></label>
-              : <label className="block"><span className="text-xs font-semibold text-slate-700">Meeting link</span><input type="url" className={field} value={f.meetingLink} onChange={e => setF({ ...f, meetingLink: e.target.value })} placeholder="https://meet.google.com/…" /></label>}
+              : <label className="block"><span className="text-xs font-semibold text-slate-700">Meeting link</span><input type="text" inputMode="url" autoCapitalize="none" spellCheck={false} className={field} value={f.meetingLink} onChange={e => setF({ ...f, meetingLink: e.target.value })} placeholder="https://meet.google.com/…" /></label>}
             <label className="block"><span className="text-xs font-semibold text-slate-700">Committee members (comma separated, not shown to candidates)</span><input className={field} value={f.committee} onChange={e => setF({ ...f, committee: e.target.value })} /></label>
             <label className="block"><span className="text-xs font-semibold text-slate-700">Instructions for candidates</span><textarea rows={3} className={field} value={f.instructions} onChange={e => setF({ ...f, instructions: e.target.value })} /></label>
             <p className="text-xs text-slate-500">This creates {f.count} slot{f.count === 1 ? '' : 's'} from {f.startTime} to {addMinutes(f.startTime, f.count * f.durationMin + (f.count - 1) * f.gapMin)} IST.</p>

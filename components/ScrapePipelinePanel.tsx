@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { StorageService } from '@/lib/storage';
+import { StorageService, normalizeUrl } from '@/lib/storage';
 import { orNS } from '@/lib/display';
 import { useSelection, BulkBar } from '@/components/Selection';
 import { Job } from '@/types';
@@ -331,7 +331,7 @@ function EditModal({ item, value, onClose, onSave }: { item: QueueItem; value: J
   return (
     <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-4 bg-brand-950/40 backdrop-blur-sm overflow-y-auto" role="dialog" aria-modal="true" aria-label="Edit vacancy">
       <form
-        onSubmit={e => { e.preventDefault(); onSave({ title: f.title.trim(), department: f.department.trim() || null, instituteName: f.instituteName.trim(), instituteShortName: f.instituteShortName.trim() || f.instituteName.trim(), location: { city: f.city.trim() || null, state: f.state.trim() || null }, applicationDeadline: f.deadline || null, externalApplyUrl: f.link.trim(), advertisementNumber: f.advt.trim() || null }); }}
+        onSubmit={e => { e.preventDefault(); onSave({ title: f.title.trim(), department: f.department.trim() || null, instituteName: f.instituteName.trim(), instituteShortName: f.instituteShortName.trim() || f.instituteName.trim(), location: { city: f.city.trim() || null, state: f.state.trim() || null }, applicationDeadline: f.deadline || null, externalApplyUrl: normalizeUrl(f.link), advertisementNumber: f.advt.trim() || null }); }}
         className="w-full max-w-2xl my-8 rounded-2xl bg-white border border-slate-200 shadow-2xl"
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
@@ -346,7 +346,7 @@ function EditModal({ item, value, onClose, onSave }: { item: QueueItem; value: J
             <label key={k} className={`block ${c}`}><span className="block text-xs font-semibold text-slate-700 mb-1">{l}</span><input required={k === 'title'} className={inputCls} value={f[k]} onChange={set(k)} /></label>
           ))}
           <label className="block"><span className="block text-xs font-semibold text-slate-700 mb-1">Application deadline</span><input type="date" className={inputCls} value={f.deadline} onChange={set('deadline')} /></label>
-          <label className="block sm:col-span-2"><span className="block text-xs font-semibold text-slate-700 mb-1">Application link (college website)</span><input type="url" required className={inputCls} value={f.link} onChange={set('link')} /></label>
+          <label className="block sm:col-span-2"><span className="block text-xs font-semibold text-slate-700 mb-1">Application link (college website)</span><input type="text" inputMode="url" autoCapitalize="none" spellCheck={false} required className={inputCls} value={f.link} onChange={set('link')} /></label>
         </div>
         <div className="px-5 pb-5 flex justify-end gap-2">
           <button type="button" className={btnGhost} onClick={onClose}>Cancel</button>

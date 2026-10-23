@@ -42,7 +42,7 @@ function seed(db: Db): boolean {
   let changed = false;
   if (!Array.isArray(db[STORAGE_KEYS.INSTITUTES])) { db[STORAGE_KEYS.INSTITUTES] = INITIAL_INSTITUTES; changed = true; }
   if (!Array.isArray(db[STORAGE_KEYS.JOBS])) { db[STORAGE_KEYS.JOBS] = INITIAL_JOBS; changed = true; }
-  for (const k of [STORAGE_KEYS.APPLICATIONS, STORAGE_KEYS.DPDP_REQUESTS, STORAGE_KEYS.AUDIT_LOGS, STORAGE_KEYS.USERS, STORAGE_KEYS.UPGRADE_REQUESTS, STORAGE_KEYS.PAYMENTS, STORAGE_KEYS.JOB_ALERTS, STORAGE_KEYS.TRACKED_JOBS, STORAGE_KEYS.INTERVIEW_SLOTS, STORAGE_KEYS.TALENT_INVITES, STORAGE_KEYS.ANNOUNCEMENTS, STORAGE_KEYS.PARTNERS, DOCUMENTS_KEY]) {
+  for (const k of [STORAGE_KEYS.APPLICATIONS, STORAGE_KEYS.DPDP_REQUESTS, STORAGE_KEYS.AUDIT_LOGS, STORAGE_KEYS.USERS, STORAGE_KEYS.UPGRADE_REQUESTS, STORAGE_KEYS.PAYMENTS, STORAGE_KEYS.JOB_ALERTS, STORAGE_KEYS.TRACKED_JOBS, STORAGE_KEYS.INTERVIEW_SLOTS, STORAGE_KEYS.TALENT_INVITES, STORAGE_KEYS.ANNOUNCEMENTS, STORAGE_KEYS.PARTNERS, STORAGE_KEYS.INTERVIEW_PREP, DOCUMENTS_KEY]) {
     if (!Array.isArray(db[k])) { db[k] = []; changed = true; }
   }
   if (!db[STORAGE_KEYS.CANDIDATE_PROFILES] || typeof db[STORAGE_KEYS.CANDIDATE_PROFILES] !== 'object') { db[STORAGE_KEYS.CANDIDATE_PROFILES] = {}; changed = true; }
@@ -237,6 +237,7 @@ export function buildSnapshot(db: Db, userId: string | null): { me: User | null;
       [STORAGE_KEYS.UPGRADE_REQUESTS]: own(STORAGE_KEYS.UPGRADE_REQUESTS),
       [STORAGE_KEYS.JOB_ALERTS]: own(STORAGE_KEYS.JOB_ALERTS),
       [STORAGE_KEYS.TRACKED_JOBS]: own(STORAGE_KEYS.TRACKED_JOBS),
+      [STORAGE_KEYS.INTERVIEW_PREP]: me ? ((db[STORAGE_KEYS.INTERVIEW_PREP] as { userId: string }[]) || []).filter(r => r.userId === me.id) : [],
       [STORAGE_KEYS.PAYMENTS]: isAdmin ? db[STORAGE_KEYS.PAYMENTS] : me ? ((db[STORAGE_KEYS.PAYMENTS] as { userId: string; instituteId?: string }[]) || []).filter(p => p.userId === me.id || (staffInst && p.instituteId === staffInst)) : [],
       [STORAGE_KEYS.AUDIT_LOGS]: isAdmin ? db[STORAGE_KEYS.AUDIT_LOGS] : [],
       [STORAGE_KEYS.INTERVIEW_SLOTS]: visibleSlots,
@@ -317,6 +318,12 @@ export const RPC_GUARDS: Record<string, Guard> = {
   respondToOffer: candidate,
   respondTalentInvite: candidate,
   changePassword: signedIn,
+  savePrepState: (me, args) => {
+    if (!me) return 'Please sign in.';
+    if (args[0] !== 'notes' && args[0] !== 'ticks') return 'Invalid request.';
+    if (!args[1] || typeof args[1] !== 'object' || JSON.stringify(args[1]).length > 200_000) return 'Your notes are too long to save.';
+    return true;
+  },
   // institution staff (own institute) or admin
   addJob: (me, args) => {
     if (me?.role === 'super_admin') return true;

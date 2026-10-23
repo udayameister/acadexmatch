@@ -344,7 +344,7 @@ export default function PostJobPage() {
               <div>
                 <label className="block font-bold text-slate-700 mb-1">Application link on your website (for Free candidates):</label>
                 <input
-                  type="url"
+                  type="text" inputMode="url" autoCapitalize="none" spellCheck={false}
                   value={externalApplyUrl}
                   onChange={(e) => setExternalApplyUrl(e.target.value)}
                   placeholder="https://www.your-institute.ac.in/careers/apply"

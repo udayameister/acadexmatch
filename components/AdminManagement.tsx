@@ -596,7 +596,7 @@ function InstituteForm({ inst, onClose, onDone }: { inst: Institute | null; onCl
         <Field label="Type" className="sm:col-span-2"><select className={inputCls} value={f.type} onChange={set('type')}>{INSTITUTION_TYPES.map(t => <option key={t}>{t}</option>)}</select></Field>
         <Field label="City"><input required className={inputCls} value={f.city} onChange={set('city')} /></Field>
         <Field label="State"><input required className={inputCls} value={f.state} onChange={set('state')} /></Field>
-        <Field label="Website"><input type="url" className={inputCls} value={f.website} onChange={set('website')} placeholder="https://" /></Field>
+        <Field label="Website"><input type="text" inputMode="url" autoCapitalize="none" spellCheck={false} className={inputCls} value={f.website} onChange={set('website')} placeholder="https://" /></Field>
         <Field label="Contact email"><input type="email" className={inputCls} value={f.contactEmail} onChange={set('contactEmail')} /></Field>
         <Field label="Contact phone"><input className={inputCls} value={f.contactPhone} onChange={set('contactPhone')} /></Field>
         <Field label="Established year"><input type="number" className={inputCls} value={f.established} onChange={set('established')} /></Field>
@@ -831,7 +831,7 @@ function JobForm({ job, institutes, onClose, onDone }: { job: Job | null; instit
         <Field label="Min. UGC-CARE / Scopus papers"><input type="number" min={0} className={inputCls} value={f.minPubs} onChange={set('minPubs')} placeholder="Not specified" /></Field>
         <Field label="NET / SLET mandatory"><select className={inputCls} value={f.net} onChange={set('net')}><option value="">Not specified</option><option value="yes">Yes</option><option value="no">No</option></select></Field>
         <label className="sm:col-span-2 flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" checked={f.premium} onChange={e => setF({ ...f, premium: e.target.checked })} className="accent-brand-900" /> <Crown className="w-4 h-4 text-gold-500" /> Premium vacancy (only Premium candidates can apply)</label>
-        <Field label="External application link (used by Free candidates)" className="sm:col-span-2"><input type="url" className={inputCls} value={f.externalApplyUrl} onChange={set('externalApplyUrl')} placeholder="https://institute.ac.in/careers/apply — leave blank to use the institute website" /></Field>
+        <Field label="External application link (used by Free candidates)" className="sm:col-span-2"><input type="text" inputMode="url" autoCapitalize="none" spellCheck={false} className={inputCls} value={f.externalApplyUrl} onChange={set('externalApplyUrl')} placeholder="https://institute.ac.in/careers/apply — leave blank to use the institute website" /></Field>
         <Field label="Specialisations (comma separated)" className="sm:col-span-2"><input className={inputCls} value={f.tags} onChange={set('tags')} /></Field>
         <Field label="Description" className="sm:col-span-2"><textarea rows={3} className={inputCls} value={f.description} onChange={set('description')} /></Field>
         <Field label="Responsibilities (one per line)" className="sm:col-span-2"><textarea rows={3} className={inputCls} value={f.responsibilities} onChange={set('responsibilities')} /></Field>

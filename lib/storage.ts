@@ -47,7 +47,10 @@ export const STORAGE_KEYS = {
   TALENT_INVITES: 'acad_talent_invites_v3',
   ANNOUNCEMENTS: 'acad_announcements_v3',
   PARTNERS: 'acad_partners_v3',
+  INTERVIEW_PREP: 'acad_interview_prep_v3',
 };
+
+interface PrepStateRecord { id: string; userId: string; kind: 'notes' | 'ticks'; data: Record<string, unknown>; updatedAt: string }
 
 export const STORAGE_EVENT = 'acad-storage-updated';
 const MAX_AUDIT_LOGS = 500;
@@ -162,10 +165,23 @@ export function toPublicUser(account: UserAccount): User {
   return user;
 }
 
+/**
+ * Tidies a web address typed into a form: "www.mits.ac.in" or "mits.ac.in/careers" becomes "https://…".
+ * Empty input stays empty; anything that is not a web address is returned unchanged.
+ */
+export function normalizeUrl(value?: string | null): string {
+  const v = (value || '').trim();
+  if (!v) return '';
+  if (/^https?:\/\//i.test(v)) return v;
+  if (v.startsWith('//')) return `https:${v}`;
+  if (/^[^\s/@]+\.[a-z]{2,}([/:?#].*)?$/i.test(v)) return `https://${v}`;
+  return v;
+}
+
 /** Email domain of an institute, derived from its website ("https://www.iitb.ac.in" -> "iitb.ac.in"). */
 export function institutionDomain(institute: Institute): string | null {
   try {
-    return institute.website ? new URL(institute.website).hostname.replace(/^www\./, '').toLowerCase() : null;
+    return institute.website ? new URL(normalizeUrl(institute.website)).hostname.replace(/^www\./, '').toLowerCase() : null;
   } catch {
     return null;
   }
@@ -584,6 +600,21 @@ export const StorageService = {
     setToStorage(STORAGE_KEYS.JOB_ALERTS, this.getJobAlerts().filter(a => !(a.id === id && (a.userId === user.id || user.role === 'super_admin'))));
   },
 
+  /** Interview-prep practice notes ('notes') and checklist ticks ('ticks') of the signed-in user. */
+  getPrepState<T = Record<string, unknown>>(kind: 'notes' | 'ticks'): T {
+    const user = this.getCurrentUser();
+    if (!user) return {} as T;
+    const rec = getFromStorage<PrepStateRecord[]>(STORAGE_KEYS.INTERVIEW_PREP, []).find(r => r.userId === user.id && r.kind === kind);
+    return (rec?.data || {}) as T;
+  },
+
+  savePrepState(kind: 'notes' | 'ticks', data: Record<string, unknown>): void {
+    const user = this.getCurrentUser();
+    if (!user || (kind !== 'notes' && kind !== 'ticks')) return;
+    const rest = getFromStorage<PrepStateRecord[]>(STORAGE_KEYS.INTERVIEW_PREP, []).filter(r => !(r.userId === user.id && r.kind === kind));
+    setToStorage(STORAGE_KEYS.INTERVIEW_PREP, [...rest, { id: `${user.id}_${kind}`, userId: user.id, kind, data, updatedAt: new Date().toISOString() }]);
+  },
+
   getTrackedJobs(): TrackedJob[] {
     return getFromStorage<TrackedJob[]>(STORAGE_KEYS.TRACKED_JOBS, []);
   },
@@ -623,7 +654,7 @@ export const StorageService = {
     const title = (input.title || '').trim().slice(0, 160);
     const institute = (input.institute || '').trim().slice(0, 160);
     if (!title || !institute) return { success: false, error: 'Enter the position and the institution.' };
-    const url = (input.url || '').trim();
+    const url = normalizeUrl(input.url);
     if (url && !/^https?:\/\//i.test(url)) return { success: false, error: 'The link must start with http:// or https://' };
     const deadline = /^\d{4}-\d{2}-\d{2}$/.test(input.deadline || '') ? input.deadline! : '';
     const all = this.getTrackedJobs();
@@ -649,7 +680,7 @@ export const StorageService = {
     if (patch.notes !== undefined) clean.notes = patch.notes.trim().slice(0, 1000) || undefined;
     if (patch.title !== undefined && patch.title.trim()) clean.title = patch.title.trim().slice(0, 160);
     if (patch.institute !== undefined && patch.institute.trim()) clean.institute = patch.institute.trim().slice(0, 160);
-    if (patch.url !== undefined) clean.url = /^https?:\/\//i.test(patch.url.trim()) ? patch.url.trim() : undefined;
+    if (patch.url !== undefined) { const u = normalizeUrl(patch.url); clean.url = /^https?:\/\//i.test(u) ? u : undefined; }
     if (clean.status === 'applied') {
       const cur = this.getTrackedJobs().find(t => t.id === id);
       if (cur && !cur.appliedOn && clean.appliedOn === undefined) clean.appliedOn = today();
@@ -747,7 +778,7 @@ export const StorageService = {
       departments: [],
       aisheCode: ni.aisheCode.trim().toUpperCase(),
       establishedYear: new Date().getFullYear(),
-      website: ni.website?.trim() || '',
+      website: normalizeUrl(ni.website),
       logo: '',
       bannerImage: '',
       verificationStatus: 'pending',
@@ -761,6 +792,7 @@ export const StorageService = {
   },
 
   updateInstitute(id: string, patch: Partial<Institute>): void {
+    if (typeof patch.website === 'string') patch = { ...patch, website: normalizeUrl(patch.website) };
     setToStorage(STORAGE_KEYS.INSTITUTES, this.getInstitutes().map(i => (i.id === id ? { ...i, ...patch, id } : i)));
     this.addAuditLog(`Updated institute profile ${id}`, id, 'INSTITUTE_VERIFICATION');
   },
@@ -798,7 +830,7 @@ export const StorageService = {
       departments: data.departments || [],
       aisheCode: aishe,
       establishedYear: data.establishedYear || new Date().getFullYear(),
-      website: data.website?.trim() || '',
+      website: normalizeUrl(data.website),
       logo: '',
       bannerImage: '',
       verificationStatus: status,
@@ -900,6 +932,7 @@ export const StorageService = {
     if (actor && actor.role !== 'super_admin' && !isInstituteSubscribed(this.getInstituteById(job.instituteId))) {
       throw new Error('An active Institution Premium subscription is required to post vacancies.');
     }
+    if (job.externalApplyUrl) job = { ...job, externalApplyUrl: normalizeUrl(job.externalApplyUrl) };
     setToStorage(STORAGE_KEYS.JOBS, [job, ...this.getJobs()]);
     this.addAuditLog(`Published faculty vacancy: ${job.title}`, job.id, 'JOB_MODERATION');
   },
@@ -927,6 +960,7 @@ export const StorageService = {
   },
 
   updateJob(id: string, patch: Partial<Job>): void {
+    if (typeof patch.externalApplyUrl === 'string') patch = { ...patch, externalApplyUrl: normalizeUrl(patch.externalApplyUrl) };
     setToStorage(STORAGE_KEYS.JOBS, this.getJobs().map(j => (j.id === id ? { ...j, ...patch, id } : j)));
     if (patch.title || patch.department) {
       setToStorage(STORAGE_KEYS.APPLICATIONS, this.getAllApplications().map(a => (a.jobId === id
@@ -1143,6 +1177,7 @@ export const StorageService = {
   },
 
   scheduleInterview(appId: string, slot: InterviewSlot): void {
+    if (slot.meetingLink) slot = { ...slot, meetingLink: normalizeUrl(slot.meetingLink) };
     const actor = this.getCurrentUser()?.name || 'Faculty Search Committee';
     const apps = this.getAllApplications().map(a =>
       a.id === appId
@@ -1195,7 +1230,7 @@ export const StorageService = {
       if (!taken.has(time)) {
         created.push({
           id: newId('slot'), instituteId: job.instituteId, jobId, date: input.date, time, durationMin: dur,
-          platform: input.platform, meetingLink: input.meetingLink?.trim() || undefined, roomVenue: input.roomVenue?.trim() || undefined,
+          platform: input.platform, meetingLink: normalizeUrl(input.meetingLink) || undefined, roomVenue: input.roomVenue?.trim() || undefined,
           committeeMembers: (input.committeeMembers || []).map(x => x.trim()).filter(Boolean), instructions: (input.instructions || '').trim(),
           createdAt: nowIst(), bookedByAppId: null,
         });
@@ -1418,7 +1453,7 @@ export const StorageService = {
   savePartner(input: Partial<Partner> & { name: string; url: string; category: Partner['category'] }): { success: boolean; error?: string } {
     if (!this.isSuperAdmin()) return { success: false, error: 'Only the platform administrator can do this.' };
     const name = (input.name || '').trim().slice(0, 120);
-    const url = (input.url || '').trim();
+    const url = normalizeUrl(input.url);
     if (!name || !/^https?:\/\//i.test(url)) return { success: false, error: 'Enter a name and a web address starting with https://.' };
     const all = this.getPartners();
     const rec: Partner = {
@@ -1511,6 +1546,7 @@ export const StorageService = {
     setToStorage(STORAGE_KEYS.USERS, this.getAccounts().filter(a => a.id !== userId));
     setToStorage(STORAGE_KEYS.JOB_ALERTS, this.getJobAlerts().filter(a => a.userId !== userId));
     setToStorage(STORAGE_KEYS.TRACKED_JOBS, this.getTrackedJobs().filter(t => t.userId !== userId));
+    setToStorage(STORAGE_KEYS.INTERVIEW_PREP, getFromStorage<PrepStateRecord[]>(STORAGE_KEYS.INTERVIEW_PREP, []).filter(r => r.userId !== userId));
     ctx()?.hooks?.eraseUser?.(userId);
     this.addAuditLog(`Erased all personal data for user ${userId}`, userId, 'DPDP_CONSENT');
   },

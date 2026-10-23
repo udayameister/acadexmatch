@@ -177,7 +177,7 @@ export default function UniversityScraperPage() {
                 <Globe className="w-5 h-5" />
               </div>
               <input
-                type="url"
+                type="text" inputMode="url" autoCapitalize="none" spellCheck={false}
                 value={targetUrl}
                 onChange={(e) => setTargetUrl(e.target.value)}
                 placeholder="https://collegename.ac.in/careers or https://collegename.edu/recruitment"

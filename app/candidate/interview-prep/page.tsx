@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { StorageService } from '@/lib/storage';
 import { useStorageValue } from '@/lib/useAuth';
+import { isHydrated } from '@/lib/clientSync';
 import { usePlan, PremiumBadge, PremiumLock } from '@/components/Premium';
 import {
   PREP_TRACKS, PrepTrack, QuestionCategory, checklistFor, questionsFor, trackFromDesignation, DEMO_TEMPLATE,
@@ -14,14 +15,44 @@ import { CalendarClock, CheckCircle2, Circle, Copy, Lightbulb, Mic, Pause, Play,
 const CATEGORIES: QuestionCategory[] = ['Teaching', 'Research', 'Subject', 'Institution', 'Leadership', 'Personal'];
 const ANSWER_SECONDS = 120;
 
-/** Small per-viewer preferences kept in this browser (checklist ticks, practice notes). */
-function useLocalState<T>(key: string, initial: T): [T, (v: T) => void] {
-  const [v, setV] = useState<T>(initial);
+/**
+ * Practice notes and checklist ticks, saved to the signed-in user's account in the database
+ * (notes are saved shortly after typing stops). Notes kept in this browser by older versions are moved over once.
+ */
+function usePrepState<T extends Record<string, unknown>>(kind: 'notes' | 'ticks', userId: string | null): [T, (v: T) => void] {
+  const stored = useStorageValue<T>(() => StorageService.getPrepState<T>(kind), {} as T);
+  const [local, setLocal] = useState<T | null>(null);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pending = useRef<T | null>(null);
+
+  const flush = () => {
+    if (timer.current) { clearTimeout(timer.current); timer.current = null; }
+    if (pending.current && userId) StorageService.savePrepState(kind, pending.current);
+    pending.current = null;
+  };
+  useEffect(() => flush, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
-    try { const raw = localStorage.getItem(key); if (raw) setV(JSON.parse(raw)); } catch { /* storage unavailable */ }
-  }, [key]);
-  const set = (next: T) => { setV(next); try { localStorage.setItem(key, JSON.stringify(next)); } catch { /* ignore */ } };
-  return [v, set];
+    if (!userId || !isHydrated()) return;
+    const legacyKey = `acad_prep_${kind}_${userId}`;
+    try {
+      const raw = localStorage.getItem(legacyKey);
+      if (raw) {
+        const old = JSON.parse(raw) as T;
+        if (old && Object.keys(old).length && !Object.keys(StorageService.getPrepState(kind)).length) StorageService.savePrepState(kind, old);
+        localStorage.removeItem(legacyKey);
+      }
+    } catch { /* storage unavailable */ }
+  }, [kind, userId, stored]);
+
+  const set = (next: T) => {
+    setLocal(next);
+    if (!userId) return;
+    pending.current = next;
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(flush, kind === 'notes' ? 800 : 0);
+  };
+  return [local ?? stored, set];
 }
 
 function UpcomingInterviews({ apps }: { apps: Application[] }) {
@@ -53,14 +84,14 @@ function UpcomingInterviews({ apps }: { apps: Application[] }) {
   );
 }
 
-function Practice({ track, storageKey }: { track: PrepTrack; storageKey: string }) {
+function Practice({ track, userId }: { track: PrepTrack; userId: string | null }) {
   const [category, setCategory] = useState<QuestionCategory | 'All'>('All');
   const pool = useMemo(() => questionsFor(track).filter(q => category === 'All' || q.category === category), [track, category]);
   const [index, setIndex] = useState(0);
   const [left, setLeft] = useState(ANSWER_SECONDS);
   const [running, setRunning] = useState(false);
   const [showTip, setShowTip] = useState(false);
-  const [notes, setNotes] = useLocalState<Record<string, string>>(storageKey, {});
+  const [notes, setNotes] = usePrepState<Record<string, string>>('notes', userId);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
   const q = pool[index % Math.max(1, pool.length)];
 
@@ -106,7 +137,7 @@ function Practice({ track, storageKey }: { track: PrepTrack; storageKey: string 
         <button className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white border border-slate-200 text-sm font-semibold text-brand-900" onClick={() => next(false)}>Next question →</button>
       </div>
       <label className="block">
-        <span className="text-xs font-semibold text-slate-700">Your notes for this question (saved in this browser)</span>
+        <span className="text-xs font-semibold text-slate-700">Your notes for this question (saved to your account)</span>
         <textarea rows={3} className="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100" value={notes[q.q] || ''} onChange={e => setNotes({ ...notes, [q.q]: e.target.value })} placeholder="Key points, an example to mention, a number to remember…" />
       </label>
     </section>
@@ -118,8 +149,7 @@ export default function InterviewPrepPage() {
   const profile = useStorageValue(() => StorageService.getCandidateProfile(), null);
   const apps = useStorageValue<Application[]>(() => StorageService.getApplications(), []);
   const [track, setTrack] = useState<PrepTrack | null>(null);
-  const uid = user?.id || 'anon';
-  const [ticks, setTicks] = useLocalState<Record<string, boolean>>(`acad_prep_ticks_${uid}`, {});
+  const [ticks, setTicks] = usePrepState<Record<string, boolean>>('ticks', user?.id || null);
   const [copied, setCopied] = useState(false);
 
   const activeTrack: PrepTrack = track || trackFromDesignation(apps.find(a => a.interviewSlot)?.jobTitle || profile?.currentDesignation);
@@ -183,7 +213,7 @@ export default function InterviewPrepPage() {
             </section>
 
             <div className="lg:col-span-7 space-y-6">
-              <Practice track={activeTrack} storageKey={`acad_prep_notes_${uid}`} />
+              <Practice track={activeTrack} userId={user?.id || null} />
 
               <section className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-3">
                 <div className="flex items-center justify-between">

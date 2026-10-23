@@ -152,7 +152,7 @@ export default function InterviewScheduleModal({
                 <LinkIcon className="w-3.5 h-3.5 text-brand-600" /> Meeting Link:
               </label>
               <input
-                type="url"
+                type="text" inputMode="url" autoCapitalize="none" spellCheck={false}
                 value={meetingLink}
                 onChange={(e) => setMeetingLink(e.target.value)}
                 placeholder="https://"

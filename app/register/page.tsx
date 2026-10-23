@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { StorageService, institutionDomain } from '@/lib/storage';
 import { homePathForRole } from '@/lib/useAuth';
 import { Institute, UserRole } from '@/types';
-import { GraduationCap, Building2, ShieldCheck, ArrowRight, CheckCircle2, Crown } from 'lucide-react';
+import { GraduationCap, Building2, ArrowRight, CheckCircle2, Crown } from 'lucide-react';
 
 const inputCls =
   'w-full bg-white border border-slate-300 rounded-xl px-3.5 py-3 text-sm text-slate-900 focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100';
@@ -22,18 +22,22 @@ export default function RegisterPage() {
   const [instituteMode, setInstituteMode] = useState<'existing' | 'new'>('existing');
   const [instituteId, setInstituteId] = useState('');
   const [newInst, setNewInst] = useState({ name: '', aisheCode: '', city: '', state: '', website: '' });
-  const [canCreateAdmin, setCanCreateAdmin] = useState(false);
   const [consent, setConsent] = useState(false);
   const [agreePlan, setAgreePlan] = useState(false);
   const planSettings = StorageService.getPlanSettings();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setErrorState] = useState<string | null>(null);
+  const errorRef = useRef<HTMLDivElement>(null);
+  // Show the problem where the person is looking (next to the button) and scroll it into view.
+  const setError = (msg: string | null) => {
+    setErrorState(msg);
+    if (msg) setTimeout(() => errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 0);
+  };
 
   useEffect(() => {
     const user = StorageService.getCurrentUser();
     if (user) router.replace(homePathForRole(user.role));
     setInstitutes(StorageService.getInstitutes().filter(i => i.verificationStatus !== 'rejected'));
-    setCanCreateAdmin(!StorageService.hasSuperAdmin());
   }, [router]);
 
   const selectedInstitute = useMemo(() => institutes.find(i => i.id === instituteId), [institutes, instituteId]);
@@ -54,18 +58,27 @@ export default function RegisterPage() {
       setError('Please accept the data processing terms to continue.');
       return;
     }
+    if (role === 'institute_admin' && instituteMode === 'existing' && !instituteId) {
+      setError('Please select your institute, or choose “Register a new institute”.');
+      return;
+    }
     setIsSubmitting(true);
-    const res = await StorageService.register({
+    let res;
+    try {
+      res = await StorageService.register({
       name,
       email,
       password,
       role,
       instituteId: role === 'institute_admin' && instituteMode === 'existing' ? instituteId : undefined,
       newInstitute: role === 'institute_admin' && instituteMode === 'new' ? newInst : undefined,
-    });
+      });
+    } catch {
+      res = { success: false as const, error: 'Could not reach the server. Check your internet connection and try again.' };
+    }
     setIsSubmitting(false);
     if (!res.success) {
-      setError(res.error);
+      setError(res.error || 'Registration failed. Please check the details and try again.');
       return;
     }
     router.push(res.user.role === 'candidate' ? '/candidate/profile?welcome=1' : homePathForRole(res.user.role));
@@ -74,7 +87,6 @@ export default function RegisterPage() {
   const roleOptions: { key: UserRole; label: string; desc: string; icon: typeof GraduationCap }[] = [
     { key: 'candidate', label: 'Faculty candidate', desc: 'Find and apply for academic positions', icon: GraduationCap },
     { key: 'institute_admin', label: 'Institution', desc: 'Post vacancies and run selections', icon: Building2 },
-    ...(canCreateAdmin ? [{ key: 'super_admin' as UserRole, label: 'Platform admin', desc: 'One-time setup of the administrator', icon: ShieldCheck }] : []),
   ];
 
   return (
@@ -91,7 +103,7 @@ export default function RegisterPage() {
         </div>
 
         <div className="p-6 sm:p-8 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-6">
-          <div className={`grid gap-3 ${roleOptions.length === 3 ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}>
+          <div className={`grid gap-3 ${'sm:grid-cols-2'}`}>
             {roleOptions.map(opt => {
               const Icon = opt.icon;
               const active = role === opt.key;
@@ -111,8 +123,6 @@ export default function RegisterPage() {
               );
             })}
           </div>
-
-          {error && <div className="p-3 rounded-xl bg-crimson-50 border border-crimson-100 text-crimson-700 text-sm">{error}</div>}
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="grid sm:grid-cols-2 gap-4">
@@ -166,7 +176,7 @@ export default function RegisterPage() {
                   <div className="grid sm:grid-cols-2 gap-3">
                     <input required placeholder="Institute name" value={newInst.name} onChange={e => setNewInst({ ...newInst, name: e.target.value })} className={`${inputCls} sm:col-span-2`} />
                     <input required placeholder="AISHE code (e.g. C-12345)" value={newInst.aisheCode} onChange={e => setNewInst({ ...newInst, aisheCode: e.target.value })} className={`${inputCls} font-mono`} />
-                    <input type="url" placeholder="Website (https://…)" value={newInst.website} onChange={e => setNewInst({ ...newInst, website: e.target.value })} className={inputCls} />
+                    <input type="text" inputMode="url" autoCapitalize="none" spellCheck={false} placeholder="Website (e.g. www.college.ac.in)" value={newInst.website} onChange={e => setNewInst({ ...newInst, website: e.target.value })} className={inputCls} />
                     <input required placeholder="City" value={newInst.city} onChange={e => setNewInst({ ...newInst, city: e.target.value })} className={inputCls} />
                     <input required placeholder="State" value={newInst.state} onChange={e => setNewInst({ ...newInst, state: e.target.value })} className={inputCls} />
                     <p className="sm:col-span-2 text-xs text-slate-500">
@@ -213,6 +223,8 @@ export default function RegisterPage() {
                 I consent to my data being processed for academic recruitment, including automated profile matching, as described under the DPDP Act, 2023. I can withdraw consent at any time.
               </span>
             </label>
+
+            {error && <div ref={errorRef} role="alert" className="p-3 rounded-xl bg-crimson-50 border border-crimson-100 text-crimson-700 text-sm">{error}</div>}
 
             <button
               type="submit"

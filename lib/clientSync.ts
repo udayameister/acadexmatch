@@ -115,7 +115,7 @@ const MUTATIONS = [
   'trackJob', 'untrackJob', 'addExternalTrackedJob', 'updateTrackedJob', 'removeTrackedJob',
   'addInterviewSlots', 'deleteInterviewSlot', 'inviteToBookSlots', 'bookInterviewSlot', 'cancelInterviewBooking',
   'makeOffer', 'respondToOffer', 'respondTalentInvite',
-  'saveAnnouncement', 'setAnnouncementActive', 'deleteAnnouncement', 'setCandidateVerification', 'savePartner', 'deletePartner',
+  'saveAnnouncement', 'setAnnouncementActive', 'deleteAnnouncement', 'setCandidateVerification', 'savePartner', 'deletePartner', 'savePrepState',
 ] as const;
 
 /** Actions only the server can do (they need password hashes or the whole database). */
