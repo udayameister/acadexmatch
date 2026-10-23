@@ -1,5 +1,4 @@
-import { promises as fs } from 'fs';
-import path from 'path';
+import { readJson, writeJson, putBlob, deleteBlob } from './persist';
 
 /* "Our Customers" logos shown on the home page. Stored on the server so every visitor sees them:
    data/customers.json (list) and data/customer-logos/<id>.<ext> (images). */
@@ -15,9 +14,8 @@ export interface Customer {
   addedAt: string;
 }
 
-const DIR = path.join(process.cwd(), 'data');
-const FILE = path.join(DIR, 'customers.json');
-export const LOGO_DIR = path.join(DIR, 'customer-logos');
+/** Blob id of a customer logo (stored in the database, or data/customer-logos locally). */
+export const logoBlobId = (file: string) => `customer-logos/${file.replace(/[^A-Za-z0-9._-]/g, '')}`;
 export const MAX_LOGO_BYTES = 1024 * 1024;
 export const LOGO_TYPES: Record<string, string> = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp' };
 
@@ -29,20 +27,13 @@ function locked<T>(fn: () => Promise<T>): Promise<T> {
 }
 
 async function read(): Promise<Customer[]> {
-  try {
-    const list = JSON.parse(await fs.readFile(FILE, 'utf8')) as Customer[];
-    return Array.isArray(list) ? list.sort((a, b) => a.order - b.order) : [];
-  } catch {
-    return [];
-  }
+  const list = await readJson<Customer[]>('customers');
+  return Array.isArray(list) ? list.sort((a, b) => a.order - b.order) : [];
 }
 
 async function write(list: Customer[]): Promise<void> {
-  await fs.mkdir(DIR, { recursive: true });
   list.forEach((c, i) => { c.order = i; });
-  const tmp = `${FILE}.tmp`;
-  await fs.writeFile(tmp, JSON.stringify(list, null, 2), 'utf8');
-  await fs.rename(tmp, FILE);
+  await writeJson('customers', list);
 }
 
 export function listCustomers(): Promise<Customer[]> {
@@ -65,8 +56,7 @@ export function addCustomer(name: string, website: string | undefined, bytes: Bu
     const list = await read();
     const id = `cust-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
     const logoFile = `${id}.${LOGO_TYPES[mimeType]}`;
-    await fs.mkdir(LOGO_DIR, { recursive: true });
-    await fs.writeFile(path.join(LOGO_DIR, logoFile), bytes);
+    await putBlob(logoBlobId(logoFile), mimeType, bytes);
     const c: Customer = { id, name: name.trim().slice(0, 120), website, logoFile, mimeType, visible: true, order: list.length, addedAt: new Date().toISOString().slice(0, 10) };
     list.push(c);
     await write(list);
@@ -84,12 +74,11 @@ export function updateCustomer(id: string, patch: { name?: string; website?: str
     if (patch.website !== undefined) c.website = cleanWebsite(patch.website);
     if (typeof patch.visible === 'boolean') c.visible = patch.visible;
     if (patch.logo) {
-      const old = path.join(LOGO_DIR, c.logoFile);
+      const old = logoBlobId(c.logoFile);
       c.logoFile = `${c.id}-${Date.now().toString(36)}.${LOGO_TYPES[patch.logo.mimeType]}`;
       c.mimeType = patch.logo.mimeType;
-      await fs.mkdir(LOGO_DIR, { recursive: true });
-      await fs.writeFile(path.join(LOGO_DIR, c.logoFile), patch.logo.bytes);
-      await fs.unlink(old).catch(() => undefined);
+      await putBlob(logoBlobId(c.logoFile), c.mimeType, patch.logo.bytes);
+      await deleteBlob(old).catch(() => undefined);
     }
     if (patch.move === 'up' && i > 0) [list[i - 1], list[i]] = [list[i], list[i - 1]];
     if (patch.move === 'down' && i < list.length - 1) [list[i + 1], list[i]] = [list[i], list[i + 1]];
@@ -102,7 +91,7 @@ export function deleteCustomer(id: string): Promise<Customer[]> {
   return locked(async () => {
     const list = await read();
     const c = list.find(x => x.id === id);
-    if (c) await fs.unlink(path.join(LOGO_DIR, c.logoFile)).catch(() => undefined);
+    if (c) await deleteBlob(logoBlobId(c.logoFile)).catch(() => undefined);
     const next = list.filter(x => x.id !== id);
     await write(next);
     return next;

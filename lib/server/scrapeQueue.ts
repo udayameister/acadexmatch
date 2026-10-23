@@ -1,5 +1,4 @@
-import { promises as fs } from 'fs';
-import path from 'path';
+import { readJson, writeJson } from './persist';
 import type { Job } from '@/types';
 import { normaliseScrapeUrl, runScraper } from './scrapeEngine';
 
@@ -63,7 +62,6 @@ export interface PipelineStore {
   running?: boolean;
 }
 
-const FILE = path.join(process.cwd(), 'data', 'scrape-pipeline.json');
 const MAX_RUNS = 60;
 const MAX_DECIDED = 1000;
 
@@ -97,8 +95,8 @@ const DEFAULT_STORE: PipelineStore = {
 };
 
 async function read(): Promise<PipelineStore> {
-  try {
-    const s = JSON.parse(await fs.readFile(FILE, 'utf8')) as PipelineStore;
+  const s = await readJson<PipelineStore>('scrape-pipeline');
+  if (s) {
     return {
       settings: { ...DEFAULT_STORE.settings, ...(s.settings || {}) },
       sources: s.sources || [],
@@ -106,20 +104,16 @@ async function read(): Promise<PipelineStore> {
       runs: s.runs || [],
       running: s.running,
     };
-  } catch {
-    return JSON.parse(JSON.stringify(DEFAULT_STORE));
   }
+  return JSON.parse(JSON.stringify(DEFAULT_STORE));
 }
 
 async function write(store: PipelineStore): Promise<void> {
-  await fs.mkdir(path.dirname(FILE), { recursive: true });
   const pending = store.queue.filter(q => q.status === 'pending');
   const decided = store.queue.filter(q => q.status !== 'pending').slice(0, MAX_DECIDED);
   store.queue = [...pending, ...decided];
   store.runs = store.runs.slice(0, MAX_RUNS);
-  const tmp = `${FILE}.tmp`;
-  await fs.writeFile(tmp, JSON.stringify(store, null, 2), 'utf8');
-  await fs.rename(tmp, FILE);
+  await writeJson('scrape-pipeline', store);
 }
 
 export function getStore(): Promise<PipelineStore> {

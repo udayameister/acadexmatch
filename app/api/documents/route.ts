@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { promises as fs } from 'fs';
 import path from 'path';
-import { withDb, accountOf, canViewDocuments, DOCUMENTS_KEY, DOC_DIR, StoredDocument } from '@/lib/server/db';
+import { withDb, accountOf, canViewDocuments, DOCUMENTS_KEY, docBlobId, StoredDocument } from '@/lib/server/db';
+import { putBlob, deleteBlob } from '@/lib/server/persist';
 import { currentUserId, sameOrigin } from '@/lib/server/auth';
 import { STORAGE_KEYS } from '@/lib/storage';
 
@@ -73,14 +73,13 @@ export async function POST(req: NextRequest) {
     let docs = ((db[DOCUMENTS_KEY] as StoredDocument[]) || []).slice();
     if (category === 'photo') {
       for (const old of docs.filter(d => d.userId === owner && d.category === 'photo')) {
-        await fs.unlink(path.join(DOC_DIR, path.basename(owner), path.basename(old.file))).catch(() => undefined);
+        await deleteBlob(docBlobId(owner, old.file)).catch(() => undefined);
       }
       docs = docs.filter(d => !(d.userId === owner && d.category === 'photo'));
     }
     const id = `doc-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
     const fileName = `${id}.${EXT[mime]}`;
-    await fs.mkdir(path.join(DOC_DIR, path.basename(owner)), { recursive: true });
-    await fs.writeFile(path.join(DOC_DIR, path.basename(owner), fileName), bytes);
+    await putBlob(docBlobId(owner, fileName), mime, bytes);
     const doc: StoredDocument = {
       id, userId: owner, category, label: String(form.get('label') || file.name).trim().slice(0, 120) || file.name,
       fileName: path.basename(file.name).slice(0, 150), mimeType: mime, size: bytes.length, uploadedAt: new Date().toISOString(), file: fileName,
@@ -119,7 +118,7 @@ export async function DELETE(req: NextRequest) {
     const docs = (db[DOCUMENTS_KEY] as StoredDocument[]) || [];
     const d = docs.find(x => x.id === id);
     if (!actor || !d || (actor.id !== d.userId && actor.role !== 'super_admin')) return false;
-    await fs.unlink(path.join(DOC_DIR, path.basename(d.userId), path.basename(d.file))).catch(() => undefined);
+    await deleteBlob(docBlobId(d.userId, d.file)).catch(() => undefined);
     c.set(DOCUMENTS_KEY, docs.filter(x => x.id !== d.id));
     return true;
   });

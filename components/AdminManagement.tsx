@@ -919,6 +919,16 @@ export function ApplicationsPanel() {
 
 // ─────────────────────────────────────────────────────────── Site & data
 
+function StorageStatusLine() {
+  const [st, setSt] = useState<{ backend: 'mysql' | 'file'; ok: boolean; error?: string; rows?: number; blobs?: number } | null>(null);
+  useEffect(() => { fetch('/api/admin/storage', { cache: 'no-store', credentials: 'same-origin' }).then(r => (r.ok ? r.json() : null)).then(setSt).catch(() => setSt(null)); }, []);
+  if (!st) return null;
+  if (st.backend === 'file') return <p className="mt-2 text-sm text-gold-800 bg-gold-50 border border-gold-200 rounded-lg px-3 py-2">Data is stored in files on this computer (<code>data</code> folder). This is normal for local testing; on the hosting server the MySQL database is used automatically.</p>;
+  return st.ok
+    ? <p className="mt-2 text-sm text-emerald-800 bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2">Data is stored safely in the MySQL database ({st.rows} data records, {st.blobs} uploaded files). Updating the site does not affect it.</p>
+    : <p className="mt-2 text-sm text-crimson-700 bg-crimson-50 border border-crimson-100 rounded-lg px-3 py-2">Cannot reach the database: {st.error}</p>;
+}
+
 export function SitePanel() {
   const [refresh, setRefresh] = useState(0);
   const stats = useVisitStats(false);
@@ -1033,7 +1043,8 @@ export function SitePanel() {
       <section className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-5">
         <div>
           <h3 className="font-bold text-slate-900">Backup &amp; restore</h3>
-          <p className="text-xs text-slate-500 mt-1">All platform data is stored on the server in <code>data/db.json</code>, with documents in <code>data/documents</code>. Download a backup regularly; to back up everything, also copy the whole <code>data</code> folder.</p>
+          <StorageStatusLine />
+          <p className="text-xs text-slate-500 mt-1">Download a backup regularly as an extra copy. A backup contains every account, vacancy, application and setting (uploaded document files stay in the database).</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <button className={btnPrimary} onClick={exportBackup}><Download className="w-4 h-4" /> Download backup</button>

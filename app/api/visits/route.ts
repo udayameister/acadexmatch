@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin, sameOrigin } from '@/lib/server/auth';
-import { promises as fs } from 'fs';
-import path from 'path';
+import { readJson, writeJson } from '@/lib/server/persist';
 
 // Site-wide visit counter stored on the server in data/visits.json.
 // One visit = one browser session (the client only posts once per session).
@@ -14,7 +13,6 @@ interface VisitStore {
   days: Record<string, number>;
 }
 
-const FILE = path.join(process.cwd(), 'data', 'visits.json');
 let queue: Promise<unknown> = Promise.resolve();
 
 function todayIst(): string {
@@ -22,20 +20,16 @@ function todayIst(): string {
 }
 
 async function read(): Promise<VisitStore> {
-  try {
-    const parsed = JSON.parse(await fs.readFile(FILE, 'utf8')) as VisitStore;
-    return { total: Number(parsed.total) || 0, since: parsed.since || todayIst(), days: parsed.days || {} };
-  } catch {
-    return { total: 0, since: todayIst(), days: {} };
-  }
+  const parsed = await readJson<VisitStore>('visits');
+  if (!parsed) return { total: 0, since: todayIst(), days: {} };
+  return { total: Number(parsed.total) || 0, since: parsed.since || todayIst(), days: parsed.days || {} };
 }
 
 async function write(store: VisitStore): Promise<void> {
-  await fs.mkdir(path.dirname(FILE), { recursive: true });
   // Keep the last 400 days of daily counts.
   const keys = Object.keys(store.days).sort();
   for (const k of keys.slice(0, Math.max(0, keys.length - 400))) delete store.days[k];
-  await fs.writeFile(FILE, JSON.stringify(store, null, 2), 'utf8');
+  await writeJson('visits', store);
 }
 
 /** Serialises file updates so concurrent visits are not lost. */

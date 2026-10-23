@@ -1,6 +1,4 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
-import { promises as fs, statSync } from 'fs';
-import path from 'path';
 import { randomBytes } from 'crypto';
 import {
   StorageService, STORAGE_KEYS, DEFAULT_ADMIN, StoreContext, setStoreContextProvider, toPublicUser,
@@ -8,27 +6,26 @@ import {
 import { INITIAL_INSTITUTES, INITIAL_JOBS } from '@/lib/data';
 import type { Announcement, Application, CandidateProfile, InterviewSlotOffer, Job, JobAlert, Partner, TalentInvite, User, UserAccount } from '@/types';
 import { isPremiumUser } from '@/lib/storage';
+import { openStore, deleteBlobPrefix, DATA_DIR as PERSIST_DATA_DIR, type Db } from './persist';
 
 /*
- * The shared AcadeXMatch database: one JSON file (data/db.json) holding every collection under the
- * same keys the app has always used. All reads and writes go through this module, one at a time,
- * so concurrent requests never overwrite each other. Swap this module for PostgreSQL later without
- * touching the pages.
+ * The shared AcadeXMatch database. Every collection (users, jobs, applications, ...) is kept under
+ * the same keys the app has always used. In production the data lives in the hosting provider's
+ * MySQL database (see persist.ts), outside the app's code, so deploying a new version never loses
+ * it; locally it falls back to data/db.json. All reads and writes go through withDb, one at a time.
  */
 
-export const DATA_DIR = path.join(process.cwd(), 'data');
-const DB_FILE = path.join(DATA_DIR, 'db.json');
-export const DOC_DIR = path.join(DATA_DIR, 'documents');
+export const DATA_DIR = PERSIST_DATA_DIR;
 export const DOCUMENTS_KEY = 'acad_documents_v3';
+/** Blob id of an uploaded document. */
+export const docBlobId = (userId: string, file: string) => `documents/${userId.replace(/[^A-Za-z0-9_-]/g, '')}/${file.replace(/[^A-Za-z0-9._-]/g, '')}`;
 const SESSIONS_KEY = '_sessions';
 const SESSION_DAYS = 30;
 export const SESSION_COOKIE = 'acad_session';
 
-type Db = Record<string, unknown>;
 interface Session { userId: string; createdAt: number; expiresAt: number }
 
 const g = globalThis as unknown as {
-  __acadDb?: { data: Db; mtimeMs: number };
   __acadChain?: Promise<unknown>;
   __acadAls?: AsyncLocalStorage<StoreContext>;
 };
@@ -55,50 +52,36 @@ function seed(db: Db): boolean {
   return changed;
 }
 
-async function load(): Promise<Db> {
-  let mtimeMs = 0;
-  try { mtimeMs = statSync(DB_FILE).mtimeMs; } catch { /* no file yet */ }
-  if (g.__acadDb && g.__acadDb.mtimeMs === mtimeMs && mtimeMs !== 0) return g.__acadDb.data;
-  let data: Db = {};
-  try { data = JSON.parse(await fs.readFile(DB_FILE, 'utf8')); } catch { data = {}; }
-  const changed = seed(data);
-  g.__acadDb = { data, mtimeMs };
-  if (changed) await save(data);
-  return data;
-}
-
-async function save(data: Db): Promise<void> {
-  await fs.mkdir(DATA_DIR, { recursive: true });
-  const tmp = `${DB_FILE}.tmp`;
-  await fs.writeFile(tmp, JSON.stringify(data), 'utf8');
-  await fs.rename(tmp, DB_FILE);
-  g.__acadDb = { data, mtimeMs: statSync(DB_FILE).mtimeMs };
-}
-
-/** Runs fn with StorageService bound to the database as `userId`; saves if anything changed. */
+/** Runs fn with StorageService bound to the database as `userId`; saves whatever changed. */
 export function withDb<T>(userId: string | null, fn: (db: Db, c: StoreContext) => T | Promise<T>, opts: { seed?: string; write?: boolean } = {}): Promise<T> {
   return lock(async () => {
-    const db = await load();
-    let dirty = false;
-    const c: StoreContext = {
-      get: key => db[key],
-      set: (key, value) => { if (key === STORAGE_KEYS.SESSION) return; db[key] = value; dirty = true; },
-      userId,
-      idSeed: opts.seed,
-      idCounter: 0,
-      hooks: {
-        eraseUser: id => { removeUserDocuments(db, id); dirty = true; },
-        resetAll: () => {
-          for (const k of Object.keys(db)) if (k !== SESSIONS_KEY) delete db[k];
-          fs.rm(DOC_DIR, { recursive: true, force: true }).catch(() => undefined);
-          seed(db);
-          dirty = true;
+    const store = await openStore();
+    try {
+      const db = store.data;
+      let dirty = false;
+      if (seed(db)) dirty = true;
+      const c: StoreContext = {
+        get: key => db[key],
+        set: (key, value) => { if (key === STORAGE_KEYS.SESSION) return; db[key] = value; dirty = true; },
+        userId,
+        idSeed: opts.seed,
+        idCounter: 0,
+        hooks: {
+          eraseUser: id => { removeUserDocuments(db, id); dirty = true; },
+          resetAll: () => {
+            for (const k of Object.keys(db)) if (k !== SESSIONS_KEY) delete db[k];
+            deleteBlobPrefix('documents/').catch(() => undefined);
+            seed(db);
+            dirty = true;
+          },
         },
-      },
-    };
-    const result = await als.run(c, () => fn(db, c));
-    if (dirty || opts.write) await save(db);
-    return result;
+      };
+      const result = await als.run(c, () => fn(db, c));
+      if (dirty || opts.write) await store.save();
+      return result;
+    } finally {
+      await store.close();
+    }
   });
 }
 
@@ -153,7 +136,7 @@ export interface StoredDocument {
 function removeUserDocuments(db: Db, userId: string): void {
   const docs = (db[DOCUMENTS_KEY] as StoredDocument[]) || [];
   db[DOCUMENTS_KEY] = docs.filter(d => d.userId !== userId);
-  fs.rm(path.join(DOC_DIR, path.basename(userId)), { recursive: true, force: true }).catch(() => undefined);
+  deleteBlobPrefix(`documents/${userId.replace(/[^A-Za-z0-9_-]/g, '')}/`).catch(() => undefined);
 }
 
 /** May `viewer` see `ownerId`'s documents? Owner, platform admin, or staff of an institute the owner applied to. */

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { promises as fs } from 'fs';
-import path from 'path';
-import { withDb, accountOf, canViewDocuments, DOCUMENTS_KEY, DOC_DIR, StoredDocument } from '@/lib/server/db';
+import { withDb, accountOf, canViewDocuments, DOCUMENTS_KEY, docBlobId, StoredDocument } from '@/lib/server/db';
+import { getBlob } from '@/lib/server/persist';
 import { currentUserId } from '@/lib/server/auth';
 
 export const runtime = 'nodejs';
@@ -17,7 +16,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   });
   if (!doc) return new NextResponse('Not found', { status: 404 });
   try {
-    const bytes = await fs.readFile(path.join(DOC_DIR, path.basename(doc.userId), path.basename(doc.file)));
+    const bytes = await getBlob(docBlobId(doc.userId, doc.file));
+    if (!bytes) return new NextResponse('Not found', { status: 404 });
     const download = req.nextUrl.searchParams.get('download') === '1';
     return new NextResponse(new Uint8Array(bytes), {
       headers: {

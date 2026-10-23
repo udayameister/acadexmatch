@@ -2,6 +2,16 @@
 # copy the lines below into it and fill in your values, then restart the app (npm run dev / npm start).
 # .env.local is private: never share or commit it.
 
+# ---- Database ----
+# On GoDaddy Node.js Hosting these are filled in automatically for the app's MySQL database
+# (DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD) — you do not need to add them there.
+# Locally, leave them out to keep data in the "data" folder, or point them at your own MySQL server.
+# DB_HOST=localhost
+# DB_PORT=3306
+# DB_NAME=acadexmatch
+# DB_USER=acadexmatch
+# DB_PASSWORD=your-password
+
 # Public address of the site, used in links inside emails.
 APP_URL=http://localhost:3000
 
