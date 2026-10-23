@@ -1,5 +1,6 @@
 'use client';
 
+import { FounderSection } from '@/components/Founder';
 import { promotionRank } from '@/components/Promotions';
 import React, { useMemo, useState } from 'react';
 import Link from 'next/link';
@@ -434,6 +435,8 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      <FounderSection />
 
       {/* ───────────────────────── FAQ ───────────────────────── */}
       <section id="faq" className="scroll-mt-20 max-w-3xl mx-auto px-4 sm:px-8 py-24">

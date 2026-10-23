@@ -22,6 +22,7 @@ const LINKS: Record<'public' | UserRole, NavLinkItem[]> = {
     { href: '/#how-it-works', label: 'How it works' },
     { href: '/premium', label: 'Plans' },
     { href: '/#for-institutions', label: 'For Institutions' },
+    { href: '/about', label: 'About' },
   ],
   candidate: [
     { href: '/candidate/dashboard', label: 'Dashboard' },

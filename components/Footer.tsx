@@ -63,6 +63,7 @@ export default function Footer() {
     {
       title: 'Platform',
       links: [
+        { href: '/about', label: 'About us' },
         { href: '/#how-it-works', label: 'How it works' },
         { href: '/#faq', label: 'FAQ' },
         { href: '/premium', label: 'Plans & Premium' },
