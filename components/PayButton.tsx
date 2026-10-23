@@ -69,7 +69,13 @@ export default function PayButton({ product, label, description, className = '',
         },
         modal: { ondismiss: () => setBusy(false) },
       });
-      rzp.on('payment.failed', () => { setMsg({ ok: false, text: 'The payment failed or was declined. No money was taken; please try again.' }); setBusy(false); });
+      rzp.on('payment.failed', (r: unknown) => {
+        const resp = r as { error?: { description?: string } } | undefined;
+        // Record why it failed so the transaction history is complete.
+        fetch('/api/payments/verify', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ razorpay_order_id: order.orderId, failed: true, reason: resp?.error?.description }) }).catch(() => undefined);
+        setMsg({ ok: false, text: `The payment failed${resp?.error?.description ? ` (${resp.error.description})` : ''}. No money was taken; please try again.` });
+        setBusy(false);
+      });
       rzp.open();
     } catch (e) {
       setMsg({ ok: false, text: (e as Error).message });

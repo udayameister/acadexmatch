@@ -93,6 +93,38 @@ export interface Payment {
   /** Plan end date after activation. */
   activeUntil?: string;
   testMode?: boolean;
+  /** 'razorpay' (online checkout, the default) or 'offline' (bank transfer, UPI, cheque… recorded by the admin). */
+  source?: 'razorpay' | 'offline';
+  /** How the buyer paid, e.g. "upi", "card", "netbanking", "wallet", "bank_transfer". */
+  method?: string;
+  /** Readable detail of the method, e.g. "Visa card ····4242", "HDFC net banking", "UTR 1234". */
+  methodDetail?: string;
+  /** Razorpay charges for this payment (rupees), and the GST on those charges. */
+  gatewayFee?: number;
+  gatewayTax?: number;
+  /** Why the payment failed (from Razorpay). */
+  failureReason?: string;
+  /** Money returned to the buyer. The payment stays 'paid'; these record the refunds. */
+  refunds?: PaymentRefund[];
+  refundedAmount?: number;
+  /** Everything that happened to this payment, oldest first. */
+  events?: PaymentEvent[];
+}
+
+export interface PaymentRefund {
+  id: string;
+  amount: number;
+  at: string;
+  status: 'processed' | 'pending' | 'failed';
+  note?: string;
+  /** Refund made outside Razorpay and recorded by the admin. */
+  manual?: boolean;
+}
+
+export interface PaymentEvent {
+  at: string;
+  type: 'created' | 'paid' | 'failed' | 'refund' | 'access_ended' | 'note';
+  note?: string;
 }
 
 export interface InstituteSubscription {

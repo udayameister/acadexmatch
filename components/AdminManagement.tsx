@@ -16,7 +16,7 @@ import {
   PlanSettings, UpgradeRequest, Payment,
   PremiumPlanOption,
 } from '@/types';
-import PaymentsList, { inr } from '@/components/PaymentsList';
+import TransactionsLedger from '@/components/TransactionsLedger';
 import { useOnlinePayment } from '@/components/PayButton';
 import {
   Plus, Pencil, Trash2, KeyRound, Search, X, ExternalLink, Download, Upload, RotateCcw, Eye, Star, AlertTriangle, FileCheck2,
@@ -1090,12 +1090,7 @@ export function PremiumPanel() {
   const [subFor, setSubFor] = useState<Institute | null>(null);
   const instPending = institutes.filter(i => i.subscription?.status === 'pending');
   const instActive = institutes.filter(i => isInstituteSubscribed(i));
-  const payments = useStorageValue<Payment[]>(() => StorageService.getPayments(), []);
-  const paid = payments.filter(p => p.status === 'paid');
   const online = useOnlinePayment();
-  const month = new Date().toISOString().slice(0, 7);
-  const revenueMonth = paid.filter(p => (p.paidAt || '').startsWith(month)).reduce((a, p) => a + p.amount, 0);
-  const revenueAll = paid.reduce((a, p) => a + p.amount, 0);
 
   const resolve = (r: UpgradeRequest, approve: boolean) => {
     if (approve && !confirm(`Activate Premium for ${r.userName} for ${saved.premiumDurationMonths} months? Confirm payment has been received.`)) return;
@@ -1145,7 +1140,7 @@ export function PremiumPanel() {
 
       <section className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h3 className="font-bold text-slate-900">Online payments (Razorpay)</h3>
+          <h3 className="font-bold text-slate-900">Payments &amp; transactions</h3>
           {online && (
             <div className="flex flex-wrap gap-2 text-xs font-semibold">
               <span className={`px-2.5 py-1 rounded-full border ${online.configured ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-gold-50 text-gold-900 border-gold-200'}`}>{online.configured ? 'Connected' : 'Not set up — using manual requests'}</span>
@@ -1154,13 +1149,8 @@ export function PremiumPanel() {
             </div>
           )}
         </div>
-        {online && !online.configured && <p className="text-xs text-slate-500">Add RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET to .env.local (see env-settings-example.txt) and restart the site to take payments online.</p>}
-        <div className="grid grid-cols-3 gap-3 text-sm">
-          <div className="p-3 rounded-xl bg-ivory border border-slate-200"><div className="text-xs text-slate-500">This month</div><div className="text-xl font-bold text-slate-900">{inr(revenueMonth)}</div></div>
-          <div className="p-3 rounded-xl bg-ivory border border-slate-200"><div className="text-xs text-slate-500">All time</div><div className="text-xl font-bold text-slate-900">{inr(revenueAll)}</div></div>
-          <div className="p-3 rounded-xl bg-ivory border border-slate-200"><div className="text-xs text-slate-500">Paid invoices</div><div className="text-xl font-bold text-slate-900">{paid.length}</div></div>
-        </div>
-        <PaymentsList payments={payments.filter(p => p.status !== 'created')} showPayer emptyText="No online payments yet." />
+        {online && !online.configured && <p className="text-xs text-slate-500">To take payments online, add RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET (and RAZORPAY_WEBHOOK_SECRET) as secrets in your hosting — or in .env.local on your computer — and restart the site. Offline payments can be recorded below meanwhile.</p>}
+        <TransactionsLedger online={!!online?.configured} />
       </section>
 
       <section className="space-y-3">

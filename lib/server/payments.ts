@@ -3,7 +3,7 @@ import { STORAGE_KEYS, DEFAULT_PLAN_SETTINGS, DEFAULT_PROMOTION, StorageService,
 import { withDb, accountOf } from './db';
 import { emailLayout, sendMail, appUrl } from './mailer';
 import { productLabel } from '@/lib/paymentLabel';
-import type { Institute, Job, Payment, PaymentProduct, PlanSettings, PremiumPlanOption, UserAccount } from '@/types';
+import type { Institute, Job, Payment, PaymentEvent, PaymentProduct, PaymentRefund, PlanSettings, PremiumPlanOption, UserAccount } from '@/types';
 
 /*
  * Razorpay payments. Keys come from .env.local (RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET; optional
@@ -100,7 +100,7 @@ export async function createOrder(userId: string, product: PaymentProduct, opts:
     amount: prep.amount, currency: 'INR', months: prep.months, status: 'created',
     plan: 'plan' in prep ? prep.plan : undefined,
     jobId: 'jobId' in prep ? prep.jobId : undefined, jobTitle: 'jobTitle' in prep ? prep.jobTitle : undefined, days: 'days' in prep ? prep.days : undefined,
-    razorpayOrderId: order.id, createdAt: new Date().toISOString(),
+    razorpayOrderId: order.id, createdAt: new Date().toISOString(), source: 'razorpay', events: [evt('created', `Order ${order.id}`)],
     testMode: (process.env.RAZORPAY_KEY_ID || '').startsWith('rzp_test_'),
   };
   await withDb(userId, (db, c) => c.set(STORAGE_KEYS.PAYMENTS, [payment, ...((db[STORAGE_KEYS.PAYMENTS] as Payment[]) || [])]));
@@ -125,62 +125,168 @@ export function webhookSignatureValid(rawBody: string, signature: string): boole
   return safeEqualHex(expected, signature || '');
 }
 
+/** One line in a payment's history. */
+function evt(type: PaymentEvent['type'], note?: string): PaymentEvent {
+  return { at: new Date().toISOString(), type, ...(note ? { note } : {}) };
+}
+
+/** Calls the Razorpay API with the account keys. */
+async function rzp<T = Record<string, unknown>>(path: string, init: { method?: string; body?: unknown } = {}): Promise<{ ok: boolean; status: number; data: T & { error?: { description?: string } } }> {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 15000);
+  try {
+    const r = await fetch(`${API()}${path}`, {
+      method: init.method || 'GET',
+      signal: ctrl.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Basic ${Buffer.from(`${process.env.RAZORPAY_KEY_ID}:${process.env.RAZORPAY_KEY_SECRET}`).toString('base64')}`,
+      },
+      body: init.body === undefined ? undefined : JSON.stringify(init.body),
+    });
+    const data = await r.json().catch(() => ({}));
+    return { ok: r.ok, status: r.status, data };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+interface RzpPayment {
+  id: string; order_id?: string; status?: string; method?: string; bank?: string; wallet?: string;
+  fee?: number; tax?: number; error_description?: string; card?: { network?: string; last4?: string; type?: string };
+}
+
+/** Payment method, charges and status as Razorpay reports them (best effort; never blocks activation). */
+async function paymentDetails(paymentId: string): Promise<Partial<Payment>> {
+  if (!razorpayConfigured()) return {};
+  try {
+    const r = await rzp<RzpPayment>(`/payments/${encodeURIComponent(paymentId)}?expand[]=card`);
+    if (!r.ok) return {};
+    return methodFields(r.data);
+  } catch {
+    return {};
+  }
+}
+
+function methodFields(d: RzpPayment): Partial<Payment> {
+  const m = d.method || '';
+  const detail =
+    m === 'card' && d.card ? `${d.card.network || 'Card'} ${d.card.type || ''} card${d.card.last4 ? ` ····${d.card.last4}` : ''}`.replace(/\s+/g, ' ')
+      : m === 'netbanking' ? `${d.bank || ''} net banking`.trim()
+        : m === 'wallet' ? `${d.wallet || ''} wallet`.trim()
+          : m === 'upi' ? 'UPI'
+            : m === 'emi' ? 'EMI' : m;
+  return {
+    ...(m ? { method: m, methodDetail: detail } : {}),
+    ...(typeof d.fee === 'number' ? { gatewayFee: d.fee / 100 } : {}),
+    ...(typeof d.tax === 'number' ? { gatewayTax: d.tax / 100 } : {}),
+  };
+}
+
+function nextInvoiceNumber(payments: Payment[]): string {
+  const year = new Date().getFullYear();
+  const used = payments.map(x => x.invoiceNumber).filter((n): n is string => !!n && n.startsWith(`ACX-${year}-`)).map(n => Number(n.split('-')[2]) || 0);
+  return `ACX-${year}-${String((used.length ? Math.max(...used) : 0) + 1).padStart(4, '0')}`;
+}
+
+/** Turns on what the payment bought and sets p.activeUntil. */
+function activate(db: Record<string, unknown>, c: { set: (k: string, v: unknown) => void }, p: Payment): void {
+  const s = settingsOf(db);
+  if (p.product === 'candidate_premium') {
+    const users = (db[STORAGE_KEYS.USERS] as UserAccount[]).slice();
+    const u = users.find(x => x.id === p.userId);
+    if (u) {
+      const start = isPremiumUser(u) && u.premiumUntil ? u.premiumUntil : todayIso();
+      const until = addMonths(start, p.months || s.premiumDurationMonths);
+      Object.assign(u, { plan: 'premium', premiumUntil: until });
+      p.activeUntil = until;
+      c.set(STORAGE_KEYS.USERS, users);
+      const reqs = ((db[STORAGE_KEYS.UPGRADE_REQUESTS] as { userId: string; status: string }[]) || [])
+        .map(r => (r.userId === p.userId && r.status === 'pending' ? { ...r, status: 'approved', resolvedAt: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) } : r));
+      c.set(STORAGE_KEYS.UPGRADE_REQUESTS, reqs);
+    }
+  } else if (p.product === 'featured_listing' || p.product === 'urgent_listing') {
+    const jobs = (db[STORAGE_KEYS.JOBS] as Job[]).slice();
+    const job = jobs.find(j => j.id === p.jobId);
+    if (job) {
+      const field = p.product === 'featured_listing' ? 'featuredUntil' : 'urgentUntil';
+      const cur = job[field];
+      const start = cur && cur >= todayIso() ? cur : todayIso();
+      const until = addDays(start, p.days || 30);
+      job[field] = until;
+      p.activeUntil = until;
+      c.set(STORAGE_KEYS.JOBS, jobs);
+    }
+  } else if (p.instituteId) {
+    const insts = (db[STORAGE_KEYS.INSTITUTES] as Institute[]).slice();
+    const inst = insts.find(x => x.id === p.instituteId);
+    if (inst) {
+      const cur = inst.subscription;
+      const start = isInstituteSubscribed(inst) && cur?.activeUntil ? cur.activeUntil : todayIso();
+      const until = addMonths(start, p.months || s.institutionDurationMonths);
+      inst.subscription = { ...(cur || {}), status: 'active', activeUntil: until, activatedAt: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) };
+      p.activeUntil = until;
+      c.set(STORAGE_KEYS.INSTITUTES, insts);
+    }
+  }
+}
+
+/** Takes back the time this payment added (used after a full refund, when the admin asks for it). */
+function revoke(db: Record<string, unknown>, c: { set: (k: string, v: unknown) => void }, p: Payment): string {
+  const done = (note: string, until?: string) => { if (until) p.activeUntil = until; return note; };
+  const today = todayIso();
+  if (p.product === 'candidate_premium') {
+    const users = (db[STORAGE_KEYS.USERS] as UserAccount[]).slice();
+    const u = users.find(x => x.id === p.userId);
+    if (!u?.premiumUntil) return 'Nothing left to end';
+    const until = addMonths(u.premiumUntil, -(p.months || 0));
+    if (until <= today) Object.assign(u, { plan: 'free', premiumUntil: undefined }); else u.premiumUntil = until;
+    c.set(STORAGE_KEYS.USERS, users);
+    return until <= today ? done('Premium ended', today) : done(`Premium shortened to ${until}`, until);
+  }
+  if (p.product === 'featured_listing' || p.product === 'urgent_listing') {
+    const jobs = (db[STORAGE_KEYS.JOBS] as Job[]).slice();
+    const job = jobs.find(j => j.id === p.jobId);
+    const field = p.product === 'featured_listing' ? 'featuredUntil' : 'urgentUntil';
+    if (!job?.[field]) return 'Nothing left to end';
+    const until = addDays(job[field]!, -(p.days || 0));
+    job[field] = until <= today ? null : until;
+    c.set(STORAGE_KEYS.JOBS, jobs);
+    return until <= today ? done('Promotion ended', today) : done(`Promotion shortened to ${until}`, until);
+  }
+  const insts = (db[STORAGE_KEYS.INSTITUTES] as Institute[]).slice();
+  const inst = insts.find(x => x.id === p.instituteId);
+  if (!inst?.subscription?.activeUntil) return 'Nothing left to end';
+  const until = addMonths(inst.subscription.activeUntil, -(p.months || 0));
+  inst.subscription = until <= today ? { ...inst.subscription, status: 'inactive', activeUntil: until } : { ...inst.subscription, activeUntil: until };
+  c.set(STORAGE_KEYS.INSTITUTES, insts);
+  return until <= today ? done('Subscription ended', today) : done(`Subscription shortened to ${until}`, until);
+}
+
 /**
  * Marks the order paid and activates the plan. Safe to call more than once (checkout callback and
  * webhook may both arrive): only the first call activates.
  */
-export async function completePayment(orderId: string, paymentId: string): Promise<{ ok: boolean; payment?: Payment; error?: string; already?: boolean }> {
+export async function completePayment(orderId: string, paymentId: string, known?: RzpPayment): Promise<{ ok: boolean; payment?: Payment; error?: string; already?: boolean }> {
+  const details = known ? methodFields(known) : await paymentDetails(paymentId);
   const res = await withDb(null, (db, c) => {
     const payments = ((db[STORAGE_KEYS.PAYMENTS] as Payment[]) || []).slice();
     const i = payments.findIndex(p => p.razorpayOrderId === orderId);
     if (i === -1) return { ok: false, error: 'Unknown order.' };
-    const p = { ...payments[i] };
-    if (p.status === 'paid') return { ok: true, payment: p, already: true };
-    const s = settingsOf(db);
-    const year = new Date().getFullYear();
-    const count = payments.filter(x => x.invoiceNumber?.startsWith(`ACX-${year}-`)).length + 1;
+    const p: Payment = { ...payments[i] };
+    if (p.status === 'paid') {
+      // Fill in method/charges if the first confirmation did not have them.
+      if (!p.method && details.method) { payments[i] = { ...p, ...details }; c.set(STORAGE_KEYS.PAYMENTS, payments); }
+      return { ok: true, payment: p, already: true };
+    }
+    Object.assign(p, details);
     p.status = 'paid';
     p.razorpayPaymentId = paymentId;
     p.paidAt = new Date().toISOString();
-    p.invoiceNumber = `ACX-${year}-${String(count).padStart(4, '0')}`;
-
-    if (p.product === 'candidate_premium') {
-      const users = (db[STORAGE_KEYS.USERS] as UserAccount[]).slice();
-      const u = users.find(x => x.id === p.userId);
-      if (u) {
-        const start = isPremiumUser(u) && u.premiumUntil ? u.premiumUntil : todayIso();
-        const until = addMonths(start, p.months || s.premiumDurationMonths);
-        Object.assign(u, { plan: 'premium', premiumUntil: until });
-        p.activeUntil = until;
-        c.set(STORAGE_KEYS.USERS, users);
-        const reqs = ((db[STORAGE_KEYS.UPGRADE_REQUESTS] as { userId: string; status: string }[]) || [])
-          .map(r => (r.userId === p.userId && r.status === 'pending' ? { ...r, status: 'approved', resolvedAt: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) } : r));
-        c.set(STORAGE_KEYS.UPGRADE_REQUESTS, reqs);
-      }
-    } else if (p.product === 'featured_listing' || p.product === 'urgent_listing') {
-      const jobs = (db[STORAGE_KEYS.JOBS] as Job[]).slice();
-      const job = jobs.find(j => j.id === p.jobId);
-      if (job) {
-        const field = p.product === 'featured_listing' ? 'featuredUntil' : 'urgentUntil';
-        const cur = job[field];
-        const start = cur && cur >= todayIso() ? cur : todayIso();
-        const until = addDays(start, p.days || 30);
-        job[field] = until;
-        p.activeUntil = until;
-        c.set(STORAGE_KEYS.JOBS, jobs);
-      }
-    } else if (p.instituteId) {
-      const insts = (db[STORAGE_KEYS.INSTITUTES] as Institute[]).slice();
-      const inst = insts.find(x => x.id === p.instituteId);
-      if (inst) {
-        const cur = inst.subscription;
-        const start = isInstituteSubscribed(inst) && cur?.activeUntil ? cur.activeUntil : todayIso();
-        const until = addMonths(start, p.months || s.institutionDurationMonths);
-        inst.subscription = { ...(cur || {}), status: 'active', activeUntil: until, activatedAt: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) };
-        p.activeUntil = until;
-        c.set(STORAGE_KEYS.INSTITUTES, insts);
-      }
-    }
+    p.invoiceNumber = nextInvoiceNumber(payments);
+    p.failureReason = undefined;
+    activate(db, c, p);
+    p.events = [...(p.events || []), evt('paid', `${details.methodDetail || 'Online'} · ${paymentId}`)];
     payments[i] = p;
     c.set(STORAGE_KEYS.PAYMENTS, payments);
     c.userId = p.userId;
@@ -191,11 +297,157 @@ export async function completePayment(orderId: string, paymentId: string): Promi
   return res;
 }
 
-export async function markFailed(orderId: string): Promise<void> {
+export async function markFailed(orderId: string, reason?: string): Promise<void> {
   await withDb(null, (db, c) => {
-    const payments = ((db[STORAGE_KEYS.PAYMENTS] as Payment[]) || []).map(p => (p.razorpayOrderId === orderId && p.status === 'created' ? { ...p, status: 'failed' as const } : p));
+    const payments = ((db[STORAGE_KEYS.PAYMENTS] as Payment[]) || []).map(p => (p.razorpayOrderId === orderId && p.status === 'created'
+      ? { ...p, status: 'failed' as const, failureReason: reason?.slice(0, 300) || p.failureReason, events: [...(p.events || []), evt('failed', reason?.slice(0, 300))] }
+      : p));
     c.set(STORAGE_KEYS.PAYMENTS, payments);
   });
+}
+
+// ------------------------------------------------------------------ refunds
+
+/** Saves a refund on the payment (once per refund id). Returns the updated payment, or null if unknown. */
+async function saveRefund(match: (p: Payment) => boolean, refund: PaymentRefund, endAccess = false): Promise<Payment | null> {
+  return withDb(null, (db, c) => {
+    const payments = ((db[STORAGE_KEYS.PAYMENTS] as Payment[]) || []).slice();
+    const i = payments.findIndex(match);
+    if (i === -1) return null;
+    const p: Payment = { ...payments[i] };
+    const refunds = [...(p.refunds || [])];
+    const j = refunds.findIndex(r => r.id === refund.id);
+    if (j === -1) {
+      refunds.push(refund);
+      p.events = [...(p.events || []), evt('refund', `₹${refund.amount} ${refund.status}${refund.note ? ` — ${refund.note}` : ''}`)];
+    } else if (refunds[j].status !== refund.status) {
+      refunds[j] = { ...refunds[j], status: refund.status };
+      p.events = [...(p.events || []), evt('refund', `Refund ${refund.id} ${refund.status}`)];
+    } else return p;
+    p.refunds = refunds;
+    p.refundedAmount = Math.round(refunds.filter(r => r.status !== 'failed').reduce((a, r) => a + r.amount, 0) * 100) / 100;
+    if (endAccess) p.events = [...p.events!, evt('access_ended', revoke(db, c, p))];
+    payments[i] = p;
+    c.set(STORAGE_KEYS.PAYMENTS, payments);
+    c.userId = null;
+    StorageService.addAuditLog(`Refund of ₹${refund.amount} recorded for invoice ${p.invoiceNumber} (${refund.status})`, p.id, 'AUTHENTICATION');
+    return p;
+  });
+}
+
+/** Admin: refunds all or part of a paid order (through Razorpay, or recorded as done outside Razorpay). */
+export async function refundPayment(input: { paymentId: string; amount?: number; note?: string; endAccess?: boolean; manual?: boolean }): Promise<{ ok: boolean; error?: string; payment?: Payment }> {
+  const p = await withDb(null, db => ((db[STORAGE_KEYS.PAYMENTS] as Payment[]) || []).find(x => x.id === input.paymentId));
+  if (!p || p.status !== 'paid') return { ok: false, error: 'Only a paid order can be refunded.' };
+  const left = Math.round((p.amount - (p.refundedAmount || 0)) * 100) / 100;
+  const amount = input.amount === undefined || input.amount === null ? left : Math.round(Number(input.amount) * 100) / 100;
+  if (!(amount > 0) || amount > left) return { ok: false, error: `Enter an amount between ₹1 and ₹${left}.` };
+  const note = (input.note || '').trim().slice(0, 200) || undefined;
+  const fullRefund = amount === left;
+  let refund: PaymentRefund;
+  if (input.manual || p.source === 'offline') {
+    refund = { id: `manual-${Date.now().toString(36)}`, amount, at: new Date().toISOString(), status: 'processed', note, manual: true };
+  } else {
+    if (!razorpayConfigured() || !p.razorpayPaymentId) return { ok: false, error: 'Razorpay is not connected.' };
+    const r = await rzp<{ id: string; amount: number; status: string }>(`/payments/${encodeURIComponent(p.razorpayPaymentId)}/refund`, {
+      method: 'POST', body: { amount: Math.round(amount * 100), notes: { reason: note || 'Refund by AcadeXMatch', invoice: p.invoiceNumber || '' } },
+    });
+    if (!r.ok) return { ok: false, error: r.data?.error?.description || 'Razorpay refused the refund.' };
+    refund = { id: r.data.id, amount: r.data.amount / 100, at: new Date().toISOString(), status: r.data.status === 'processed' ? 'processed' : 'pending', note };
+  }
+  const saved = await saveRefund(x => x.id === p.id, refund, !!input.endAccess && fullRefund);
+  if (!saved) return { ok: false, error: 'Payment not found.' };
+  sendRefundEmail(saved, refund).catch(() => undefined);
+  return { ok: true, payment: saved };
+}
+
+/** Webhook: a refund created or processed in Razorpay (also ones started from the Razorpay dashboard). */
+export async function refundFromWebhook(r: { id: string; payment_id: string; amount: number; status?: string; notes?: { reason?: string } }): Promise<void> {
+  const status: PaymentRefund['status'] = r.status === 'processed' ? 'processed' : r.status === 'failed' ? 'failed' : 'pending';
+  const saved = await saveRefund(x => x.razorpayPaymentId === r.payment_id, { id: r.id, amount: r.amount / 100, at: new Date().toISOString(), status, note: r.notes?.reason });
+  void saved;
+}
+
+// ------------------------------------------------------------------ offline payments
+
+/** Admin: records money received outside Razorpay (bank transfer, UPI to the account, cheque, cash), activates the plan and issues an invoice. */
+export async function recordOfflinePayment(input: {
+  email: string; product: PaymentProduct; amount: number; method: string; reference?: string; paidOn?: string;
+  plan?: PremiumPlanOption['key']; months?: number; jobId?: string; note?: string;
+}): Promise<{ ok: boolean; error?: string; payment?: Payment }> {
+  const res = await withDb(null, (db, c) => {
+    const users = db[STORAGE_KEYS.USERS] as UserAccount[];
+    const u = users.find(x => x.email.toLowerCase() === String(input.email || '').trim().toLowerCase());
+    if (!u) return { ok: false, error: 'No account with that email.' };
+    const amount = Math.round(Number(input.amount) * 100) / 100;
+    if (!(amount > 0)) return { ok: false, error: 'Enter the amount received.' };
+    const s = settingsOf(db);
+    const methods: Record<string, string> = { bank_transfer: 'Bank transfer', upi: 'UPI', cheque: 'Cheque', cash: 'Cash', other: 'Other' };
+    const method = methods[input.method] ? input.method : 'other';
+    const reference = (input.reference || '').trim().slice(0, 80);
+    const paidOn = /^\d{4}-\d{2}-\d{2}$/.test(input.paidOn || '') ? input.paidOn! : todayIso();
+    const p: Payment = {
+      id: `pay-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
+      userId: u.id, userName: u.name, userEmail: u.email, product: input.product,
+      amount, currency: 'INR', months: 0, status: 'paid', source: 'offline',
+      razorpayOrderId: '', createdAt: new Date().toISOString(), paidAt: new Date(`${paidOn}T12:00:00+05:30`).toISOString(),
+      method, methodDetail: `${methods[method]}${reference ? ` · ref ${reference}` : ''}`,
+    };
+    if (input.product === 'candidate_premium') {
+      if (u.role !== 'candidate') return { ok: false, error: 'Candidate Premium is for candidate accounts.' };
+      const plan = premiumPlansOf(s).find(x => x.key === input.plan);
+      p.plan = plan?.key; p.months = Math.max(1, Math.round(Number(input.months) || plan?.months || s.premiumDurationMonths));
+    } else if (input.product === 'institution_premium') {
+      const inst = (db[STORAGE_KEYS.INSTITUTES] as Institute[]).find(i => i.id === u.instituteId);
+      if (!inst) return { ok: false, error: 'That account is not linked to an institute.' };
+      p.instituteId = inst.id; p.instituteName = inst.name; p.months = Math.max(1, Math.round(Number(input.months) || s.institutionDurationMonths));
+    } else {
+      const job = (db[STORAGE_KEYS.JOBS] as Job[]).find(j => j.id === input.jobId);
+      if (!job || job.instituteId !== u.instituteId) return { ok: false, error: 'Choose a vacancy of that account’s institute.' };
+      const inst = (db[STORAGE_KEYS.INSTITUTES] as Institute[]).find(i => i.id === job.instituteId);
+      const featured = input.product === 'featured_listing';
+      p.instituteId = inst?.id; p.instituteName = inst?.name; p.jobId = job.id; p.jobTitle = job.title;
+      p.days = Math.max(1, Math.round(Number(input.months) || (featured ? s.featuredDays : s.urgentDays) || 30));
+    }
+    const payments = ((db[STORAGE_KEYS.PAYMENTS] as Payment[]) || []).slice();
+    p.invoiceNumber = nextInvoiceNumber(payments);
+    activate(db, c, p);
+    p.events = [evt('created', 'Recorded by the administrator'), evt('paid', `${p.methodDetail}${input.note ? ` — ${input.note.slice(0, 200)}` : ''}`)];
+    c.set(STORAGE_KEYS.PAYMENTS, [p, ...payments]);
+    c.userId = null;
+    StorageService.addAuditLog(`Offline payment recorded: ₹${amount} from ${u.email} for ${productLabel(p)}`, p.id, 'AUTHENTICATION');
+    return { ok: true, payment: p };
+  });
+  if (res.ok && res.payment) sendReceipt(res.payment).catch(() => undefined);
+  return res;
+}
+
+// ------------------------------------------------------------------ reconciliation
+
+/**
+ * Checks unfinished orders with Razorpay so no payment is missed (e.g. the buyer closed the browser and
+ * the webhook was not set up). Paid ones are activated, failed or abandoned ones are closed.
+ */
+export async function reconcilePayments(): Promise<{ checked: number; paid: number; failed: number }> {
+  const out = { checked: 0, paid: 0, failed: 0 };
+  if (!razorpayConfigured()) return out;
+  const open = await withDb(null, db => ((db[STORAGE_KEYS.PAYMENTS] as Payment[]) || [])
+    .filter(p => p.status === 'created' && p.source !== 'offline' && p.razorpayOrderId && Date.now() - Date.parse(p.createdAt) > 10 * 60_000));
+  for (const p of open.slice(0, 50)) {
+    out.checked++;
+    try {
+      const r = await rzp<{ items?: RzpPayment[] }>(`/orders/${encodeURIComponent(p.razorpayOrderId)}/payments`);
+      if (!r.ok) continue;
+      const items = r.data.items || [];
+      const captured = items.find(x => x.status === 'captured');
+      if (captured) { await completePayment(p.razorpayOrderId, captured.id, captured); out.paid++; continue; }
+      if (items.some(x => x.status === 'authorized')) continue; // Razorpay will capture or refund it automatically
+      const ageH = (Date.now() - Date.parse(p.createdAt)) / 3_600_000;
+      if (items.length && items.every(x => x.status === 'failed')) { await markFailed(p.razorpayOrderId, items[items.length - 1].error_description || 'Payment failed'); out.failed++; }
+      else if (!items.length && ageH > 24) { await markFailed(p.razorpayOrderId, 'Checkout was not completed'); out.failed++; }
+    } catch { /* try again next time */ }
+  }
+  return out;
 }
 
 async function sendReceipt(p: Payment) {
@@ -205,11 +457,26 @@ async function sendReceipt(p: Payment) {
     paragraphs: [
       `Hello ${p.userName},`,
       `We received your payment of ₹${p.amount.toLocaleString('en-IN')} for ${what}. It is active until ${p.activeUntil}.`,
-      `Invoice ${p.invoiceNumber} · Razorpay payment ${p.razorpayPaymentId}`,
+      p.source === 'offline' ? `Invoice ${p.invoiceNumber} · ${p.methodDetail || 'Paid offline'}` : `Invoice ${p.invoiceNumber} · ${p.methodDetail ? `${p.methodDetail} · ` : ''}Razorpay payment ${p.razorpayPaymentId}`,
     ],
     button: { label: 'View invoice', url: `${appUrl()}/invoice/${p.id}` },
   });
   await sendMail({ to: p.userEmail, subject: `Receipt ${p.invoiceNumber} — ${what}`, text, html, kind: 'receipt' });
+}
+
+async function sendRefundEmail(p: Payment, r: PaymentRefund) {
+  const what = productLabel(p);
+  const { html, text } = emailLayout({
+    heading: r.status === 'processed' ? 'Your refund has been processed' : 'Your refund has been started',
+    paragraphs: [
+      `Hello ${p.userName},`,
+      `We have refunded ₹${r.amount.toLocaleString('en-IN')} of your payment for ${what} (invoice ${p.invoiceNumber}).`,
+      p.source === 'offline' || r.manual ? 'The amount is returned by the same method you paid with.' : 'Razorpay returns the money to the card, UPI account or bank you paid with, usually within 5–7 working days.',
+      ...(r.note ? [`Note: ${r.note}`] : []),
+    ],
+    button: { label: 'View invoice', url: `${appUrl()}/invoice/${p.id}` },
+  });
+  await sendMail({ to: p.userEmail, subject: `Refund for invoice ${p.invoiceNumber}`, text, html, kind: 'receipt' });
 }
 
 // ------------------------------------------------------------------ renewal reminders

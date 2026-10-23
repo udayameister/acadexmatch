@@ -6,8 +6,9 @@ import React, { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import OurCustomers from '@/components/OurCustomers';
+import HeroMatchPreview from '@/components/HeroMatchPreview';
 import { StorageService, isDeadlinePassed } from '@/lib/storage';
-import { payLabel, orNS, deadlineLabel, locationLabel, NOT_SPECIFIED } from '@/lib/display';
+import { payLabel, orNS, deadlineLabel, NOT_SPECIFIED } from '@/lib/display';
 import { useCurrentUser, useStorageValue, homePathForRole } from '@/lib/useAuth';
 import { Job, Institute } from '@/types';
 import {
@@ -88,7 +89,6 @@ export default function HomePage() {
   );
   const verifiedInstitutes = institutes.filter(i => i.verificationStatus === 'verified');
   const departments = new Set(openJobs.map(j => j.department)).size;
-  const previewJob = latestJobs[0];
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -169,79 +169,8 @@ export default function HomePage() {
           </div>
 
           {/* Product preview */}
-          <div className="lg:col-span-6 relative" aria-hidden="true">
-            <div className="relative mx-auto max-w-lg">
-              <div className="absolute -inset-4 rounded-[2rem] bg-gradient-to-tr from-brand-100 via-white to-gold-100 blur-xl opacity-70" />
-
-              <div className="relative rounded-3xl bg-white border border-slate-200 shadow-2xl shadow-slate-300/40 p-6 space-y-5">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <div className="text-xs font-medium text-brand-700">{previewJob?.instituteShortName || 'IIT Bombay'}</div>
-                    <div className="font-serif text-lg font-bold text-slate-900 leading-snug mt-0.5 line-clamp-2">
-                      {previewJob?.title || 'Assistant Professor — Computer Science & Engineering'}
-                    </div>
-                    <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 text-xs text-slate-500">
-                      <span className="inline-flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />{previewJob ? locationLabel(previewJob) : 'Mumbai, Maharashtra'}</span>
-                      <span className="inline-flex items-center gap-1"><IndianRupee className="w-3.5 h-3.5" />{previewJob ? payLabel(previewJob) : 'Level 12'}</span>
-                    </div>
-                  </div>
-                  <div className="shrink-0 w-20 h-20 rounded-full grid place-items-center" style={{ background: 'conic-gradient(#800000 0 86%, #EADFD6 86% 100%)' }}>
-                    <div className="w-16 h-16 rounded-full bg-white grid place-items-center">
-                      <div className="text-center leading-none">
-                        <div className="font-serif text-xl font-bold text-slate-900">86%</div>
-                        <div className="text-[9px] text-slate-500 mt-0.5">match</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  {[
-                    ['Qualifications', 100],
-                    ['Research alignment', 95],
-                    ['Indexed publications', 90],
-                    ['Experience', 65],
-                  ].map(([label, v]) => (
-                    <div key={label as string}>
-                      <div className="flex justify-between text-xs mb-1">
-                        <span className="text-slate-600">{label}</span>
-                        <span className="font-medium text-slate-900">{v}%</span>
-                      </div>
-                      <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
-                        <div className="h-full rounded-full bg-brand-600" style={{ width: `${v}%` }} />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-800 flex gap-2">
-                    <CheckCircle2 className="w-4 h-4 shrink-0" /> Ph.D. meets UGC 2016 norms
-                  </div>
-                  <div className="p-3 rounded-xl bg-gold-50 border border-gold-100 text-gold-800 flex gap-2">
-                    <ClipboardList className="w-4 h-4 shrink-0" /> 1.4 yrs below desired experience
-                  </div>
-                </div>
-              </div>
-
-              <div className="hidden sm:flex absolute -bottom-8 -left-10 items-center gap-3 rounded-2xl bg-white border border-slate-200 shadow-xl px-4 py-3">
-                <span className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 grid place-items-center">
-                  <CalendarClock className="w-5 h-5" />
-                </span>
-                <div>
-                  <div className="text-xs font-semibold text-slate-900">Interview scheduled</div>
-                  <div className="text-[11px] text-slate-500">Selection committee · Campus board room</div>
-                </div>
-              </div>
-
-              <div className="hidden sm:flex absolute -top-6 -right-6 items-center gap-2.5 rounded-2xl bg-brand-950 text-white shadow-xl px-4 py-3">
-                <LineChart className="w-4 h-4 text-gold-400" />
-                <div className="text-xs">
-                  <span className="font-semibold">API score 82</span>
-                  <span className="text-brand-200"> / 100</span>
-                </div>
-              </div>
-            </div>
+          <div className="lg:col-span-6 relative">
+            <HeroMatchPreview />
           </div>
         </div>
       </section>

@@ -71,7 +71,7 @@ export default function GrowthPanel() {
 
   const visitsInRange = (visits || []).filter(v => v.date >= since);
   const newUsers = users.filter(u => isoDay(u.createdAt) >= since);
-  const revenue = paid.filter(p => isoDay(p.paidAt) >= since).reduce((s, p) => s + p.amount, 0);
+  const revenue = paid.filter(p => isoDay(p.paidAt) >= since).reduce((s, p) => s + p.amount - (p.refundedAmount || 0), 0);
   const conversion = candidates.length ? Math.round((premium.length / candidates.length) * 1000) / 10 : 0;
 
   const tiles: [string, string, string][] = [
@@ -105,7 +105,7 @@ export default function GrowthPanel() {
       <div className="grid lg:grid-cols-2 gap-4">
         {visits && <MiniBarChart title="Visits" data={series(visits, v => v.date, range, v => v.count)} />}
         <MiniBarChart title="New sign-ups" data={series(users, u => u.createdAt, range)} />
-        <MiniBarChart title="Revenue (online payments)" data={series(paid, p => p.paidAt, range, p => p.amount)} format={inr} color="bg-gold-500" />
+        <MiniBarChart title="Revenue (after refunds)" data={series(paid, p => p.paidAt, range, p => p.amount - (p.refundedAmount || 0))} format={inr} color="bg-gold-500" />
         <MiniBarChart title="Applications submitted" data={series(apps, a => a.appliedDate, range)} />
       </div>
 

@@ -58,10 +58,16 @@ export default function InvoicePage() {
             <tr className="border-b border-slate-100"><td className="py-3">{item}<div className="text-xs text-slate-500">Valid until {p.activeUntil}</div></td><td className="py-3 text-right">{inr(taxable)}</td></tr>
             {gst > 0 && <tr><td className="py-2 text-right text-slate-500">GST @ {gst}%</td><td className="py-2 text-right">{inr(tax)}</td></tr>}
             <tr className="font-bold text-slate-900"><td className="py-3 text-right">Total paid</td><td className="py-3 text-right">{inr(p.amount)}</td></tr>
+            {(p.refunds || []).filter(r => r.status !== 'failed').map(r => (
+              <tr key={r.id} className="text-gold-800"><td className="py-1.5 text-right">Refunded on {new Date(r.at).toLocaleDateString('en-IN')}{r.status === 'pending' ? ' (in progress)' : ''}</td><td className="py-1.5 text-right">−{inr(r.amount)}</td></tr>
+            ))}
+            {!!p.refundedAmount && <tr className="font-semibold text-slate-900 border-t border-slate-200"><td className="py-2 text-right">Net amount</td><td className="py-2 text-right">{inr(p.amount - p.refundedAmount)}</td></tr>}
           </tbody>
         </table>
         <div className="text-xs text-slate-500 space-y-1">
-          <div>Paid online via Razorpay · Payment ID {p.razorpayPaymentId} · Order {p.razorpayOrderId}</div>
+          {p.source === 'offline'
+            ? <div>Paid by {p.methodDetail || 'offline transfer'}</div>
+            : <div>Paid online via Razorpay{p.methodDetail ? ` (${p.methodDetail})` : ''} · Payment ID {p.razorpayPaymentId} · Order {p.razorpayOrderId}</div>}
           <div>This is a computer-generated invoice and does not need a signature.</div>
         </div>
       </div>

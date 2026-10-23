@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
   const signature = String(body.razorpay_signature || '');
   const owner = await withDb(null, db => ((db[STORAGE_KEYS.PAYMENTS] as Payment[]) || []).find(p => p.razorpayOrderId === orderId)?.userId);
   if (!userId || owner !== userId) return NextResponse.json({ ok: false, error: 'This payment does not belong to your account.' }, { status: 403 });
-  if (body.failed) { await markFailed(orderId); return NextResponse.json({ ok: true }); }
+  if (body.failed) { await markFailed(orderId, typeof body.reason === 'string' ? body.reason : undefined); return NextResponse.json({ ok: true }); }
   if (!checkoutSignatureValid(orderId, paymentId, signature)) {
     return NextResponse.json({ ok: false, error: 'The payment could not be verified. If money was deducted, it will be confirmed automatically or refunded by Razorpay.' }, { status: 400 });
   }

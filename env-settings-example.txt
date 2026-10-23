@@ -33,8 +33,9 @@ MAIL_FROM=AcadeXMatch <yourname@gmail.com>
 RAZORPAY_KEY_ID=rzp_test_xxxxxxxxxxxx
 RAZORPAY_KEY_SECRET=xxxxxxxxxxxxxxxxxxxx
 # Optional but recommended once the site has a public https address:
-# Dashboard → Webhooks → Add: URL https://YOUR-SITE/api/payments/webhook, events payment.captured
-# and payment.failed, choose a secret and put the same secret here.
+# Dashboard → Webhooks → Add: URL https://www.acadexmatch.com/api/payments/webhook, events
+# payment.captured, order.paid, payment.failed, refund.created, refund.processed, refund.failed,
+# and the same secret here. It confirms payments even if the buyer closes the browser and records refunds.
 # RAZORPAY_WEBHOOK_SECRET=choose-a-long-random-secret
 
 # Optional: set to 1 to stop the daily vacancy scrape from running inside the web server.
