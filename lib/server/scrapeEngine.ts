@@ -128,6 +128,7 @@ export interface ScrapeOutcome {
   institutionTitle?: string;
   pagesCrawled?: number;
   jobs: Job[];
+  raw?: ScrapeEngineResult;
 }
 
 /** Validates a public http(s) URL; returns null if it may not be scraped. */
@@ -141,8 +142,26 @@ export function normaliseScrapeUrl(input: string): URL | null {
   }
 }
 
-/** Runs the Python scraper against one URL (60 s limit) and returns mapped jobs. */
+/**
+ * Scrapes one URL and returns mapped jobs. Uses the built-in Node.js crawler (works on any host);
+ * set SCRAPER_ENGINE=python to use scraper.py instead (needs Python with httpx, beautifulsoup4, pypdf).
+ */
 export async function runScraper(url: URL, timeoutMs = 60000): Promise<ScrapeOutcome> {
+  if (process.env.SCRAPER_ENGINE !== 'python') {
+    try {
+      const { crawlCollege } = await import('./crawler');
+      const parsed = await crawlCollege(url.toString(), 12, 2, timeoutMs - 5000);
+      const domain = url.hostname.replace('www.', '');
+      const jobs = (parsed.openings || []).map((o, i) => transformRawToJob(o, i, parsed.institution_title, domain));
+      return { ok: true, institutionTitle: parsed.institution_title || undefined, pagesCrawled: parsed.pages_crawled, jobs, raw: parsed };
+    } catch (e) {
+      return { ok: false, error: `Scraper error: ${(e as Error).message}`.slice(0, 500), jobs: [] };
+    }
+  }
+  return runPythonScraper(url, timeoutMs);
+}
+
+async function runPythonScraper(url: URL, timeoutMs: number): Promise<ScrapeOutcome> {
   const scriptPath = path.join(process.cwd(), 'scraper.py');
   const pythonBin = process.env.PYTHON_BIN || (process.platform === 'win32' ? 'python' : 'python3');
   const child = spawn(pythonBin, [scriptPath, url.toString(), '--json-only'], {
@@ -170,5 +189,5 @@ export async function runScraper(url: URL, timeoutMs = 60000): Promise<ScrapeOut
   }
   const domain = url.hostname.replace('www.', '');
   const jobs = (parsed.openings || []).map((o, i) => transformRawToJob(o, i, parsed.institution_title, domain));
-  return { ok: true, institutionTitle: parsed.institution_title || undefined, pagesCrawled: parsed.pages_crawled, jobs };
+  return { ok: true, institutionTitle: parsed.institution_title || undefined, pagesCrawled: parsed.pages_crawled, jobs, raw: parsed };
 }

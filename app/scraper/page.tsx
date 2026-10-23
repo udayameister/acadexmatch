@@ -250,7 +250,7 @@ export default function UniversityScraperPage() {
               <h4 className="font-semibold text-white">Scraping Interrupted</h4>
               <p className="text-sm text-rose-300">{error}</p>
               <p className="text-xs text-rose-400/80 pt-1">
-                Tip: Ensure the college URL is active and accessible. You can also run CLI mode: <code>python scraper.py {targetUrl}</code>
+                Tip: Check that the college website opens in your browser. Some sites block automated visitors or put vacancies only in scanned PDFs.
               </p>
             </div>
           </div>
