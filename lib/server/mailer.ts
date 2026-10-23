@@ -1,6 +1,7 @@
 import nodemailer, { Transporter } from 'nodemailer';
 import { randomBytes } from 'crypto';
 import { withDb } from './db';
+import { CONTACT_EMAIL } from '../contact';
 
 /*
  * Outgoing email. Configure SMTP in .env.local (see env-settings-example.txt) — e.g. a Gmail account with
@@ -64,7 +65,7 @@ export interface EmailItem { title: string; lines: string[]; url: string; badge?
 
 export function emailLayout(opts: { heading: string; paragraphs: string[]; items?: EmailItem[]; button?: { label: string; url: string }; footer?: string; footerLink?: { label: string; url: string } }): { html: string; text: string } {
   const itemText = (opts.items || []).flatMap(i => ['', `• ${i.title}${i.badge ? ` [${i.badge}]` : ''}`, ...i.lines.map(l => `  ${l}`), `  ${i.url}`]);
-  const text = [opts.heading, '', ...opts.paragraphs, ...itemText, ...(opts.button ? ['', `${opts.button.label}: ${opts.button.url}`] : []), '', opts.footer || '— AcadeXMatch', ...(opts.footerLink ? [`${opts.footerLink.label}: ${opts.footerLink.url}`] : [])].join('\n');
+  const text = [opts.heading, '', ...opts.paragraphs, ...itemText, ...(opts.button ? ['', `${opts.button.label}: ${opts.button.url}`] : []), '', opts.footer || '— AcadeXMatch', `Questions? ${CONTACT_EMAIL}`, ...(opts.footerLink ? [`${opts.footerLink.label}: ${opts.footerLink.url}`] : [])].join('\n');
   const itemsHtml = (opts.items || []).map(i => `<tr><td style="padding:12px 0;border-top:1px solid #F1E8E0"><a href="${esc(i.url)}" style="font-size:15px;font-weight:bold;color:#800000;text-decoration:none">${esc(i.title)}</a>${i.badge ? ` <span style="font-size:11px;font-weight:bold;color:#8A6A2A;background:#FBF3E2;border:1px solid #E8D3A6;border-radius:999px;padding:1px 8px">${esc(i.badge)}</span>` : ''}${i.lines.map(l => `<div style="font-size:13px;color:#6B5A5E;margin-top:3px">${esc(l)}</div>`).join('')}</td></tr>`).join('');
   const html = `<!doctype html><html><body style="margin:0;background:#FFFDF8;font-family:Arial,Helvetica,sans-serif;color:#5A1020">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="padding:24px 12px"><tr><td align="center">
@@ -76,7 +77,7 @@ ${opts.paragraphs.map(p => `<p style="margin:0 0 12px;font-size:15px;line-height
 ${itemsHtml ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:8px 0 4px">${itemsHtml}</table>` : ''}
 ${opts.button ? `<p style="margin:22px 0"><a href="${esc(opts.button.url)}" style="display:inline-block;background:#800000;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:10px;font-weight:bold">${esc(opts.button.label)}</a></p><p style="font-size:12px;color:#76656A;word-break:break-all">Or open: ${esc(opts.button.url)}</p>` : ''}
 </td></tr>
-<tr><td style="padding:16px 28px;border-top:1px solid #EADFD6;font-size:12px;color:#76656A">${esc(opts.footer || 'You received this email from AcadeXMatch, the academic recruitment platform for Indian higher education.')}${opts.footerLink ? ` <a href="${esc(opts.footerLink.url)}" style="color:#800000">${esc(opts.footerLink.label)}</a>` : ''}</td></tr>
+<tr><td style="padding:16px 28px;border-top:1px solid #EADFD6;font-size:12px;color:#76656A">${esc(opts.footer || 'You received this email from AcadeXMatch, the academic recruitment platform for Indian higher education.')} Questions? <a href="mailto:${CONTACT_EMAIL}" style="color:#800000">${CONTACT_EMAIL}</a>${opts.footerLink ? ` <a href="${esc(opts.footerLink.url)}" style="color:#800000">${esc(opts.footerLink.label)}</a>` : ''}</td></tr>
 </table></td></tr></table></body></html>`;
   return { html, text };
 }

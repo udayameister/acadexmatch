@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { FounderProfile } from '@/components/Founder';
-import { ShieldCheck, Scale, Sparkles, ArrowRight } from 'lucide-react';
+import { CONTACT_EMAIL, CONTACT_MAILTO } from '@/lib/contact';
+import { ShieldCheck, Scale, Sparkles, ArrowRight, Mail } from 'lucide-react';
 
 export const metadata: Metadata = {
   title: 'About AcadeXMatch — Founder & CEO Udayakumar Palanivelu',
@@ -43,6 +44,18 @@ export default function AboutPage() {
         <div className="mt-10 flex flex-wrap gap-3">
           <Link href="/jobs" className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-brand-900 hover:bg-brand-800 text-white text-sm font-semibold">Browse vacancies <ArrowRight className="w-4 h-4" /></Link>
           <Link href="/register" className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-white border border-slate-200 text-slate-800 text-sm font-semibold hover:border-brand-300">Register your institute</Link>
+        </div>
+      </section>
+
+      <section id="contact" className="max-w-6xl mx-auto px-4 sm:px-8 pb-16 scroll-mt-24">
+        <div className="p-8 rounded-3xl bg-white border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div>
+            <h2 className="font-serif text-2xl sm:text-3xl font-bold text-slate-900">Contact us</h2>
+            <p className="text-slate-600 mt-2 max-w-2xl">Questions about vacancies, institution subscriptions, payments, partnerships or your data — write to us and we will reply within two working days.</p>
+          </div>
+          <a href={CONTACT_MAILTO} className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-brand-900 hover:bg-brand-800 text-white text-sm font-semibold shrink-0">
+            <Mail className="w-4 h-4" /> {CONTACT_EMAIL}
+          </a>
         </div>
       </section>
     </div>

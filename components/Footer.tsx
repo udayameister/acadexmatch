@@ -7,7 +7,8 @@ import { useCurrentUser } from '@/lib/useAuth';
 import { DPDPDataRequest } from '@/types';
 import { BrandLogo } from './Navbar';
 import VisitCounter from './VisitCounter';
-import { Shield, CheckCircle2, Send, Download, X } from 'lucide-react';
+import { CONTACT_EMAIL, CONTACT_MAILTO } from '@/lib/contact';
+import { Shield, CheckCircle2, Send, Download, X, Mail } from 'lucide-react';
 
 type RequestType = DPDPDataRequest['requestType'];
 
@@ -64,6 +65,7 @@ export default function Footer() {
       title: 'Platform',
       links: [
         { href: '/about', label: 'About us' },
+        { href: '/about#contact', label: 'Contact us' },
         { href: '/#how-it-works', label: 'How it works' },
         { href: '/#faq', label: 'FAQ' },
         { href: '/premium', label: 'Plans & Premium' },
@@ -88,6 +90,9 @@ export default function Footer() {
             >
               <Shield className="w-4 h-4 text-emerald-400" /> Your data rights (DPDP Act, 2023)
             </button>
+            <a href={CONTACT_MAILTO} className="flex items-center gap-2 text-sm font-medium text-white hover:text-gold-300 transition w-fit">
+              <Mail className="w-4 h-4 text-gold-300" /> {CONTACT_EMAIL}
+            </a>
           </div>
 
           {columns.map(col => (
@@ -131,6 +136,7 @@ export default function Footer() {
             {!user ? (
               <div className="py-6 text-sm text-slate-600 space-y-4">
                 <p>Sign in to download your data, request deletion, or withdraw consent for automated matching.</p>
+                <p>Questions about your data? Write to <a href={CONTACT_MAILTO} className="font-semibold text-brand-800 underline">{CONTACT_EMAIL}</a>.</p>
                 <Link href="/login" onClick={() => setShowDpdpModal(false)} className="inline-flex px-4 py-2 rounded-xl bg-brand-900 text-white font-semibold hover:bg-brand-800">
                   Sign in
                 </Link>

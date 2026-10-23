@@ -263,10 +263,10 @@ export const DEFAULT_PROMOTION = { featuredPriceInr: 1999, featuredDays: 30, urg
 export const DEFAULT_PLAN_SETTINGS: PlanSettings = {
   premiumPriceLabel: '₹999 per year',
   premiumDurationMonths: 12,
-  upgradeInstructions: 'Send your upgrade request. The AcadeXMatch team will contact you with payment details and activate Premium once payment is received.',
+  upgradeInstructions: 'Send your upgrade request. The AcadeXMatch team will contact you with payment details and activate Premium once payment is received. Questions: info@acadexmatch.com',
   institutionPriceLabel: '₹14,999 per year',
   institutionDurationMonths: 12,
-  institutionInstructions: 'After you register, the AcadeXMatch team will send an invoice to your official email. Your institution tools are activated as soon as payment is received.',
+  institutionInstructions: 'After you register, the AcadeXMatch team will send an invoice to your official email. Your institution tools are activated as soon as payment is received. Questions: info@acadexmatch.com',
   premiumPriceInr: 999,
   institutionPriceInr: 14999,
   premiumPlans: DEFAULT_PREMIUM_PLANS,

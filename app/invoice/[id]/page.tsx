@@ -9,6 +9,7 @@ import { useStorageValue } from '@/lib/useAuth';
 import { BrandLogo } from '@/components/Navbar';
 import { Printer } from 'lucide-react';
 import type { Payment, PlanSettings } from '@/types';
+import { CONTACT_EMAIL } from '@/lib/contact';
 
 const inr = (n: number) => `₹${n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -36,7 +37,7 @@ export default function InvoicePage() {
         <div className="flex flex-col sm:flex-row justify-between gap-6">
           <div className="space-y-2">
             <BrandLogo />
-            <div className="text-xs text-slate-500 whitespace-pre-line">{s.invoiceBusinessName}{s.invoiceAddress ? `\n${s.invoiceAddress}` : ''}{s.invoiceGstin ? `\nGSTIN: ${s.invoiceGstin}` : ''}</div>
+            <div className="text-xs text-slate-500 whitespace-pre-line">{s.invoiceBusinessName}{s.invoiceAddress ? `\n${s.invoiceAddress}` : ''}{s.invoiceGstin ? `\nGSTIN: ${s.invoiceGstin}` : ''}{`\n${CONTACT_EMAIL}`}</div>
           </div>
           <div className="sm:text-right">
             <h1 className="text-2xl font-bold text-brand-800">{gst ? 'Tax Invoice' : 'Invoice'}</h1>
