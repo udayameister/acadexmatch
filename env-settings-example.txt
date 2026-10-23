@@ -26,6 +26,16 @@ SMTP_USER=yourname@gmail.com
 SMTP_PASS=your16charapppassword
 MAIL_FROM=AcadeXMatch <yourname@gmail.com>
 
+# ---- Email through an API (use this if your host blocks email ports 465/587) ----
+# Some hosts (e.g. GoDaddy Node.js hosting) block outgoing SMTP. Then send over HTTPS instead:
+#  Brevo (brevo.com, free 300 emails/day): Settings → SMTP & API → API keys → create a key;
+#    Senders & domains → add info@acadexmatch.com as a sender and verify it (and the domain, recommended).
+#  or Resend (resend.com): add and verify the domain acadexmatch.com, then create an API key.
+# When EMAIL_API is set it is used instead of SMTP.
+# EMAIL_API=brevo
+# EMAIL_API_KEY=xkeysib-xxxxxxxx
+# MAIL_FROM=AcadeXMatch <info@acadexmatch.com>
+
 # ---- Razorpay (online payments) ----
 # Razorpay Dashboard → Account & Settings → API Keys. Start with the Test Mode keys (rzp_test_...);
 # switch to the Live keys after Razorpay activates your account. Leave these out to keep the

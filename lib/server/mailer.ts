@@ -29,28 +29,81 @@ export function smtpConfigured(): boolean {
   return !!(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
 }
 
+/**
+ * Email over HTTPS instead of SMTP, for hosts that block outgoing mail ports (465/587):
+ * EMAIL_API=brevo or resend, EMAIL_API_KEY=… and MAIL_FROM="AcadeXMatch <info@acadexmatch.com>".
+ */
+function emailApi(): 'brevo' | 'resend' | null {
+  const p = (process.env.EMAIL_API || '').toLowerCase();
+  return (p === 'brevo' || p === 'resend') && process.env.EMAIL_API_KEY ? p : null;
+}
+
+export function emailConfigured(): boolean {
+  return !!emailApi() || smtpConfigured();
+}
+
 export function mailSettingsSummary() {
   return {
-    configured: smtpConfigured(),
-    host: process.env.SMTP_HOST || null,
+    configured: emailConfigured(),
+    host: emailApi() ? `${emailApi() === 'brevo' ? 'Brevo' : 'Resend'} email API` : process.env.SMTP_HOST || null,
     user: process.env.SMTP_USER || null,
     from: process.env.MAIL_FROM || process.env.SMTP_USER || null,
     appUrl: process.env.APP_URL || null,
   };
 }
 
-let transporter: Transporter | null = null;
-function getTransport(): Transporter {
-  if (!transporter) {
-    const port = Number(process.env.SMTP_PORT || 587);
-    transporter = nodemailer.createTransport({
+const transporters = new Map<number, Transporter>();
+function getTransport(port = Number(process.env.SMTP_PORT || 587)): Transporter {
+  let t = transporters.get(port);
+  if (!t) {
+    const secure = port === Number(process.env.SMTP_PORT || 587) && process.env.SMTP_SECURE ? process.env.SMTP_SECURE === 'true' : port === 465;
+    t = nodemailer.createTransport({
       host: process.env.SMTP_HOST,
       port,
-      secure: process.env.SMTP_SECURE ? process.env.SMTP_SECURE === 'true' : port === 465,
+      secure,
       auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+      connectionTimeout: 15000, greetingTimeout: 15000, socketTimeout: 30000,
     });
+    transporters.set(port, t);
   }
-  return transporter;
+  return t;
+}
+
+/** Splits "Name <a@b.c>" into its parts. */
+function parseFrom(from: string): { name?: string; email: string } {
+  const m = from.match(/^\s*"?([^"<]*?)"?\s*<([^>]+)>\s*$/);
+  return m ? { name: m[1].trim() || undefined, email: m[2].trim() } : { email: from.trim() };
+}
+
+async function sendViaApi(provider: 'brevo' | 'resend', msg: { to: string; subject: string; text: string; html?: string }): Promise<void> {
+  const from = process.env.MAIL_FROM || process.env.SMTP_USER || '';
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 20000);
+  try {
+    const r = provider === 'brevo'
+      ? await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST', signal: ctrl.signal,
+        headers: { 'api-key': process.env.EMAIL_API_KEY!, 'Content-Type': 'application/json', accept: 'application/json' },
+        body: JSON.stringify({ sender: parseFrom(from), to: [{ email: msg.to }], subject: msg.subject, textContent: msg.text, ...(msg.html ? { htmlContent: msg.html } : {}) }),
+      })
+      : await fetch('https://api.resend.com/emails', {
+        method: 'POST', signal: ctrl.signal,
+        headers: { Authorization: `Bearer ${process.env.EMAIL_API_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ from, to: [msg.to], subject: msg.subject, text: msg.text, ...(msg.html ? { html: msg.html } : {}) }),
+      });
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({})) as { message?: string; error?: string };
+      throw new Error(`${provider} ${r.status}: ${d.message || d.error || r.statusText}`);
+    }
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** Is this a "can't reach the mail server on that port" error (blocked port), worth trying the other port? */
+function portBlocked(e: unknown): boolean {
+  const code = (e as { code?: string }).code || '';
+  return ['EACCES', 'ECONNREFUSED', 'ETIMEDOUT', 'ECONNECTION', 'ESOCKET', 'EHOSTUNREACH', 'ENETUNREACH'].includes(code) || /EACCES|ECONNREFUSED|ETIMEDOUT|Greeting never received|Connection timeout/i.test((e as Error).message || '');
 }
 
 /** Public address of the site for links in emails. */
@@ -90,13 +143,28 @@ export async function sendMail(msg: { to: string; subject: string; text: string;
     createdAt: new Date().toISOString(),
     status: 'logged',
   };
-  if (smtpConfigured()) {
+  const api = emailApi();
+  if (api || smtpConfigured()) {
     try {
-      await getTransport().sendMail({ from: process.env.MAIL_FROM || process.env.SMTP_USER, to: msg.to, subject: msg.subject, text: msg.text, html: msg.html });
+      if (api) await sendViaApi(api, msg);
+      else {
+        const mail = { from: process.env.MAIL_FROM || process.env.SMTP_USER, to: msg.to, subject: msg.subject, text: msg.text, html: msg.html };
+        const port = Number(process.env.SMTP_PORT || 587);
+        try {
+          await getTransport(port).sendMail(mail);
+        } catch (e) {
+          // Some hosts block one mail port; try the other standard one before giving up.
+          if (!portBlocked(e)) throw e;
+          const other = port === 465 ? 587 : 465;
+          try { await getTransport(other).sendMail(mail); } catch (e2) {
+            throw new Error(`${(e as Error).message} (port ${port}); ${(e2 as Error).message} (port ${other}). Your host seems to block email ports — use an email API instead (EMAIL_API, see env-settings-example.txt).`);
+          }
+        }
+      }
       item.status = 'sent';
     } catch (e) {
       item.status = 'failed';
-      item.error = (e as Error).message.slice(0, 300);
+      item.error = (e as Error).message.slice(0, 600);
       console.error('[AcadeXMatch] Email failed:', item.error);
     }
   }
