@@ -1,6 +1,7 @@
 import { STORAGE_KEYS, isPremiumUser } from '@/lib/storage';
 import { withDb } from './db';
 import { emailLayout, sendMail, appUrl } from './mailer';
+import { pingIndexNow } from './indexnow';
 import type { Announcement, Application, InterviewSlotOffer, TalentInvite, UserAccount } from '@/types';
 
 /*
@@ -26,6 +27,13 @@ export async function afterRpc(method: string, args: unknown[], actorId: string 
     const ok = !(result && typeof result === 'object' && (result as { success?: boolean }).success === false);
     if (!ok) return;
     const base = appUrl();
+
+    // Public pages changed: tell IndexNow search engines (only when INDEXNOW_KEY is set).
+    const jobPaths = (ids: unknown[]) => ids.map(id => `/jobs/${encodeURIComponent(String(id))}`);
+    if (method === 'addJob') pingIndexNow([...jobPaths([(args[0] as { id?: string })?.id]), '/jobs']).catch(() => undefined);
+    if (method === 'updateJob' || method === 'setJobStatus' || method === 'deleteJob') pingIndexNow(jobPaths([args[0]])).catch(() => undefined);
+    if (method === 'addJobs') pingIndexNow([...jobPaths(((args[0] as { id?: string }[]) || []).map(j => j?.id)), '/jobs']).catch(() => undefined);
+    if (method === 'updateInstitute' || method === 'updateInstituteVerification' || method === 'adminUpdateInstitute') pingIndexNow([`/institutes/${encodeURIComponent(String(args[0]))}`]).catch(() => undefined);
 
     if (method === 'inviteToBookSlots') {
       const ids = new Set((args[0] as string[]) || []);

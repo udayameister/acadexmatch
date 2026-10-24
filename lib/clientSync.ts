@@ -32,6 +32,15 @@ export function isHydrated(): boolean {
   return hydrated;
 }
 
+/**
+ * Fills the browser copy with the public snapshot the server rendered the page with, so the first render in the
+ * browser matches the server HTML. The signed-in user's own data still arrives through hydrate().
+ */
+export function seedCache(data: Record<string, unknown>): void {
+  if (hydrated || Object.keys(cache).length) return;
+  Object.assign(cache, data);
+}
+
 /** Loads (or reloads) everything the signed-in user may see from the server. */
 export function hydrate(): Promise<void> {
   if (hydrating) return hydrating;

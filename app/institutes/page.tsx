@@ -13,8 +13,8 @@ import {
 } from 'lucide-react';
 
 export default function InstitutesPage() {
-  const [institutes, setInstitutes] = useState<Institute[]>([]);
-  const [jobs, setJobs] = useState<Job[]>([]);
+  const [institutes, setInstitutes] = useState<Institute[]>(() => StorageService.getInstitutes().filter(i => i.verificationStatus === 'verified'));
+  const [jobs, setJobs] = useState<Job[]>(() => StorageService.getPublishedJobs());
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedType, setSelectedType] = useState('all');
 

@@ -90,8 +90,22 @@ let contextProvider: () => StoreContext | undefined = () => undefined;
 export function setStoreContextProvider(fn: () => StoreContext | undefined): void {
   contextProvider = fn;
 }
+
+/*
+ * Public (signed-out) snapshot used to server-render pages, so search engines and first page loads get real
+ * content instead of a spinner. It only ever holds data every visitor may see, and is read-only. Code with a
+ * real context (the database on the server, the browser copy on the client) always uses that instead.
+ */
+let seedCtx: StoreContext | null = null;
+export function seedPublicSnapshot(data: Record<string, unknown>): void {
+  seedCtx = { get: key => data[key], set: () => undefined, userId: null, idCounter: 0 };
+}
+export function isStoreSeeded(): boolean {
+  return seedCtx !== null;
+}
+
 function ctx(): StoreContext | undefined {
-  return contextProvider();
+  return contextProvider() ?? seedCtx ?? undefined;
 }
 
 function getFromStorage<T>(key: string, fallback: T): T {

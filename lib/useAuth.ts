@@ -32,7 +32,8 @@ export function useCurrentUser(): { user: User | null; ready: boolean } {
 
 /** Re-runs `read` whenever data changes and returns its latest value. */
 export function useStorageValue<T>(read: () => T, initial: T): T {
-  const [value, setValue] = useState<T>(initial);
+  // Read straight away so server-rendered pages (public snapshot) already contain the data.
+  const [value, setValue] = useState<T>(() => { try { return read(); } catch { return initial; } });
 
   useEffect(() => {
     const sync = () => setValue(read());

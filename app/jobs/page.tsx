@@ -19,7 +19,8 @@ function JobsContent() {
   const searchParams = useSearchParams();
   const initialSearch = searchParams.get('search') || '';
 
-  const [jobs, setJobs] = useState<Job[]>([]);
+  // Read at once so the server-rendered page already lists the vacancies.
+  const [jobs, setJobs] = useState<Job[]>(() => StorageService.getPublishedJobs().filter(j => !isDeadlinePassed(j)));
   const [candidateProfile, setCandidateProfile] = useState<CandidateProfile | null>(null);
   const [selectedMatchJob, setSelectedMatchJob] = useState<Job | null>(null);
   const [showCvModal, setShowCvModal] = useState(false);

@@ -33,8 +33,12 @@ export default function JobDetailPage() {
   const params = useParams();
   const jobId = params?.id as string;
 
-  const [job, setJob] = useState<Job | null>(null);
-  const [institute, setInstitute] = useState<Institute | null>(null);
+  // Read at once so the server-rendered page contains the vacancy (public snapshot).
+  const [job, setJob] = useState<Job | null>(() => (jobId ? StorageService.getJobById(jobId) || null : null));
+  const [institute, setInstitute] = useState<Institute | null>(() => {
+    const j = jobId ? StorageService.getJobById(jobId) : undefined;
+    return j ? StorageService.getInstituteById(j.instituteId) || null : null;
+  });
   const [candidateProfile, setCandidateProfile] = useState<CandidateProfile | null>(null);
   const [existingApp, setExistingApp] = useState<Application | null>(null);
   const [screeningAnswers, setScreeningAnswers] = useState<{ [qIdx: number]: string }>({});
@@ -111,16 +115,18 @@ export default function JobDetailPage() {
   return (
     <div className="w-full px-4 sm:px-8 lg:px-12 py-8 space-y-8">
       
-      {/* Top Breadcrumb */}
-      <div className="flex items-center gap-2 text-xs text-slate-500">
-        <Link href="/jobs" className="hover:text-brand-700 flex items-center gap-1 font-medium">
-          <ArrowLeft className="w-3 h-3" /> All Vacancies
-        </Link>
-        <span>/</span>
-        <span className="text-slate-700">{job.instituteShortName}</span>
-        <span>/</span>
-        <span className="text-brand-900 font-bold truncate max-w-md">{job.title}</span>
-      </div>
+      {/* Breadcrumb (matches the BreadcrumbList structured data) */}
+      <nav aria-label="Breadcrumb">
+        <ol className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+          <li><Link href="/" className="hover:text-brand-700 font-medium">Home</Link></li>
+          <li aria-hidden="true">/</li>
+          <li><Link href="/jobs" className="hover:text-brand-700 flex items-center gap-1 font-medium"><ArrowLeft className="w-3 h-3" /> Faculty jobs</Link></li>
+          <li aria-hidden="true">/</li>
+          <li>{institute ? <Link href={`/institutes/${institute.id}`} className="hover:text-brand-700 text-slate-700">{job.instituteShortName}</Link> : <span className="text-slate-700">{job.instituteShortName}</span>}</li>
+          <li aria-hidden="true">/</li>
+          <li aria-current="page" className="text-brand-900 font-bold truncate max-w-md">{job.title}</li>
+        </ol>
+      </nav>
 
       {/* Main Header Card */}
       <div className="rounded-3xl bg-white border border-slate-200 p-6 sm:p-8 shadow-sm space-y-6">
@@ -173,6 +179,12 @@ export default function JobDetailPage() {
                   <Clock className="w-3.5 h-3.5 text-slate-400" />
                   Deadline: <strong className="text-gold-800 font-bold">{deadlineLabel(job)}</strong>
                 </span>
+                {job.postedAt && (
+                  <>
+                    <span className="text-slate-300">•</span>
+                    <span className="text-slate-600">Posted <time dateTime={job.postedAt.slice(0, 10)}>{job.postedAt.slice(0, 10)}</time></span>
+                  </>
+                )}
               </div>
             </div>
           </div>

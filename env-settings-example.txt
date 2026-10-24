@@ -50,3 +50,17 @@ RAZORPAY_KEY_SECRET=xxxxxxxxxxxxxxxxxxxx
 
 # Optional: set to 1 to stop the daily vacancy scrape from running inside the web server.
 # ACAD_DISABLE_SCHEDULER=1
+
+# ---- Search engines (SEO) ----
+# Canonical address used in canonical tags, sitemap.xml and structured data. Must be the host the site
+# finally serves after redirects (today https://www.acadexmatch.com redirects to https://acadexmatch.com).
+# SITE_URL=https://acadexmatch.com
+# Google Search Console → Add property → URL prefix → HTML tag: copy only the content="…" value.
+# GOOGLE_SITE_VERIFICATION=
+# Bing Webmaster Tools → Add site → HTML Meta Tag: copy only the content="…" value of msvalidate.01.
+# BING_SITE_VERIFICATION=
+# Google Analytics 4 measurement ID (G-XXXXXXX). Leave empty to load no analytics.
+# GA_MEASUREMENT_ID=
+# IndexNow key (8–128 letters/digits/dashes, e.g. a random UUID). Served at /<key>.txt; changed vacancies are
+# then announced to Bing and other IndexNow search engines automatically.
+# INDEXNOW_KEY=

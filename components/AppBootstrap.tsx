@@ -2,14 +2,22 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { isHydrated, HYDRATED_EVENT, SYNC_ERROR_EVENT } from '@/lib/clientSync';
+import { isStoreSeeded } from '@/lib/storage';
+import { isPublicPath } from '@/lib/site';
 import { useCurrentUser } from '@/lib/useAuth';
 import { AlertCircle, X, Mail } from 'lucide-react';
 import { AnnouncementBanner } from '@/components/Announcements';
 
-/** Waits for the first load from the server before showing pages, and shows server errors. */
+/**
+ * Public pages render immediately from the server's public snapshot (crawlable HTML); private pages wait for the
+ * signed-in user's data from the server before showing. Also shows server errors.
+ */
 export default function AppBootstrap({ children }: { children: React.ReactNode }) {
-  const [ready, setReady] = useState(false);
+  const pathname = usePathname();
+  const [hydratedNow, setReady] = useState(false);
+  const ready = hydratedNow || (isStoreSeeded() && isPublicPath(pathname));
   const [errors, setErrors] = useState<{ id: number; text: string }[]>([]);
   const { user } = useCurrentUser();
 

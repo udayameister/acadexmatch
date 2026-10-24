@@ -11,7 +11,8 @@
     "test:app": "tsx tests/storage-flows.ts && tsx tests/cv-parser.ts && tsx tests/crawler.ts",
     "test:scraper": "python test_engine.py",
     "typecheck": "tsc --noEmit",
-    "scrape:daily": "tsx scripts/daily-scrape.ts"
+    "scrape:daily": "tsx scripts/daily-scrape.ts",
+    "test:seo": "node tests/seo-check.mjs"
   },
   "dependencies": {
     "canvas-confetti": "^1.9.4",

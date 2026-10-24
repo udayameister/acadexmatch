@@ -24,8 +24,8 @@ export default function InstituteDetailPage() {
   const params = useParams();
   const instId = params?.id as string;
 
-  const [institute, setInstitute] = useState<Institute | null>(null);
-  const [jobs, setJobs] = useState<Job[]>([]);
+  const [institute, setInstitute] = useState<Institute | null>(() => (instId ? StorageService.getInstituteById(instId) || null : null));
+  const [jobs, setJobs] = useState<Job[]>(() => StorageService.getPublishedJobs().filter(j => j.instituteId === instId));
   const [candidateProfile, setCandidateProfile] = useState<CandidateProfile | null>(null);
   const [selectedMatchJob, setSelectedMatchJob] = useState<Job | null>(null);
 
@@ -36,7 +36,14 @@ export default function InstituteDetailPage() {
 
     const allJobs = StorageService.getPublishedJobs();
     setJobs(allJobs.filter(j => j.instituteId === instId));
-    setCandidateProfile((StorageService.isCurrentUserPremium() ? StorageService.getCandidateProfile() : null));
+    const sync = () => {
+      setJobs(StorageService.getPublishedJobs().filter(j => j.instituteId === instId));
+      setCandidateProfile((StorageService.isCurrentUserPremium() ? StorageService.getCandidateProfile() : null));
+    };
+    sync();
+    // Pick up the signed-in user's data when it arrives.
+    window.addEventListener('acad-storage-updated', sync);
+    return () => window.removeEventListener('acad-storage-updated', sync);
   }, [instId]);
 
   if (!institute) {
