@@ -170,7 +170,7 @@ export default function HomePage() {
 
           {/* Product preview */}
           <div className="lg:col-span-6 relative">
-            <HeroMatchPreview />
+            <HeroMatchPreview jobs={jobs} institutes={institutes} user={user} />
           </div>
         </div>
       </section>
