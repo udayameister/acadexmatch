@@ -5,8 +5,8 @@ import { CONTACT_EMAIL, CONTACT_MAILTO } from '@/lib/contact';
 import { ShieldCheck, Scale, Sparkles, ArrowRight, Mail } from 'lucide-react';
 
 export const metadata: Metadata = {
-  title: 'About AcadeXMatch — Founder & CEO Udayakumar Palanivelu',
-  description: 'AcadeXMatch is an academic recruitment platform for Indian higher education, founded by Udayakumar Palanivelu.',
+  title: 'About AcadeXMatch — Founders Udayakumar Palanivelu and Dr. M. Indhumathi',
+  description: 'AcadeXMatch is an academic recruitment platform for Indian higher education, founded by Udayakumar Palanivelu (Founder & CEO) and Dr. M. Indhumathi (Co-Founder).',
 };
 
 const VALUES = [
