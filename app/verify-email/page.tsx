@@ -8,23 +8,26 @@ import AuthCard, { postJson } from '@/components/AuthCard';
 import { hydrate } from '@/lib/clientSync';
 
 function Verify() {
-  const token = useSearchParams().get('token') || '';
+  const sp = useSearchParams();
+  const change = sp.get('change') || '';
+  const token = sp.get('token') || '';
+  const [newEmail, setNewEmail] = useState('');
   const [state, setState] = useState<'working' | 'ok' | 'error'>('working');
   const [error, setError] = useState('');
   const once = useRef(false);
   useEffect(() => {
     if (once.current) return;
     once.current = true;
-    postJson('/api/auth/verify', { token }).then(r => {
-      if (r.ok) { setState('ok'); hydrate(); } else { setState('error'); setError(r.error || 'This link is invalid or has expired.'); }
+    (change ? postJson('/api/auth/email-change/confirm', { token: change }) : postJson('/api/auth/verify', { token })).then(r => {
+      if (r.ok) { setState('ok'); if (r.email) setNewEmail(String(r.email)); hydrate(); } else { setState('error'); setError(r.error || 'This link is invalid or has expired.'); }
     });
-  }, [token]);
+  }, [token, change]);
   return (
     <AuthCard title="Email confirmation">
       {state === 'working' && <p className="flex items-center gap-2 text-sm text-slate-600"><Loader2 className="w-4 h-4 animate-spin" /> Confirming…</p>}
       {state === 'ok' && (
         <div className="space-y-4">
-          <p className="flex items-start gap-2 text-sm text-emerald-800 bg-emerald-50 border border-emerald-100 rounded-xl p-3"><CheckCircle2 className="w-5 h-5 shrink-0" /> Your email address is confirmed. Thank you!</p>
+          <p className="flex items-start gap-2 text-sm text-emerald-800 bg-emerald-50 border border-emerald-100 rounded-xl p-3"><CheckCircle2 className="w-5 h-5 shrink-0" /> {newEmail ? <>Your account now uses {newEmail}.</> : 'Your email address is confirmed. Thank you!'}</p>
           <Link href="/login" className="block text-center w-full py-3 rounded-xl bg-brand-900 text-white font-semibold text-sm">Continue</Link>
         </div>
       )}

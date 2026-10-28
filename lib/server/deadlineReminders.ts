@@ -1,6 +1,7 @@
 import { STORAGE_KEYS } from '@/lib/storage';
 import { withDb } from './db';
-import { emailLayout, sendMail, appUrl, EmailItem } from './mailer';
+import { appUrl, EmailItem } from './mailer';
+import { notify } from './notifications';
 import type { Job, TrackedJob, UserAccount } from '@/types';
 
 const SENT_KEY = '_deadline_reminders';
@@ -55,14 +56,16 @@ export async function sendDeadlineReminders(opts: { force?: boolean } = {}): Pro
       url: t.jobId ? `${base}/jobs/${t.jobId}` : t.url || `${base}/candidate/tracker`,
     }));
     const soonest = Math.min(...list.map(x => x.days));
-    const { html, text } = emailLayout({
+    await notify({
+      key: `deadline:${user.id}:${day}`, category: 'deadlineReminders', kind: 'deadline_reminder', user,
+      subject: list.length === 1 ? `Closing ${soonest === 1 ? 'tomorrow' : `in ${soonest} days`}: ${list[0].t.title}` : `${list.length} saved vacancies are closing soon`,
       heading: list.length === 1 ? `Last date ${soonest === 1 ? 'tomorrow' : `in ${soonest} days`}: ${list[0].t.title}` : `${list.length} saved vacancies are closing soon`,
       paragraphs: [`Hello ${user.name},`, 'You saved these vacancies in your AcadeXMatch tracker and have not marked them as applied yet.'],
       items,
       button: { label: 'Open my tracker', url: `${base}/candidate/tracker` },
       footer: 'Reminders stop once you mark a vacancy as applied or remove it from your tracker.',
+      ...(list.length === 1 && list[0].t.jobId ? { ref: { jobId: list[0].t.jobId } } : {}),
     });
-    await sendMail({ to: user.email, subject: list.length === 1 ? `Closing ${soonest === 1 ? 'tomorrow' : `in ${soonest} days`}: ${list[0].t.title}` : `${list.length} saved vacancies are closing soon`, text, html, kind: 'deadline_reminder' });
   }
   return due.length;
 }

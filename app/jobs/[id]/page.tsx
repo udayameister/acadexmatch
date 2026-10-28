@@ -6,6 +6,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import InstituteLogo from '@/components/InstituteLogo';
 import JobDetailsSections, { hasJobDetails } from '@/components/JobDetailsSections';
+import { useVerifiedEmailRequired } from '@/components/AuthWidgets';
 import confetti from 'canvas-confetti';
 import { externalApplyLink, isPremiumUser, StorageService, isDeadlinePassed } from '@/lib/storage';
 import { useCurrentUser } from '@/lib/useAuth';
@@ -31,6 +32,7 @@ import {
 } from 'lucide-react';
 
 export default function JobDetailPage() {
+  const verifyRequired = useVerifiedEmailRequired();
   const params = useParams();
   const jobId = params?.id as string;
 
@@ -88,6 +90,11 @@ export default function JobDetailPage() {
       answer: (screeningAnswers[idx] || '').trim(),
     }));
 
+    if (user?.emailVerified === false && verifyRequired) {
+      setApplyError('Please confirm your email address first — open the link we emailed you, or send a new one from My account (/account).');
+      setIsApplying(false);
+      return;
+    }
     const res = StorageService.applyToJob(job.id, formattedAnswers);
     if (!res.success) {
       setApplyError(res.error);

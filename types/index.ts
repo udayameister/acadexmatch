@@ -14,6 +14,46 @@ export interface User {
   premiumUntil?: string;
   /** False until the user clicks the link in the verification email. Missing = verified (older accounts). */
   emailVerified?: boolean;
+  /** Mobile number in E.164 form (+919876543210). */
+  phone?: string;
+  /** True once the number was confirmed with an SMS code. */
+  phoneVerified?: boolean;
+  /** When the Terms of Service and Privacy Policy were accepted (ISO date-time). */
+  termsAcceptedAt?: string;
+  /** Optional newsletters / promotional email (off unless the user opts in). */
+  marketingConsent?: boolean;
+  /** Sign-in methods linked to the account (Google, Microsoft). */
+  identities?: LinkedIdentity[];
+  /** False for accounts created through Google/Microsoft that never set a password. Missing = has a password. */
+  hasPassword?: boolean;
+  /** Which emails the user wants; missing keys use the defaults. */
+  notificationPrefs?: NotificationPrefs;
+}
+
+export type IdentityProvider = 'google' | 'microsoft';
+
+export interface LinkedIdentity {
+  provider: IdentityProvider;
+  /** The provider's stable subject id (never the email). */
+  subject: string;
+  /** Microsoft tenant id, for reference. */
+  tenant?: string;
+  email?: string;
+  linkedAt: string;
+}
+
+/** Optional email categories. Security and account emails cannot be switched off. */
+export interface NotificationPrefs {
+  applications?: boolean;
+  statusUpdates?: boolean;
+  interviews?: boolean;
+  jobAlerts?: boolean;
+  deadlineReminders?: boolean;
+  recruiter?: boolean;
+  announcements?: boolean;
+  marketing?: boolean;
+  /** Email me when my account is signed in from a new device. */
+  loginAlerts?: boolean;
 }
 
 export type CandidatePlan = 'free' | 'premium';

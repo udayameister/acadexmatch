@@ -7,6 +7,7 @@ import { INITIAL_INSTITUTES, INITIAL_JOBS } from '@/lib/data';
 import type { Announcement, Application, CandidateProfile, InterviewSlotOffer, Job, JobAlert, Partner, TalentInvite, User, UserAccount } from '@/types';
 import { isPremiumUser } from '@/lib/storage';
 import { openStore, deleteBlobPrefix, DATA_DIR as PERSIST_DATA_DIR, type Db } from './persist';
+import { digest } from './security'; // also installs the scrypt password hasher
 
 /*
  * The shared AcadeXMatch database. Every collection (users, jobs, applications, ...) is kept under
@@ -23,7 +24,13 @@ const SESSIONS_KEY = '_sessions';
 const SESSION_DAYS = 30;
 export const SESSION_COOKIE = 'acad_session';
 
-interface Session { userId: string; createdAt: number; expiresAt: number }
+/**
+ * Sessions are stored under the SHA-256 digest of the cookie value, so a copy of the database cannot be
+ * used to sign in. (Sessions created before this change were stored under the raw value; they are
+ * re-keyed the first time they are used.)
+ */
+export interface Session { userId: string; createdAt: number; expiresAt: number; lastSeen?: number; device?: string; ip?: string; remember?: boolean; method?: string }
+const SHORT_SESSION_HOURS = 12;
 
 const g = globalThis as unknown as {
   __acadChain?: Promise<unknown>;
@@ -87,31 +94,85 @@ export function withDb<T>(userId: string | null, fn: (db: Db, c: StoreContext) =
 
 // ------------------------------------------------------------------ sessions
 
+function findSession(sessions: Record<string, Session>, token: string): [string, Session] | null {
+  const key = digest(token);
+  if (sessions[key]) return [key, sessions[key]];
+  const legacy = sessions[token];
+  if (legacy) { delete sessions[token]; sessions[key] = legacy; return [key, legacy]; }
+  return null;
+}
+
 export function sessionUserId(token: string | undefined): Promise<string | null> {
-  if (!token) return Promise.resolve(null);
-  return withDb(null, db => {
-    const s = (db[SESSIONS_KEY] as Record<string, Session>)[token];
-    if (!s || s.expiresAt < Date.now()) return null;
+  if (!token || token.length < 32 || token.length > 200) return Promise.resolve(null);
+  return withDb(null, (db, c) => {
+    const sessions = db[SESSIONS_KEY] as Record<string, Session>;
+    const hadLegacy = !!sessions[token];
+    const found = findSession(sessions, token);
+    if (hadLegacy) c.set(SESSIONS_KEY, sessions);
+    if (!found) return null;
+    const [, s] = found;
+    if (s.expiresAt < Date.now()) return null;
     const exists = (db[STORAGE_KEYS.USERS] as UserAccount[]).some(u => u.id === s.userId);
     return exists ? s.userId : null;
   });
 }
 
-export function createSession(userId: string): Promise<{ token: string; maxAge: number }> {
+/** Creates a session. `remember` keeps it for 30 days; otherwise it ends after 12 hours (and with the browser). */
+export function createSession(userId: string, meta: { remember?: boolean; device?: string; ip?: string; method?: string } = {}): Promise<{ token: string; maxAge: number | undefined; isNewDevice: boolean }> {
   const token = randomBytes(32).toString('hex');
-  const maxAge = SESSION_DAYS * 86400;
+  const remember = meta.remember !== false;
+  const life = remember ? SESSION_DAYS * 86400 : SHORT_SESSION_HOURS * 3600;
   return withDb(null, db => {
     const sessions = db[SESSIONS_KEY] as Record<string, Session>;
     const now = Date.now();
     for (const [t, s] of Object.entries(sessions)) if (s.expiresAt < now) delete sessions[t];
-    sessions[token] = { userId, createdAt: now, expiresAt: now + maxAge * 1000 };
-    return { token, maxAge };
+    const mine = Object.values(sessions).filter(s => s.userId === userId);
+    const isNewDevice = !!meta.device && mine.length > 0 && !mine.some(s => s.device === meta.device);
+    sessions[digest(token)] = { userId, createdAt: now, expiresAt: now + life * 1000, lastSeen: now, remember, ...(meta.device ? { device: meta.device } : {}), ...(meta.ip ? { ip: meta.ip.replace(/(\d+\.\d+)\.\d+\.\d+$/, '$1.x.x') } : {}), ...(meta.method ? { method: meta.method } : {}) };
+    return { token, maxAge: remember ? life : undefined, isNewDevice };
   }, { write: true });
+}
+
+/** Details of the current session (when it started), for steps that need a recent sign-in. */
+export function sessionInfo(token: string | undefined): Promise<Session | null> {
+  if (!token) return Promise.resolve(null);
+  return withDb(null, db => {
+    const sessions = db[SESSIONS_KEY] as Record<string, Session>;
+    return sessions[digest(token)] || null;
+  });
 }
 
 export function deleteSession(token: string | undefined): Promise<void> {
   if (!token) return Promise.resolve();
-  return withDb(null, db => { delete (db[SESSIONS_KEY] as Record<string, Session>)[token]; }, { write: true });
+  return withDb(null, db => {
+    const sessions = db[SESSIONS_KEY] as Record<string, Session>;
+    delete sessions[digest(token)];
+    delete sessions[token];
+  }, { write: true });
+}
+
+/** The signed-in user's sessions (newest first), for the account security page. */
+export function listSessions(userId: string, currentToken?: string): Promise<{ id: string; current: boolean; createdAt: number; lastSeen?: number; device?: string; ip?: string; method?: string; remember?: boolean }[]> {
+  const cur = currentToken ? digest(currentToken) : '';
+  return withDb(null, db => Object.entries(db[SESSIONS_KEY] as Record<string, Session>)
+    .filter(([, s]) => s.userId === userId && s.expiresAt > Date.now())
+    .map(([k, s]) => ({ id: k.slice(0, 16), current: k === cur, createdAt: s.createdAt, lastSeen: s.lastSeen, device: s.device, ip: s.ip, method: s.method, remember: s.remember }))
+    .sort((a, b) => b.createdAt - a.createdAt));
+}
+
+/** Signs out one session (by the short id shown on the security page) or all others. */
+export function revokeSessions(userId: string, opts: { id?: string; allExcept?: string }): Promise<number> {
+  const keep = opts.allExcept ? digest(opts.allExcept) : null;
+  return withDb(null, db => {
+    const sessions = db[SESSIONS_KEY] as Record<string, Session>;
+    let n = 0;
+    for (const [k, s] of Object.entries(sessions)) {
+      if (s.userId !== userId || k === keep) continue;
+      if (opts.id && !k.startsWith(opts.id)) continue;
+      delete sessions[k]; n++;
+    }
+    return n;
+  }, { write: true });
 }
 
 export function deleteSessionsForUser(db: Db, userId: string): void {
@@ -255,6 +316,17 @@ type Guard = (me: UserAccount | undefined, args: unknown[], db: Db) => true | st
 const signedIn: Guard = me => (me ? true : 'Please sign in.');
 const admin: Guard = me => (me?.role === 'super_admin' ? true : 'Only the platform administrator can do this.');
 const candidate: Guard = me => (me?.role === 'candidate' ? true : 'Candidate accounts only.');
+/**
+ * Applying and posting vacancies need a confirmed email address once email sending works
+ * (REQUIRE_VERIFIED_EMAIL=off switches this off; =on enforces it even without email set up).
+ */
+const emailSendingOn = () => (['brevo', 'resend'].includes((process.env.EMAIL_API || '').toLowerCase()) && !!process.env.EMAIL_API_KEY) || !!(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
+export function verifiedEmailRequired(): boolean {
+  const v = (process.env.REQUIRE_VERIFIED_EMAIL || 'auto').toLowerCase();
+  return v === 'on' || (v !== 'off' && emailSendingOn());
+}
+const unverified = (me?: UserAccount) => !!me && me.role !== 'super_admin' && me.emailVerified === false && verifiedEmailRequired();
+const VERIFY_FIRST = 'Please confirm your email address first — open the link we emailed you, or send a new one from My account.';
 const jobOfOwnInstitute: Guard = (me, args, db) => {
   if (me?.role === 'super_admin') return true;
   const job = (db[STORAGE_KEYS.JOBS] as Job[]).find(j => j.id === args[0]);
@@ -296,7 +368,7 @@ export const RPC_GUARDS: Record<string, Guard> = {
   // candidates
   updateCandidateProfile: ownProfile,
   saveProfileRecord: ownProfile,
-  applyToJob: candidate,
+  applyToJob: (me, args, db) => (unverified(me) ? VERIFY_FIRST : candidate(me, args, db)),
   withdrawApplication: candidate,
   requestPremiumUpgrade: candidate,
   saveJobAlert: (me, args, db) => {
@@ -326,6 +398,7 @@ export const RPC_GUARDS: Record<string, Guard> = {
   },
   // institution staff (own institute) or admin
   addJob: (me, args) => {
+    if (unverified(me)) return VERIFY_FIRST;
     if (args[0] && JSON.stringify(args[0]).length > 300_000) return 'This vacancy is too long to save. Shorten the advertisement details.';
     if (me?.role === 'super_admin') return true;
     const job = args[0] as Job | undefined;

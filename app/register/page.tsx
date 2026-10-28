@@ -7,6 +7,10 @@ import { StorageService, institutionDomain } from '@/lib/storage';
 import { homePathForRole } from '@/lib/useAuth';
 import { Institute, UserRole } from '@/types';
 import { GraduationCap, Building2, ArrowRight, CheckCircle2, Crown } from 'lucide-react';
+import { PasswordField, PhoneField, SocialButtons, Spinner, useAuthMethods } from '@/components/AuthWidgets';
+import { normalisePhone } from '@/lib/phone';
+import { passwordProblem, passwordStrength } from '@/lib/passwordPolicy';
+import type { CountryCode } from 'libphonenumber-js/min';
 
 const inputCls =
   'w-full bg-white border border-slate-300 rounded-xl px-3.5 py-3 text-sm text-slate-900 focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100';
@@ -18,6 +22,10 @@ export default function RegisterPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
+  const [country, setCountry] = useState<CountryCode>('IN');
+  const [phone, setPhone] = useState('');
+  const [marketing, setMarketing] = useState(false);
+  const methods = useAuthMethods();
   const [institutes, setInstitutes] = useState<Institute[]>([]);
   const [instituteMode, setInstituteMode] = useState<'existing' | 'new'>('existing');
   const [instituteId, setInstituteId] = useState('');
@@ -46,6 +54,10 @@ export default function RegisterPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    const ph = normalisePhone(phone, country);
+    if (!ph.ok) { setError(ph.error || 'Please enter a valid mobile number.'); return; }
+    const weak = passwordProblem(password, { email, name });
+    if (weak) { setError(weak); return; }
     if (password !== confirm) {
       setError('Passwords do not match.');
       return;
@@ -55,7 +67,7 @@ export default function RegisterPage() {
       return;
     }
     if (!consent) {
-      setError('Please accept the data processing terms to continue.');
+      setError('Please accept the Terms of Service and Privacy Policy to continue.');
       return;
     }
     if (role === 'institute_admin' && instituteMode === 'existing' && !instituteId) {
@@ -70,6 +82,10 @@ export default function RegisterPage() {
       email,
       password,
       role,
+      phone: ph.e164,
+      country,
+      termsAccepted: true,
+      marketingConsent: marketing,
       instituteId: role === 'institute_admin' && instituteMode === 'existing' ? instituteId : undefined,
       newInstitute: role === 'institute_admin' && instituteMode === 'new' ? newInst : undefined,
       });
@@ -124,6 +140,8 @@ export default function RegisterPage() {
             })}
           </div>
 
+          {role === 'candidate' && <SocialButtons methods={methods} label="Sign up with" />}
+
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="grid sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
@@ -143,6 +161,8 @@ export default function RegisterPage() {
                 />
               </div>
             </div>
+
+            <PhoneField id="reg-phone" label="Mobile number" country={country} onCountry={setCountry} value={phone} onChange={setPhone} hint={methods?.sms ? 'We will ask you to confirm it with an SMS code. It can then be used to sign in and to recover your account.' : 'Used by institutions to contact you about applications.'} />
 
             {role === 'institute_admin' && (
               <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-4">
@@ -207,21 +227,26 @@ export default function RegisterPage() {
             )}
 
             <div className="grid sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="block text-sm font-medium text-slate-700">Password</label>
-                <input type="password" required minLength={8} autoComplete="new-password" value={password} onChange={e => setPassword(e.target.value)} placeholder="At least 8 characters" className={inputCls} />
-              </div>
-              <div className="space-y-1.5">
-                <label className="block text-sm font-medium text-slate-700">Confirm password</label>
-                <input type="password" required minLength={8} autoComplete="new-password" value={confirm} onChange={e => setConfirm(e.target.value)} className={inputCls} />
-              </div>
+              <PasswordField id="reg-password" label="Password" value={password} onChange={setPassword} autoComplete="new-password" hint="At least 8 characters, with letters and numbers." />
+              <PasswordField id="reg-confirm" label="Confirm password" value={confirm} onChange={setConfirm} autoComplete="new-password" />
             </div>
+            {password && (
+              <div className="space-y-1" aria-live="polite">
+                <div className="flex gap-1">{[0, 1, 2, 3].map(i => <span key={i} className={`h-1.5 flex-1 rounded-full ${passwordStrength(password) > i ? (passwordStrength(password) >= 3 ? 'bg-emerald-600' : 'bg-gold-500') : 'bg-slate-200'}`} />)}</div>
+                <p className="text-xs text-slate-600">{passwordProblem(password, { email, name }) || (confirm && confirm !== password ? 'The passwords do not match yet.' : 'Good password.')}</p>
+              </div>
+            )}
 
             <label className="flex items-start gap-2.5 text-sm text-slate-600 cursor-pointer">
               <input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} className="mt-0.5 w-4 h-4 accent-brand-700" />
               <span>
-                I consent to my data being processed for academic recruitment, including automated profile matching, as described under the DPDP Act, 2023. I can withdraw consent at any time.
+                I accept the <Link href="/terms" target="_blank" className="text-brand-800 underline font-medium">Terms of Service</Link> and the <Link href="/privacy" target="_blank" className="text-brand-800 underline font-medium">Privacy Policy</Link>, and consent to my data being processed for academic recruitment, including automated profile matching, as described under the DPDP Act, 2023. I can withdraw consent at any time.
               </span>
+            </label>
+
+            <label className="flex items-start gap-2.5 text-sm text-slate-600 cursor-pointer">
+              <input type="checkbox" checked={marketing} onChange={e => setMarketing(e.target.checked)} className="mt-0.5 w-4 h-4 accent-brand-700" />
+              <span>Send me occasional AcadeXMatch news and offers by email (optional — you can stop them at any time).</span>
             </label>
 
             {error && <div ref={errorRef} role="alert" className="p-3 rounded-xl bg-crimson-50 border border-crimson-100 text-crimson-700 text-sm">{error}</div>}
@@ -231,7 +256,7 @@ export default function RegisterPage() {
               disabled={isSubmitting}
               className="w-full py-3 rounded-xl bg-brand-900 hover:bg-brand-800 text-white font-semibold text-sm flex items-center justify-center gap-2 shadow-sm transition disabled:opacity-60"
             >
-              {isSubmitting ? <div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" /> : <>Create account <ArrowRight className="w-4 h-4" /></>}
+              {isSubmitting ? <Spinner /> : <>Create account <ArrowRight className="w-4 h-4" /></>}
             </button>
           </form>
         </div>

@@ -3,7 +3,8 @@ import { STORAGE_KEYS, isDeadlinePassed } from '@/lib/storage';
 import { matchesFilters, describeFilters } from '@/lib/jobFilter';
 import { deadlineLabel, locationLabel, payLabel } from '@/lib/display';
 import { withDb } from './db';
-import { emailLayout, sendMail, appUrl, EmailItem } from './mailer';
+import { appUrl, EmailItem } from './mailer';
+import { notify } from './notifications';
 import type { Job, JobAlert, UserAccount } from '@/types';
 
 /** Server-only bookkeeping per alert: vacancies already notified and the last day it ran. */
@@ -119,7 +120,9 @@ export async function runJobAlerts(opts: { force?: boolean } = {}): Promise<Aler
       ],
     }));
     const more = jobs.length - shown.length;
-    const { html, text } = emailLayout({
+    const r = await notify({
+      key: `jobalert:${alert.id}:${day}`, category: 'jobAlerts', kind: 'job_alert', user,
+      subject: `${jobs.length} new faculty ${jobs.length === 1 ? 'vacancy' : 'vacancies'}: ${alert.name}`,
       heading: `${jobs.length} new ${jobs.length === 1 ? 'vacancy matches' : 'vacancies match'} “${alert.name}”`,
       paragraphs: [
         `Hello ${user.name},`,
@@ -130,8 +133,9 @@ export async function runJobAlerts(opts: { force?: boolean } = {}): Promise<Aler
       button: { label: 'Manage my job alerts', url: `${base}/candidate/alerts` },
       footer: `You get this ${alert.frequency} email because you created the job alert “${alert.name}”.`,
       footerLink: { label: 'Pause this alert', url: `${base}/api/alerts/unsubscribe?a=${encodeURIComponent(alert.id)}&t=${await unsubscribeToken(alert.id)}` },
+      ref: { label: alert.name },
     });
-    await sendMail({ to: user.email, subject: `${jobs.length} new faculty ${jobs.length === 1 ? 'vacancy' : 'vacancies'}: ${alert.name}`, text, html, kind: 'job_alert' });
+    if (!r || r.status === 'skipped') continue;
     result.emails++;
     result.vacancies += jobs.length;
   }

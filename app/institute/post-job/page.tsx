@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import JobDetailsFields from '@/components/JobDetailsFields';
+import { useVerifiedEmailRequired } from '@/components/AuthWidgets';
 import { EMPTY_DETAILS_FORM, formToDetails, type DetailsForm } from '@/lib/jobDetailsText';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -49,6 +50,7 @@ export default function PostJobPage() {
   const [screeningQ2, setScreeningQ2] = useState('Detail your top 3 publications in Scopus / SCI indexed Q1 journals in the proposed area.');
   const [isGeneratingAi, setIsGeneratingAi] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const verifyRequired = useVerifiedEmailRequired();
   const [detailsForm, setDetailsForm] = useState<DetailsForm>(EMPTY_DETAILS_FORM);
 
   useEffect(() => {
@@ -92,6 +94,10 @@ export default function PostJobPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!institute) return;
+    if (StorageService.getCurrentUser()?.emailVerified === false && verifyRequired) {
+      alert('Please confirm your email address first — open the link we emailed you, or send a new one from My account.');
+      return;
+    }
     setSubmitting(true);
 
     const cpc = CPC_LEVELS[selectedCpcIdx];

@@ -80,7 +80,7 @@ export function BrandLogo({ inverted = false }: { inverted?: boolean }) {
   return (
     <span className="flex items-center gap-2.5">
       <BrandMark inverted={inverted} className={`w-9 h-9 ${inverted ? 'ring-1 ring-white/20 rounded-xl' : ''}`} />
-      <span className={`font-sans font-bold text-xl tracking-[-0.03em] ${inverted ? 'text-white' : 'text-brand-950'}`}>
+      <span className={`font-sans font-bold text-lg sm:text-xl tracking-[-0.03em] ${inverted ? 'text-white' : 'text-brand-950'}`}>
         Acade<span className={inverted ? 'text-gold-300' : 'text-gold-500'}>X</span>Match
       </span>
     </span>
@@ -131,7 +131,7 @@ export default function Navbar() {
 
   return (
     <header className="print:hidden sticky top-0 z-40 bg-ivory/90 backdrop-blur-md border-b border-slate-200/80 w-full">
-      <div className="max-w-7xl mx-auto px-4 sm:px-8 h-16 flex items-center justify-between gap-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-8 h-16 flex items-center justify-between gap-3 sm:gap-6">
         <Link href={user ? homePathForRole(user.role) : '/'} className="shrink-0" aria-label="AcadeXMatch home">
           <BrandLogo />
         </Link>
@@ -150,7 +150,7 @@ export default function Navbar() {
           ))}
         </nav>
 
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
           {!ready ? (
             <div className="w-24 h-9" />
           ) : user ? (
@@ -220,7 +220,7 @@ export default function Navbar() {
               <Link href="/login" className="hidden sm:inline-flex px-4 py-2 rounded-lg text-sm font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition">
                 Sign in
               </Link>
-              <Link href="/register" className="inline-flex px-4 py-2 rounded-lg text-sm font-semibold bg-brand-900 hover:bg-brand-800 text-white shadow-sm transition">
+              <Link href="/register" className="inline-flex px-3 sm:px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap bg-brand-900 hover:bg-brand-800 text-white shadow-sm transition">
                 Get started
               </Link>
             </>

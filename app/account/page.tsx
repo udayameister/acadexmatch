@@ -9,28 +9,16 @@ import PaymentsList from '@/components/PaymentsList';
 import { Payment } from '@/types';
 import { PlanPill } from '@/components/Premium';
 import { postJson } from '@/components/AuthCard';
-import { CheckCircle2, KeyRound, Mail, ShieldCheck, Crown, Receipt } from 'lucide-react';
+import { CheckCircle2, Mail, ShieldCheck, Crown, Receipt, Bell } from 'lucide-react';
+import AccountSecurity from '@/components/AccountSecurity';
 
-const input = 'w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-300 text-sm text-slate-900 focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100';
 
 function AccountInner() {
   const { user } = useCurrentUser();
-  const [cur, setCur] = useState('');
-  const [next, setNext] = useState('');
-  const [confirm, setConfirm] = useState('');
-  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [verifyMsg, setVerifyMsg] = useState<string | null>(null);
   const payments = useStorageValue<Payment[]>(() => StorageService.getPayments(), []);
   if (!user) return null;
   const myPayments = payments.filter(p => p.status !== 'created');
-
-  const change = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (next !== confirm) { setMsg({ ok: false, text: 'New passwords do not match.' }); return; }
-    const r = await StorageService.changePassword(cur, next);
-    setMsg(r.success ? { ok: true, text: 'Password changed.' } : { ok: false, text: r.error || 'Could not change the password.' });
-    if (r.success) { setCur(''); setNext(''); setConfirm(''); }
-  };
 
   const resend = async () => {
     const r = await postJson('/api/auth/resend-verification', {});
@@ -74,16 +62,16 @@ function AccountInner() {
         </section>
       )}
 
-      <section className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-4">
-        <h2 className="font-bold text-slate-900 flex items-center gap-2"><KeyRound className="w-4 h-4 text-brand-700" /> Change password</h2>
-        <form onSubmit={change} className="grid sm:grid-cols-3 gap-3 items-end">
-          <label className="block space-y-1"><span className="text-xs font-semibold text-slate-700">Current password</span><input required type="password" autoComplete="current-password" className={input} value={cur} onChange={e => setCur(e.target.value)} /></label>
-          <label className="block space-y-1"><span className="text-xs font-semibold text-slate-700">New password</span><input required minLength={8} type="password" autoComplete="new-password" className={input} value={next} onChange={e => setNext(e.target.value)} /></label>
-          <label className="block space-y-1"><span className="text-xs font-semibold text-slate-700">Confirm new password</span><input required minLength={8} type="password" autoComplete="new-password" className={input} value={confirm} onChange={e => setConfirm(e.target.value)} /></label>
-          <button type="submit" className="sm:col-span-3 justify-self-start px-5 py-2.5 rounded-xl bg-brand-900 hover:bg-brand-800 text-white text-sm font-semibold">Change password</button>
-        </form>
-        {msg && <p className={`text-sm ${msg.ok ? 'text-emerald-700' : 'text-crimson-700'}`} role="status">{msg.text}</p>}
+      <section className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="font-bold text-slate-900 flex items-center gap-2"><Bell className="w-4 h-4 text-brand-700" /> Email notifications</h2>
+          <p className="text-sm text-slate-600 mt-1">Choose which emails you receive and see the messages we have sent you.</p>
+        </div>
+        <Link href="/account/notifications" className="px-4 py-2 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-sm font-semibold text-slate-800">Notification settings</Link>
       </section>
+
+      <h2 className="text-xl font-bold text-brand-800 pt-2">Security</h2>
+      <AccountSecurity />
 
       <p className="text-xs text-slate-500 flex items-center gap-1.5"><ShieldCheck className="w-3.5 h-3.5" /> Forgot your password? Sign out and use <Link href="/forgot-password" className="underline">Forgot password</Link>.</p>
     </div>

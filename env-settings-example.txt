@@ -64,3 +64,58 @@ RAZORPAY_KEY_SECRET=xxxxxxxxxxxxxxxxxxxx
 # IndexNow key (8–128 letters/digits/dashes, e.g. a random UUID). Served at /<key>.txt; changed vacancies are
 # then announced to Bing and other IndexNow search engines automatically.
 # INDEXNOW_KEY=
+
+# ---- Sign-in security (see docs/AUTH_AND_NOTIFICATIONS.md) ----
+# Secret for signing Google/Microsoft sign-in state, SMS-code digests and unsubscribe links.
+# At least 32 random characters, e.g. the output of:  node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+# AUTH_SECRET=
+# Administrator sign-in asks for a code by email once email sending works. Set to off to skip it (not recommended).
+# ADMIN_EMAIL_CODE=on
+# Applying and posting vacancies need a confirmed email once email sending works: auto (default) | on | off
+# REQUIRE_VERIFIED_EMAIL=auto
+# Password-reset link lifetime in minutes (default 30).
+# PASSWORD_RESET_MINUTES=30
+
+# ---- SMS codes (sign-in by mobile number, phone confirmation, password recovery) ----
+# Without these the SMS options are hidden; nothing is ever pretended to be sent.
+# MSG91 (India, DLT): DLT-registered sender header + an approved OTP template whose variable is the code,
+# e.g. "##OTP## is your AcadeXMatch verification code. It is valid for 5 minutes. Do not share it. - AcadeXMatch"
+# SMS_PROVIDER=msg91
+# MSG91_AUTH_KEY=
+# MSG91_TEMPLATE_ID=
+# MSG91_SENDER=ACADXM
+# MSG91_DLT_TE_ID=
+# MSG91_OTP_VAR=OTP
+# Or Twilio (outside India, or with Twilio's own DLT registration for India):
+# SMS_PROVIDER=twilio
+# TWILIO_ACCOUNT_SID=
+# TWILIO_AUTH_TOKEN=
+# TWILIO_FROM=+1xxxxxxxxxx      (or TWILIO_MESSAGING_SERVICE_SID=MG...)
+# Code rules (defaults shown): length, minutes valid, seconds before a new code, wrong tries, codes per number per hour/day, per IP per hour.
+# OTP_LENGTH=6
+# OTP_EXPIRY_MINUTES=5
+# OTP_RESEND_SECONDS=60
+# OTP_MAX_ATTEMPTS=5
+# OTP_MAX_PER_HOUR=5
+# OTP_MAX_PER_DAY=10
+# OTP_MAX_PER_IP_HOUR=20
+
+# ---- Continue with Google / Microsoft ----
+# Buttons appear only when both values of a provider are set.
+# Redirect URIs to register:  https://acadexmatch.com/api/auth/oauth/google/callback
+#                              https://acadexmatch.com/api/auth/oauth/microsoft/callback
+# GOOGLE_CLIENT_ID=xxxxxxxx.apps.googleusercontent.com
+# GOOGLE_CLIENT_SECRET=
+# MICROSOFT_CLIENT_ID=
+# MICROSOFT_CLIENT_SECRET=
+# MICROSOFT_TENANT=common        (common = personal + work/school accounts; consumers; organizations; or a tenant id)
+# Optional: base address for the callback URLs if it differs from APP_URL.
+# OAUTH_REDIRECT_BASE=https://acadexmatch.com
+
+# ---- Email delivery events and test copies ----
+# Webhook from Brevo/Resend for delivered / bounced / spam reports: https://acadexmatch.com/api/email-events?key=<this secret>
+# EMAIL_WEBHOOK_SECRET=choose-a-long-random-secret
+# On a test copy of the site, send every email to one inbox instead of the real recipients:
+# EMAIL_REDIRECT_TO=you@example.com
+# Interview reminders: hours before the interview (default 24 and 1).
+# INTERVIEW_REMINDER_HOURS=24,1

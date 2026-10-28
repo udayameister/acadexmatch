@@ -98,7 +98,7 @@ export default function JobCard({ job, candidateProfile, onOpenMatchModal, featu
           </div>
           
           <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-slate-600">
-            <span className="font-semibold text-slate-800">{job.instituteName}</span>
+            <span className="font-semibold text-slate-800 min-w-0 break-words">{job.instituteName}</span>
             <span className="text-slate-300">•</span>
             <span className="flex items-center gap-1 text-slate-500">
               <MapPin className="w-3.5 h-3.5 text-slate-400" />

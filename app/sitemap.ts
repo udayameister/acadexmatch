@@ -30,6 +30,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${SITE_URL}/salary-calculator` },
     { url: `${SITE_URL}/premium` },
     { url: `${SITE_URL}/about` },
+    { url: `${SITE_URL}/terms` },
+    { url: `${SITE_URL}/privacy` },
   ];
   const jobUrls = jobs.map(j => ({ url: `${SITE_URL}/jobs/${encodeURIComponent(j.id)}`, ...(isoDay(j.postedAt) ? { lastModified: isoDay(j.postedAt) } : {}) }));
   const instUrls = institutes.map(i => ({ url: `${SITE_URL}/institutes/${encodeURIComponent(i.id)}`, ...(isoDay(i.verifiedAt) ? { lastModified: isoDay(i.verifiedAt) } : {}) }));

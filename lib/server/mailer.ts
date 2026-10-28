@@ -1,5 +1,6 @@
 import nodemailer, { Transporter } from 'nodemailer';
 import { randomBytes } from 'crypto';
+import { digest } from './security';
 import { withDb } from './db';
 import { CONTACT_EMAIL } from '../contact';
 
@@ -23,6 +24,12 @@ export interface OutboxItem {
   status: 'sent' | 'logged' | 'failed';
   error?: string;
   kind?: string;
+  /** Message id returned by the email API (for delivery webhooks). */
+  providerId?: string;
+  /** The message held a private link or code; its content is not kept. */
+  redacted?: boolean;
+  /** Address the message was really sent to when EMAIL_REDIRECT_TO is set (test mode). */
+  redirectedTo?: string;
 }
 
 export function smtpConfigured(): boolean {
@@ -75,26 +82,25 @@ function parseFrom(from: string): { name?: string; email: string } {
   return m ? { name: m[1].trim() || undefined, email: m[2].trim() } : { email: from.trim() };
 }
 
-async function sendViaApi(provider: 'brevo' | 'resend', msg: { to: string; subject: string; text: string; html?: string }): Promise<void> {
+async function sendViaApi(provider: 'brevo' | 'resend', msg: { to: string; subject: string; text: string; html?: string; headers?: Record<string, string> }): Promise<string | undefined> {
   const from = process.env.MAIL_FROM || process.env.SMTP_USER || '';
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 20000);
   try {
     const r = provider === 'brevo'
-      ? await fetch('https://api.brevo.com/v3/smtp/email', {
+      ? await fetch(`${(process.env.EMAIL_API_URL || 'https://api.brevo.com').replace(/\/$/, '')}/v3/smtp/email`, {
         method: 'POST', signal: ctrl.signal,
         headers: { 'api-key': process.env.EMAIL_API_KEY!, 'Content-Type': 'application/json', accept: 'application/json' },
-        body: JSON.stringify({ sender: parseFrom(from), to: [{ email: msg.to }], subject: msg.subject, textContent: msg.text, ...(msg.html ? { htmlContent: msg.html } : {}) }),
+        body: JSON.stringify({ sender: parseFrom(from), to: [{ email: msg.to }], subject: msg.subject, textContent: msg.text, ...(msg.html ? { htmlContent: msg.html } : {}), ...(msg.headers ? { headers: msg.headers } : {}) }),
       })
-      : await fetch('https://api.resend.com/emails', {
+      : await fetch(`${(process.env.EMAIL_API_URL || 'https://api.resend.com').replace(/\/$/, '')}/emails`, {
         method: 'POST', signal: ctrl.signal,
         headers: { Authorization: `Bearer ${process.env.EMAIL_API_KEY}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ from, to: [msg.to], subject: msg.subject, text: msg.text, ...(msg.html ? { html: msg.html } : {}) }),
+        body: JSON.stringify({ from, to: [msg.to], subject: msg.subject, text: msg.text, ...(msg.html ? { html: msg.html } : {}), ...(msg.headers ? { headers: msg.headers } : {}) }),
       });
-    if (!r.ok) {
-      const d = await r.json().catch(() => ({})) as { message?: string; error?: string };
-      throw new Error(`${provider} ${r.status}: ${d.message || d.error || r.statusText}`);
-    }
+    const d = await r.json().catch(() => ({})) as { message?: string; error?: string; messageId?: string; id?: string };
+    if (!r.ok) throw Object.assign(new Error(`${provider} ${r.status}: ${d.message || d.error || r.statusText}`), { permanent: r.status >= 400 && r.status < 500 && r.status !== 429 });
+    return d.messageId || d.id;
   } finally {
     clearTimeout(timer);
   }
@@ -135,20 +141,33 @@ ${opts.button ? `<p style="margin:22px 0"><a href="${esc(opts.button.url)}" styl
   return { html, text };
 }
 
-/** Sends (if SMTP is set up) and records the message in the Outbox. Never throws. */
-export async function sendMail(msg: { to: string; subject: string; text: string; html?: string; kind?: string }): Promise<OutboxItem> {
-  const item: OutboxItem = {
+/**
+ * Sends (if an email provider is set up) and records the message in the admin Outbox. Never throws.
+ * `sensitive` messages (sign-in links, codes) are recorded without their content.
+ * EMAIL_REDIRECT_TO=you@example.com sends every message to that inbox instead (for test copies of the site).
+ */
+export async function sendMail(msg: { to: string; subject: string; text: string; html?: string; kind?: string; sensitive?: boolean; headers?: Record<string, string> }): Promise<OutboxItem & { permanent?: boolean }> {
+  const redirect = (process.env.EMAIL_REDIRECT_TO || '').trim();
+  const to = redirect || msg.to;
+  const subject = redirect ? `[to ${msg.to}] ${msg.subject}` : msg.subject;
+  const item: OutboxItem & { permanent?: boolean } = {
     id: `mail-${Date.now().toString(36)}-${randomBytes(3).toString('hex')}`,
-    to: msg.to, subject: msg.subject, text: msg.text, html: msg.html, kind: msg.kind,
+    to: msg.to, subject: msg.subject,
+    text: msg.sensitive ? '(Content not stored: this email contained a private link or code.)' : msg.text,
+    html: msg.sensitive ? undefined : msg.html,
+    kind: msg.kind,
     createdAt: new Date().toISOString(),
     status: 'logged',
+    ...(msg.sensitive ? { redacted: true } : {}),
+    ...(redirect ? { redirectedTo: redirect } : {}),
   };
   const api = emailApi();
   if (api || smtpConfigured()) {
     try {
-      if (api) await sendViaApi(api, msg);
+      const out = { to, subject, text: msg.text, html: msg.html, headers: msg.headers };
+      if (api) item.providerId = await sendViaApi(api, out);
       else {
-        const mail = { from: process.env.MAIL_FROM || process.env.SMTP_USER, to: msg.to, subject: msg.subject, text: msg.text, html: msg.html };
+        const mail = { from: process.env.MAIL_FROM || process.env.SMTP_USER, to, subject, text: msg.text, html: msg.html, headers: msg.headers };
         const port = Number(process.env.SMTP_PORT || 587);
         try {
           await getTransport(port).sendMail(mail);
@@ -165,40 +184,74 @@ export async function sendMail(msg: { to: string; subject: string; text: string;
     } catch (e) {
       item.status = 'failed';
       item.error = (e as Error).message.slice(0, 600);
-      console.error('[AcadeXMatch] Email failed:', item.error);
+      item.permanent = !!(e as { permanent?: boolean }).permanent;
+      console.error('[AcadeXMatch] Email failed:', item.kind || '', item.error);
     }
   }
   await withDb(null, (db, c) => {
     const box = ((db[OUTBOX_KEY] as OutboxItem[]) || []).slice(0, MAX_OUTBOX - 1);
-    c.set(OUTBOX_KEY, [item, ...box]);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { permanent, ...stored } = item;
+    c.set(OUTBOX_KEY, [stored, ...box]);
   });
   return item;
 }
 
 // ------------------------------------------------------------------ one-time tokens
 
-interface TokenRec { userId: string; type: 'verify' | 'reset'; expiresAt: number }
+type TokenType = 'verify' | 'reset' | 'email-change' | 'phone-reset';
+interface TokenRec { userId: string; type: TokenType; expiresAt: number; data?: string }
 
-export function createToken(userId: string, type: TokenRec['type'], hours: number): Promise<string> {
-  const token = randomBytes(24).toString('hex');
+/**
+ * One-time links (email verification, password reset). Only the SHA-256 digest of the token is stored;
+ * creating a new token of the same type for the user invalidates the previous one.
+ */
+export function createToken(userId: string, type: TokenType, hours: number, data?: string): Promise<string> {
+  const token = randomBytes(32).toString('base64url');
   return withDb(null, (db, c) => {
     const all = { ...((db[TOKENS_KEY] as Record<string, TokenRec>) || {}) };
     const now = Date.now();
     for (const [t, r] of Object.entries(all)) if (r.expiresAt < now || (r.userId === userId && r.type === type)) delete all[t];
-    all[token] = { userId, type, expiresAt: now + hours * 3600_000 };
+    all[digest(token)] = { userId, type, expiresAt: now + hours * 3600_000, ...(data ? { data } : {}) };
     c.set(TOKENS_KEY, all);
     return token;
   });
 }
 
-/** Returns the user id and removes the token if it is valid. */
-export function consumeToken(token: string, type: TokenRec['type']): Promise<string | null> {
+/** Returns the user id (and stored data) and removes the token if it is valid. */
+export function consumeTokenData(token: string, type: TokenType): Promise<{ userId: string; data?: string } | null> {
+  if (!token || token.length > 200) return Promise.resolve(null);
   return withDb(null, (db, c) => {
     const all = { ...((db[TOKENS_KEY] as Record<string, TokenRec>) || {}) };
-    const r = all[token];
-    if (!r || r.type !== type || r.expiresAt < Date.now()) return null;
-    delete all[token];
+    const key = all[digest(token)] ? digest(token) : all[token] ? token : null; // raw keys: links sent before hashing
+    const r = key ? all[key] : undefined;
+    if (!key || !r || r.type !== type || r.expiresAt < Date.now()) return null;
+    delete all[key];
     c.set(TOKENS_KEY, all);
-    return r.userId;
+    return { userId: r.userId, data: r.data };
+  });
+}
+
+/** Reads a token without using it up (to check a form before the final step). */
+export function peekTokenData(token: string, type: TokenType): Promise<{ userId: string; data?: string } | null> {
+  if (!token || token.length > 200) return Promise.resolve(null);
+  return withDb(null, db => {
+    const all = (db[TOKENS_KEY] as Record<string, TokenRec>) || {};
+    const r = all[digest(token)] || all[token];
+    return r && r.type === type && r.expiresAt >= Date.now() ? { userId: r.userId, data: r.data } : null;
+  });
+}
+
+export async function consumeToken(token: string, type: TokenType): Promise<string | null> {
+  return (await consumeTokenData(token, type))?.userId ?? null;
+}
+
+/** Removes every unused token of these types for the user (e.g. after a password change). */
+export function revokeTokens(userId: string, types: TokenType[]): Promise<void> {
+  return withDb(null, (db, c) => {
+    const all = { ...((db[TOKENS_KEY] as Record<string, TokenRec>) || {}) };
+    let changed = false;
+    for (const [k, r] of Object.entries(all)) if (r.userId === userId && types.includes(r.type)) { delete all[k]; changed = true; }
+    if (changed) c.set(TOKENS_KEY, all);
   });
 }

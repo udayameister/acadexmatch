@@ -70,6 +70,8 @@ export default function Footer() {
         { href: '/#faq', label: 'FAQ' },
         { href: '/premium', label: 'Plans & Premium' },
         { href: '/salary-calculator', label: 'Salary calculator' },
+        { href: '/terms', label: 'Terms of Service' },
+        { href: '/privacy', label: 'Privacy Policy' },
         { href: '/login', label: 'Sign in' },
       ],
     },

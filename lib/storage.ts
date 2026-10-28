@@ -22,10 +22,12 @@ import {
   Announcement,
   Partner,
   PremiumPlanOption,
+  LinkedIdentity,
 } from '@/types';
 import { INITIAL_INSTITUTES, INITIAL_JOBS } from './data';
 import { calculateMatchScore, withDerivedProfileFields } from './scoring';
 import { pbkdf2Sha256 } from './pbkdf2';
+import { passwordProblem } from './passwordPolicy';
 import { cleanFilters, nameFromFilters } from './jobFilter';
 
 // v3: accounts with hashed passwords; no seeded demo users / applications.
@@ -67,6 +69,12 @@ export interface RegisterInput {
   instituteId?: string;
   /** Details for a new institute registered by an institute admin (created as pending verification). */
   newInstitute?: { name: string; aisheCode: string; city: string; state: string; website?: string };
+  /** Mobile number in E.164 form, already validated by the caller. */
+  phone?: string;
+  /** Country of the mobile number (ISO code, default IN), used when the number has no +code. */
+  country?: string;
+  termsAccepted?: boolean;
+  marketingConsent?: boolean;
 }
 
 /*
@@ -161,6 +169,32 @@ export async function hashPassword(password: string, saltHex: string): Promise<s
     }
   }
   return toHex(pbkdf2Sha256(enc.encode(password), salt, 120000).buffer as ArrayBuffer);
+}
+
+/*
+ * Password hashing used for accounts. The server installs scrypt (lib/server/security.ts); hashes made
+ * before that are PBKDF2 hex strings and still verify (and are upgraded at sign-in).
+ */
+interface PasswordHasher { hash(pw: string): Promise<string>; verify(pw: string, stored: string): Promise<boolean>; isCurrent(stored: string): boolean }
+let passwordHasher: PasswordHasher | null = null;
+export function setPasswordHasher(h: PasswordHasher): void { passwordHasher = h; }
+
+/** Hash fields for a new password. */
+export async function makePasswordHash(password: string): Promise<{ salt: string; passwordHash: string }> {
+  if (passwordHasher) return { salt: '', passwordHash: await passwordHasher.hash(password) };
+  const salt = randomSalt();
+  return { salt, passwordHash: await hashPassword(password, salt) };
+}
+
+/** Checks a password against an account; `upgrade` is true when the stored hash uses the older method. */
+export async function checkAccountPassword(account: Pick<UserAccount, 'salt' | 'passwordHash'> | undefined, password: string): Promise<{ ok: boolean; upgrade: boolean }> {
+  if (!account || !account.passwordHash) {
+    await hashPassword(password, '00'.repeat(16)); // similar timing when there is no account
+    return { ok: false, upgrade: false };
+  }
+  if (passwordHasher && account.passwordHash.startsWith('scrypt$')) return { ok: await passwordHasher.verify(password, account.passwordHash), upgrade: false };
+  const ok = /^[0-9a-f]+$/.test(account.salt || '') && (await hashPassword(password, account.salt)) === account.passwordHash;
+  return { ok, upgrade: ok && !!passwordHasher };
 }
 
 export function randomSalt(): string {
@@ -354,11 +388,15 @@ export const StorageService = {
     const email = input.email.trim().toLowerCase();
     if (name.length < 2) return { success: false, error: 'Please enter your full name.' };
     if (!EMAIL_RE.test(email)) return { success: false, error: 'Please enter a valid email address.' };
-    if (input.password.length < 8) return { success: false, error: 'Password must be at least 8 characters.' };
+    const weak = passwordProblem(input.password, { email, name });
+    if (weak) return { success: false, error: weak };
 
     const accounts = this.getAccounts();
     if (accounts.some(u => u.email === email)) {
-      return { success: false, error: 'An account with this email already exists. Please sign in.' };
+      return { success: false, error: 'An account with this email already exists. Please sign in, or use “Forgot password?”.' };
+    }
+    if (input.phone && accounts.some(u => u.phone === input.phone && u.phoneVerified)) {
+      return { success: false, error: 'This mobile number is already confirmed on another account. Use a different number, or sign in with it.' };
     }
     if (input.role === 'super_admin' && this.hasSuperAdmin()) {
       return { success: false, error: 'A platform administrator already exists.' };
@@ -387,7 +425,6 @@ export const StorageService = {
       }
     }
 
-    const salt = randomSalt();
     const account: UserAccount = {
       id: newId('user'),
       name,
@@ -395,9 +432,11 @@ export const StorageService = {
       role: input.role,
       instituteId,
       createdAt: today(),
-      salt,
-      passwordHash: await hashPassword(input.password, salt),
+      ...(await makePasswordHash(input.password)),
       emailVerified: false,
+      ...(input.phone ? { phone: input.phone, phoneVerified: false } : {}),
+      ...(input.termsAccepted ? { termsAcceptedAt: new Date().toISOString() } : {}),
+      marketingConsent: !!input.marketingConsent,
     };
     setToStorage(STORAGE_KEYS.USERS, [...accounts, account]);
 
@@ -415,13 +454,50 @@ export const StorageService = {
     return { success: true, user };
   },
 
+  /**
+   * Creates a candidate account from a verified Google/Microsoft sign-in (no password). Server-only:
+   * it has no RPC permission entry, so the browser cannot call it.
+   */
+  registerWithIdentity(input: { name: string; email: string; emailVerified: boolean; identity: LinkedIdentity }): AuthResult {
+    const email = input.email.trim().toLowerCase();
+    if (!EMAIL_RE.test(email)) return { success: false, error: 'Your account did not share a valid email address.' };
+    const accounts = this.getAccounts();
+    if (accounts.some(u => u.email === email)) return { success: false, error: 'exists' };
+    const account: UserAccount = {
+      id: newId('user'),
+      name: input.name.trim().slice(0, 120) || email.split('@')[0],
+      email,
+      role: 'candidate',
+      createdAt: today(),
+      salt: '',
+      passwordHash: '',
+      hasPassword: false,
+      emailVerified: input.emailVerified,
+      identities: [input.identity],
+      termsAcceptedAt: new Date().toISOString(),
+      marketingConsent: false,
+    };
+    setToStorage(STORAGE_KEYS.USERS, [...accounts, account]);
+    const user = toPublicUser(account);
+    this.saveProfileRecord(createEmptyCandidateProfile(user));
+    const c = ctx();
+    if (c) c.userId = user.id;
+    this.addAuditLog(`New candidate account registered with ${input.identity.provider}: ${email}`, user.id, 'AUTHENTICATION');
+    return { success: true, user };
+  },
+
   async login(emailInput: string, password: string): Promise<AuthResult> {
     const email = emailInput.trim().toLowerCase();
-    const account = this.getAccounts().find(u => u.email === email);
-    // Hash even when the account is missing so failed lookups take similar time.
-    const hash = await hashPassword(password, account?.salt || '00'.repeat(16));
-    if (!account || hash !== account.passwordHash) {
+    const accounts = this.getAccounts();
+    const account = accounts.find(u => u.email === email);
+    // Checks (and hashes) even when the account is missing, so failed lookups take similar time.
+    const check = await checkAccountPassword(account?.hasPassword === false ? undefined : account, password);
+    if (!account || !check.ok) {
       return { success: false, error: 'Incorrect email or password.' };
+    }
+    if (check.upgrade) {
+      const fresh = await makePasswordHash(password);
+      setToStorage(STORAGE_KEYS.USERS, accounts.map(u => (u.id === account.id ? { ...u, ...fresh } : u)));
     }
     const c = ctx();
     if (c) c.userId = account.id;
@@ -432,15 +508,15 @@ export const StorageService = {
   async changePassword(currentPassword: string, newPassword: string): Promise<{ success: boolean; error?: string }> {
     const user = this.getCurrentUser();
     if (!user) return { success: false, error: 'Not signed in.' };
-    if (newPassword.length < 8) return { success: false, error: 'New password must be at least 8 characters.' };
+    const weak = passwordProblem(newPassword, { email: user.email, name: user.name });
+    if (weak) return { success: false, error: weak };
     const accounts = this.getAccounts();
     const account = accounts.find(a => a.id === user.id)!;
-    if ((await hashPassword(currentPassword, account.salt)) !== account.passwordHash) {
+    if (account.hasPassword !== false && !(await checkAccountPassword(account, currentPassword)).ok) {
       return { success: false, error: 'Current password is incorrect.' };
     }
-    const salt = randomSalt();
-    const passwordHash = await hashPassword(newPassword, salt);
-    setToStorage(STORAGE_KEYS.USERS, accounts.map(a => (a.id === user.id ? { ...a, salt, passwordHash } : a)));
+    const fresh = await makePasswordHash(newPassword);
+    setToStorage(STORAGE_KEYS.USERS, accounts.map(a => (a.id === user.id ? { ...a, ...fresh, hasPassword: true } : a)));
     this.addAuditLog('Password changed', user.id, 'AUTHENTICATION');
     return { success: true };
   },
@@ -471,7 +547,6 @@ export const StorageService = {
     if (needsInstitute && !(input.instituteId && this.getInstituteById(input.instituteId))) {
       return { success: false, error: 'Choose the institute this account belongs to.' };
     }
-    const salt = randomSalt();
     const account: UserAccount = {
       id: newId('user'),
       name,
@@ -479,8 +554,7 @@ export const StorageService = {
       role: input.role,
       instituteId: needsInstitute ? input.instituteId : undefined,
       createdAt: today(),
-      salt,
-      passwordHash: await hashPassword(input.password, salt),
+      ...(await makePasswordHash(input.password)),
       emailVerified: true,
     };
     setToStorage(STORAGE_KEYS.USERS, [...accounts, account]);
@@ -525,9 +599,8 @@ export const StorageService = {
     if (newPassword.length < 8) return { success: false, error: 'Password must be at least 8 characters.' };
     const accounts = this.getAccounts();
     if (!accounts.some(a => a.id === id)) return { success: false, error: 'Account not found.' };
-    const salt = randomSalt();
-    const passwordHash = await hashPassword(newPassword, salt);
-    setToStorage(STORAGE_KEYS.USERS, accounts.map(a => (a.id === id ? { ...a, salt, passwordHash } : a)));
+    const fresh = await makePasswordHash(newPassword);
+    setToStorage(STORAGE_KEYS.USERS, accounts.map(a => (a.id === id ? { ...a, ...fresh, hasPassword: true } : a)));
     this.addAuditLog('Admin reset an account password', id, 'AUTHENTICATION');
     return { success: true };
   },

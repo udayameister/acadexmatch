@@ -33,27 +33,27 @@ async function main() {
   check('anonymous profile is null', StorageService.getCandidateProfile() === null);
 
   // Platform admin bootstrap
-  const admin = await StorageService.register({ name: 'Platform Admin', email: 'admin@acadexmatch.in', password: 'adminpass123', role: 'super_admin' });
+  const admin = await StorageService.register({ name: 'Platform Admin', email: 'admin@acadexmatch.in', password: 'Platform#Key2026', role: 'super_admin' });
   check('first super admin can register', admin.success, admin);
-  const admin2 = await StorageService.register({ name: 'Second', email: 'x@acadexmatch.in', password: 'adminpass123', role: 'super_admin' });
+  const admin2 = await StorageService.register({ name: 'Second', email: 'x@acadexmatch.in', password: 'Platform#Key2026', role: 'super_admin' });
   check('second super admin is refused', !admin2.success);
   StorageService.logout();
 
   // Validation
   check('short password rejected', !(await StorageService.register({ name: 'A B', email: 'ab@x.com', password: 'short', role: 'candidate' })).success);
-  check('bad email rejected', !(await StorageService.register({ name: 'A B', email: 'nope', password: 'longenough1', role: 'candidate' })).success);
+  check('bad email rejected', !(await StorageService.register({ name: 'A B', email: 'nope', password: 'Long#enough2026', role: 'candidate' })).success);
 
   // Institute admin: domain enforcement
-  const badInst = await StorageService.register({ name: 'Prof X', email: 'profx@gmail.com', password: 'password123', role: 'institute_admin', instituteId: 'inst-iitb' });
+  const badInst = await StorageService.register({ name: 'Prof X', email: 'profx@gmail.com', password: 'Faculty#Gate2026', role: 'institute_admin', instituteId: 'inst-iitb' });
   check('IIT Bombay join refused for gmail address', !badInst.success, badInst);
-  const inst = await StorageService.register({ name: 'Prof. Dean', email: 'dean@iitb.ac.in', password: 'password123', role: 'institute_admin', instituteId: 'inst-iitb' });
+  const inst = await StorageService.register({ name: 'Prof. Dean', email: 'dean@iitb.ac.in', password: 'Faculty#Gate2026', role: 'institute_admin', instituteId: 'inst-iitb' });
   check('IIT Bombay join allowed for @iitb.ac.in', inst.success, inst);
   check('institute admin sees own institute', StorageService.getCurrentInstitute()?.id === 'inst-iitb');
   StorageService.logout();
 
   // New pending institute
   const newInst = await StorageService.register({
-    name: 'Registrar', email: 'registrar@newcollege.edu.in', password: 'password123', role: 'institute_admin',
+    name: 'Registrar', email: 'registrar@newcollege.edu.in', password: 'Faculty#Gate2026', role: 'institute_admin',
     newInstitute: { name: 'New Engineering College', aisheCode: 'C-99999', city: 'Pune', state: 'Maharashtra' },
   });
   check('new institute registration works', newInst.success, newInst);
@@ -62,9 +62,9 @@ async function main() {
   StorageService.logout();
 
   // Candidate
-  const cand = await StorageService.register({ name: 'Dr. Kavya Iyer', email: 'kavya@example.org', password: 'candidate123', role: 'candidate' });
+  const cand = await StorageService.register({ name: 'Dr. Kavya Iyer', email: 'kavya@example.org', password: 'Scholar#Path2026', role: 'candidate' });
   check('candidate registers', cand.success);
-  const dup = await StorageService.register({ name: 'Dup', email: 'KAVYA@example.org', password: 'candidate123', role: 'candidate' });
+  const dup = await StorageService.register({ name: 'Dup', email: 'KAVYA@example.org', password: 'Scholar#Path2026', role: 'candidate' });
   check('duplicate email (case-insensitive) refused', !dup.success);
   let profile = StorageService.getCandidateProfile()!;
   check('empty profile created with API 0', profile && profile.apiScore === 0 && profile.publications.length === 0, profile?.apiScore);
@@ -101,10 +101,10 @@ async function main() {
 
   // Wrong password
   check('wrong password refused', !(await StorageService.login('dean@iitb.ac.in', 'wrongpass')).success);
-  check('unknown email refused', !(await StorageService.login('ghost@iitb.ac.in', 'password123')).success);
+  check('unknown email refused', !(await StorageService.login('ghost@iitb.ac.in', 'Faculty#Gate2026')).success);
 
   // Institute reviews
-  check('institute admin logs in', (await StorageService.login('DEAN@iitb.ac.in', 'password123')).success);
+  check('institute admin logs in', (await StorageService.login('DEAN@iitb.ac.in', 'Faculty#Gate2026')).success);
   check('institute sees the application', StorageService.getApplications().some(a => a.id === appId));
   StorageService.updateApplicationStage(appId, 'shortlisted');
   StorageService.scheduleInterview(appId, { date: '2026-11-01', time: '10:00 AM IST', platform: 'Zoom', meetingLink: 'https://zoom.us/j/1', committeeMembers: ['Dean'], instructions: '' });
@@ -119,32 +119,32 @@ async function main() {
   StorageService.logout();
 
   // Other institute cannot see it
-  await StorageService.login('registrar@newcollege.edu.in', 'password123');
+  await StorageService.login('registrar@newcollege.edu.in', 'Faculty#Gate2026');
   check('other institute sees no applications', StorageService.getApplications().length === 0);
   StorageService.logout();
 
   // Admin verifies the pending institute
-  await StorageService.login('admin@acadexmatch.in', 'adminpass123');
+  await StorageService.login('admin@acadexmatch.in', 'Platform#Key2026');
   StorageService.updateInstituteVerification(pendingId, 'verified');
   check('admin verified institute', StorageService.getInstituteById(pendingId)!.verificationStatus === 'verified');
   check('admin sees all applications', StorageService.getApplications().length === 1);
   StorageService.logout();
 
   // DPDP erasure
-  await StorageService.login('kavya@example.org', 'candidate123');
+  await StorageService.login('kavya@example.org', 'Scholar#Path2026');
   const exported = StorageService.exportMyData() as any;
   check('export contains profile and application', exported.profile && exported.applications.length === 1);
   const req = StorageService.createDPDPRequest('Right to Erasure (Delete all Academic CV & Personal Data)')!;
   StorageService.logout();
-  await StorageService.login('admin@acadexmatch.in', 'adminpass123');
+  await StorageService.login('admin@acadexmatch.in', 'Platform#Key2026');
   StorageService.updateDPDPStatus(req.id, 'Completed');
   check('erasure removed account', !StorageService.getUsers().some(u => u.email === 'kavya@example.org'));
   check('erasure removed applications', StorageService.getAllApplications().length === 0);
-  check('erased user can no longer log in', !(await StorageService.login('kavya@example.org', 'candidate123')).success);
+  check('erased user can no longer log in', !(await StorageService.login('kavya@example.org', 'Scholar#Path2026')).success);
 
   // Passwords never stored in plain text
   const raw = store.get('acad_users_v3') || '';
-  check('no plaintext passwords in storage', !raw.includes('candidate123') && !raw.includes('password123'));
+  check('no plaintext passwords in storage', !raw.includes('Scholar#Path2026') && !raw.includes('Faculty#Gate2026'));
   check('audit log populated with real actors', StorageService.getAuditLogs().some(l => l.actor === 'dean@iitb.ac.in'));
 
   // Promotions and plans
