@@ -12,7 +12,8 @@
     "test:scraper": "python test_engine.py",
     "typecheck": "tsc --noEmit",
     "scrape:daily": "tsx scripts/daily-scrape.ts",
-    "test:seo": "node tests/seo-check.mjs"
+    "test:seo": "node tests/seo-check.mjs",
+    "test:notice": "tsx tests/notice-parser.ts"
   },
   "dependencies": {
     "canvas-confetti": "^1.9.4",

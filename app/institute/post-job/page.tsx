@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import JobDetailsFields from '@/components/JobDetailsFields';
+import { EMPTY_DETAILS_FORM, formToDetails, type DetailsForm } from '@/lib/jobDetailsText';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { StorageService } from '@/lib/storage';
@@ -47,6 +49,7 @@ export default function PostJobPage() {
   const [screeningQ2, setScreeningQ2] = useState('Detail your top 3 publications in Scopus / SCI indexed Q1 journals in the proposed area.');
   const [isGeneratingAi, setIsGeneratingAi] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [detailsForm, setDetailsForm] = useState<DetailsForm>(EMPTY_DETAILS_FORM);
 
   useEffect(() => {
     const inst = StorageService.getCurrentInstitute() || null;
@@ -94,6 +97,7 @@ export default function PostJobPage() {
     const cpc = CPC_LEVELS[selectedCpcIdx];
     const specs = specializations.split(',').map(s => s.trim()).filter(Boolean);
 
+    const details = formToDetails(detailsForm);
     const newJob: Job = {
       id: `job-${institute.id}-${Date.now()}`,
       instituteId: institute.id,
@@ -128,9 +132,9 @@ export default function PostJobPage() {
       },
       description: description || `Applications are invited for the position of ${title} in the ${department} at ${institute.name}. Candidates should have a strong academic record, publications in UGC-CARE / Scopus indexed venues, and the capacity to build a sponsored research programme.`,
       specializationTags: specs,
-      benefits: ['Campus housing or HRA as per rules', 'Medical coverage', 'Professional development allowance'],
-      responsibilities: ['Instruction in UG/PG courses', 'Doctoral scholar guidance', 'Sponsored research acquisition'],
-      selectionProcess: ['Initial UGC Table 3A Screening', 'Departmental Shortlisting Committee Review', 'Dean & HOD Preliminary Interview', 'Faculty Selection Board & Colloquium Presentation', 'Board of Governors Formal Appointment'],
+      benefits: details?.benefits || ['Campus housing or HRA as per rules', 'Medical coverage', 'Professional development allowance'],
+      responsibilities: details?.responsibilities || ['Instruction in UG/PG courses', 'Doctoral scholar guidance', 'Sponsored research acquisition'],
+      selectionProcess: details?.selectionProcess || ['Initial UGC Table 3A Screening', 'Departmental Shortlisting Committee Review', 'Dean & HOD Preliminary Interview', 'Faculty Selection Board & Colloquium Presentation', 'Board of Governors Formal Appointment'],
       screeningQuestions: [screeningQ1, screeningQ2].filter(Boolean),
       applicantCount: 0,
       status: 'published',
@@ -138,7 +142,8 @@ export default function PostJobPage() {
       postedAt: new Date().toISOString().split('T')[0],
       featured: false,
       isPremium: premiumOnly,
-      externalApplyUrl: externalApplyUrl.trim() || undefined,
+      externalApplyUrl: externalApplyUrl.trim() || details?.applicationLink || undefined,
+      ...(details ? { details: { ...details, hiringOrganization: institute.name } } : {}),
     };
 
     StorageService.addJob(newJob);
@@ -385,6 +390,8 @@ export default function PostJobPage() {
               className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 text-xs text-slate-900 leading-relaxed focus:outline-none focus:border-brand-500 font-medium"
             />
           </div>
+
+          <JobDetailsFields value={detailsForm} onChange={setDetailsForm} />
 
         </div>
 

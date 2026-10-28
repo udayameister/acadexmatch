@@ -1,6 +1,6 @@
 import { spawn } from 'child_process';
 import path from 'path';
-import type { Job } from '@/types';
+import type { Job, JobDetails } from '@/types';
 
 /* Server-only: runs scraper.py and maps its output to Job records. Shared by the manual
    scraper endpoint and the daily scraping pipeline. */
@@ -24,6 +24,14 @@ export interface ScrapedRawOpening {
   description?: string | null;
   details_from_pdf?: boolean;
   pdf_note?: string | null;
+  /** Full advertisement sections, when the page was read as one advertisement. */
+  details?: JobDetails | null;
+  /** Hiring organisation named on the page (may differ from the site's own name on job-listing sites). */
+  institution_name?: string | null;
+  city?: string | null;
+  state?: string | null;
+  date_posted?: string | null;
+  title?: string | null;
 }
 
 export interface ScrapeEngineResult {
@@ -65,20 +73,32 @@ export function transformRawToJob(raw: ScrapedRawOpening, index: number, institu
   const payLevel = clean(raw.pay_level);
   const salary = clean(raw.salary ?? (raw.pay_level ? null : raw.pay_scale));
   const now = new Date();
+  const d = raw.details || null;
+
+  // Advertisement pages: the hiring organisation, its website and the stated dates come from the page.
+  const hostOf = (u?: string | null) => { try { return u ? new URL(u).hostname.replace(/^www\./, '') : null; } catch { return null; } };
+  const officialHost = hostOf(d?.officialWebsite);
+  const pageHost = hostOf(raw.source_url);
+  const orgName = clean(raw.institution_name);
+  const instKey = (officialHost || domain).replace(/[^a-zA-Z0-9]/g, '');
+  const aggregator = !!d && !!pageHost && (!officialHost || officialHost !== pageHost) && !!orgName;
+  const name = d && orgName ? orgName : instName;
+  const allItems = (d?.departmentGroups || []).flatMap(g => g.items);
+  const tags = [...new Set(allItems.map(t => t.replace(/\s*\(.*?\)\s*/g, ' ').trim()).filter(t => t.length > 1 && t.length <= 60))].slice(0, 40);
 
   return {
-    id: `scraped-${domain.replace(/[^a-zA-Z0-9]/g, '')}-${index + 1}-${Date.now() % 100000}`,
-    instituteId: `inst-${domain.replace(/[^a-zA-Z0-9]/g, '')}`,
-    instituteName: instName,
-    instituteShortName: shortName,
+    id: `scraped-${instKey}-${index + 1}-${Date.now() % 100000}`,
+    instituteId: `inst-${d && orgName ? instKey : domain.replace(/[^a-zA-Z0-9]/g, '')}`,
+    instituteName: name,
+    instituteShortName: d && orgName ? (clean(orgName.split(/,/)[0]) || orgName) : shortName,
     instituteLogo: '',
     instituteType: null,
     title: clean(raw.position) || raw.position,
     designation: null,
     department: clean(raw.department),
-    specializationTags: [],
+    specializationTags: tags,
     advertisementNumber: clean(raw.advt_no),
-    location: { city: null, state: null },
+    location: { city: clean(raw.city), state: clean(raw.state) },
     payScale: {
       cpcBand: payLevel || salary,
       entryPay: null,
@@ -101,14 +121,14 @@ export function transformRawToJob(raw: ScrapedRawOpening, index: number, institu
     status: 'published',
     isClaimedByInstitute: false,
     screeningQuestions: [],
-    selectionProcess: [],
-    description: null,
-    responsibilities: [],
-    benefits: [],
-    postedAt: now.toISOString().split('T')[0],
+    selectionProcess: d?.selectionProcess || [],
+    description: clean(d?.summary),
+    responsibilities: d?.responsibilities || [],
+    benefits: d?.benefits || [],
+    postedAt: clean(raw.date_posted) || now.toISOString().split('T')[0],
     applicantCount: 0,
     featured: false,
-    externalApplyUrl: raw.source_url,
+    externalApplyUrl: d?.applicationLink || d?.officialWebsite || raw.source_url,
     source: {
       url: raw.source_url,
       pageTitle,
@@ -118,8 +138,17 @@ export function transformRawToJob(raw: ScrapedRawOpening, index: number, institu
       salaryText: salary,
       fromPdf: !!raw.details_from_pdf,
       pdfNote: clean(raw.pdf_note),
+      ...(d ? { kind: aggregator ? 'aggregator' as const : 'institution' as const, siteName: aggregator ? pageTitleSite(pageTitle, pageHost) : null } : {}),
     },
+    ...(d ? { details: d } : {}),
   };
+}
+
+/** "Faculty Jobs 2026 at X | FacultyPlus" → "FacultyPlus"; falls back to the host name. */
+function pageTitleSite(title: string | null, host: string | null): string | null {
+  const parts = (title || '').split(/\s[|–—-]\s/);
+  const last = parts.length > 1 ? clean(parts[parts.length - 1]) : null;
+  return last && last.length <= 40 ? last : host;
 }
 
 export interface ScrapeOutcome {

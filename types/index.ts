@@ -292,9 +292,73 @@ export interface Job {
     fromPdf?: boolean;
     /** Why details could not be read from the PDF notice (scanned, too large, several posts...). */
     pdfNote?: string | null;
+    /** 'aggregator' when the page is a third-party listing site rather than the institution's own website. */
+    kind?: 'institution' | 'aggregator';
+    siteName?: string | null;
   };
+  /** Full advertisement details (all optional). Filled by the crawler or by the institution's post form. */
+  details?: JobDetails;
   /** Set when the vacancy was closed automatically after its last date. */
   autoClosedAt?: string;
+}
+
+/** A heading with the items listed under it, e.g. "Academic Posts" → Director, Professor… */
+export interface JobListGroup {
+  group: string | null;
+  items: string[];
+}
+
+/** One requirement line for one post, e.g. { post: 'Director', text: 'Ph.D.' }. post is null for general lines. */
+export interface PostRequirement {
+  post: string | null;
+  text: string;
+}
+
+export type ApplyMode = 'online' | 'email' | 'offline' | 'walk-in' | 'post';
+
+/**
+ * Every detail an academic recruitment advertisement can state. Each field is optional and holds only what the
+ * advertisement (or the institution) actually states — nothing is filled in from defaults.
+ */
+export interface JobDetails {
+  /** Introductory summary of the advertisement. */
+  summary?: string | null;
+  hiringOrganization?: string | null;
+  /** Posts advertised, grouped (Academic / Non-teaching / Medical …). */
+  postGroups?: JobListGroup[];
+  /** Departments, disciplines or specialisations, grouped by post or school. */
+  departmentGroups?: JobListGroup[];
+  numberOfPosts?: string | null;
+  qualifications?: PostRequirement[];
+  preferredQualifications?: PostRequirement[];
+  experience?: PostRequirement[];
+  candidateProfile?: string[];
+  responsibilities?: string[];
+  salaryText?: string | null;
+  employmentType?: string | null;
+  locationText?: string | null;
+  ageLimit?: string | null;
+  applicationFee?: string | null;
+  reservation?: string | null;
+  selectionProcess?: string[];
+  /** Dates as stated, e.g. { label: 'Last Date to Apply', value: 'Within 7 days from the date of this advertisement' }. */
+  importantDates?: { label: string; value: string }[];
+  notificationDate?: string | null;
+  lastDateText?: string | null;
+  interviewText?: string | null;
+  /** True when applicationDeadline was worked out from text such as "within 7 days" (approximate). */
+  deadlineEstimated?: boolean;
+  applyModes?: ApplyMode[];
+  howToApply?: string | null;
+  applicationProcedure?: string[];
+  applyEmails?: { email: string; note?: string | null }[];
+  contactPhones?: string[];
+  applicationLink?: string | null;
+  officialWebsite?: string | null;
+  notificationLink?: string | null;
+  documentsRequired?: string[];
+  organizationAddress?: string | null;
+  benefits?: string[];
 }
 
 export interface EducationItem {

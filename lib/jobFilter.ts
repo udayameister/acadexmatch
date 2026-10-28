@@ -1,4 +1,5 @@
 import type { Job, JobSearchFilters } from '@/types';
+import { detailsSearchText } from './jobDetailsText';
 
 export const DEFAULT_FILTERS: JobSearchFilters = {
   search: '',
@@ -18,7 +19,8 @@ export function matchesFilters(job: Job, f: JobSearchFilters): boolean {
       || (job.department || '').toLowerCase().includes(q)
       || job.instituteName.toLowerCase().includes(q)
       || job.instituteShortName.toLowerCase().includes(q)
-      || job.specializationTags.some(t => t.toLowerCase().includes(q));
+      || job.specializationTags.some(t => t.toLowerCase().includes(q))
+      || detailsSearchText(job.details).toLowerCase().includes(q);
     if (!hit) return false;
   }
   if (f.state !== DEFAULT_FILTERS.state && job.location.state !== f.state) return false;

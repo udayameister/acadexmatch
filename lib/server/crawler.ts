@@ -11,6 +11,7 @@ import * as cheerio from 'cheerio';
 import type { AnyNode, Element } from 'domhandler';
 import { Agent } from 'undici';
 import type { ScrapeEngineResult, ScrapedRawOpening } from './scrapeEngine';
+import { parseNotice, type ParsedNotice } from './noticeParser';
 
 const HEADERS: Record<string, string> = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
@@ -344,7 +345,12 @@ function noticeWideValues(text: string): Record<string, string> {
 interface RawItem {
   position: string; department: string | null; description: string; source_url: string; layout: string;
   pdf_text?: string; pdf_wide?: Record<string, string>; pdf_note?: string | null;
+  /** Set when the page is a full recruitment advertisement read section by section. */
+  notice?: ParsedNotice;
 }
+
+/** A page with this many recognised sections (posts, qualifications, dates, how to apply...) is read as one advertisement. */
+export const NOTICE_MIN_SECTIONS = 4;
 
 async function enrichFromPdfs(openings: RawItem[], pdfLinks: [string, string][]): Promise<RawItem[]> {
   let budget = MAX_PDFS_PER_CRAWL;
@@ -488,7 +494,7 @@ function extractFacultyFromPage($: cheerio.CheerioAPI, pageUrl: string): RawItem
 // ------------------------------------------------------------------ crawl
 
 /** Crawls a college website (depth 2, 12 pages) for faculty recruitment openings. */
-export async function crawlCollege(startInput: string, maxPages = 12, maxDepth = 2, deadlineMs = 55000): Promise<ScrapeEngineResult & { pdf_notices_read: number; total_openings: number }> {
+export async function crawlCollege(startInput: string, maxPages = 12, maxDepth = 2, deadlineMs = 55000): Promise<ScrapeEngineResult & { pdf_notices_read: number; advertisement_pages_read: number; total_openings: number }> {
   const startUrl = /^https?:\/\//i.test(startInput) ? startInput : `https://${startInput}`;
   const started = Date.now();
   const queue: [number, number, string][] = [[-200, 0, startUrl]];
@@ -518,8 +524,22 @@ export async function crawlCollege(startInput: string, maxPages = 12, maxDepth =
     if (!page) continue;
     const $ = cheerio.load(page.html);
     if (!institutionTitle) institutionTitle = $('title').first().text().trim();
-    $('script,style,noscript,svg').remove();
     const base = page.finalUrl || currentUrl;
+
+    // A full advertisement page (posts, departments, qualifications, dates, how to apply...) becomes
+    // one vacancy with every section kept, instead of one thin vacancy per post name.
+    const notice = parseNotice(page.html, base);
+    if (notice.sectionsFound >= NOTICE_MIN_SECTIONS && (notice.allPosts.length || notice.details.qualifications?.length)) {
+      if (!raw.some(r => r.notice && r.source_url === base)) {
+        raw.push({ position: notice.title || notice.allPosts[0] || 'Recruitment notification', department: null, description: notice.details.summary || '', source_url: base, layout: 'Advertisement Page', notice });
+      }
+      if (!hubs.includes(base)) hubs.push(base);
+      // The start URL itself is an advertisement (often on a job-listing site): do not wander off into
+      // the rest of that site. Elsewhere, an advertisement page's own links are not followed either.
+      if (depth === 0) break;
+      continue;
+    }
+    $('script,style,noscript,svg').remove();
 
     const found = extractFacultyFromPage($, base);
     if (found.length) {
@@ -543,9 +563,11 @@ export async function crawlCollege(startInput: string, maxPages = 12, maxDepth =
     });
   }
 
-  raw = await enrichFromPdfs(raw, pdfLinks);
+  const notices = raw.filter(r => r.notice);
+  const noticeUrls = new Set(notices.map(n => n.source_url.replace(/\/+$/, '')));
+  raw = await enrichFromPdfs(raw.filter(r => !r.notice && !noticeUrls.has(r.source_url.split('#')[0].replace(/\/+$/, ''))), pdfLinks);
 
-  const openings: ScrapedRawOpening[] = [];
+  const openings: ScrapedRawOpening[] = notices.map(n => noticeToOpening(n.notice!, n.source_url));
   const dedup = new Set<string>();
   for (const item of raw) {
     const pos = item.position;
@@ -592,7 +614,39 @@ export async function crawlCollege(startInput: string, maxPages = 12, maxDepth =
     pages_crawled: pagesCrawled,
     career_hubs_discovered: hubs,
     pdf_notices_read: raw.filter(o => o.pdf_text).length,
+    advertisement_pages_read: notices.length,
     total_openings: openings.length,
     openings,
+  };
+}
+
+/** Maps a parsed advertisement page to one scraped opening (all sections kept in `details`). */
+export function noticeToOpening(n: ParsedNotice, url: string): ScrapedRawOpening {
+  const d = n.details;
+  const join = (xs?: { post: string | null; text: string }[]) => xs?.length ? xs.map(x => (x.post ? `${x.post}: ${x.text}` : x.text)).join('; ') : null;
+  const posts = n.allPosts;
+  return {
+    position: n.title || posts[0] || 'Recruitment notification',
+    department: d.departmentGroups?.length === 1 && d.departmentGroups[0].items.length === 1 ? d.departmentGroups[0].items[0] : null,
+    qualification: join(d.qualifications),
+    experience: join(d.experience),
+    pay_scale: d.salaryText ?? null,
+    salary: d.salaryText ?? null,
+    pay_level: null,
+    deadline: d.lastDateText ?? null,
+    deadline_iso: n.deadlineIso,
+    number_of_posts: d.numberOfPosts ?? null,
+    advt_no: null,
+    description: ws([d.summary, posts.length ? `Posts: ${posts.join(', ')}` : ''].filter(Boolean).join(' | ')).slice(0, 1500) || null,
+    source_url: url,
+    extraction_layout: 'Advertisement Page',
+    details_from_pdf: false,
+    pdf_note: null,
+    details: d,
+    institution_name: d.hiringOrganization ?? null,
+    city: n.city,
+    state: n.state,
+    date_posted: n.datePosted,
+    title: n.title,
   };
 }

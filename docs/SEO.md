@@ -30,7 +30,7 @@ Stack: Next.js 15 (App Router, React 19), hosted on GoDaddy Node.js Hosting (dep
 * **Canonical**: `/jobs?search=…` and other filters point to `/jobs`.
 
 ### JobPosting rules (`lib/server/seo.ts`)
-Markup is added only for open, single-post vacancies with a known location and a description. Values come
+Markup is added only for open, single-post vacancies (an advertisement listing several posts in `details.postGroups` gets none) with a known location and a description. Values come
 only from the vacancy: title, description (+ minimum qualification and experience shown on the page),
 `datePosted`, `validThrough` (deadline, end of day IST), employer name and website, city/state,
 advertisement number. `baseSalary` only when the pay is a 7th CPC level with an explicit ₹ range (monthly).

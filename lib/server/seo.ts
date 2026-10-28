@@ -33,6 +33,8 @@ export function isOpenJob(job: Job): boolean {
 /** Notice-style titles from scraped pages ("Job Openings") describe several posts, not one job. */
 const GENERIC_TITLE = /^(job openings?|recruitment( notification)?|notifications?|advertisements?|careers?|vacanc(y|ies)|positions? offered)\b/i;
 export function isSingleJob(job: Job): boolean {
+  // An advertisement listing several posts is not one job (Google's JobPosting rules).
+  if ((job.details?.postGroups || []).reduce((n, g) => n + g.items.length, 0) > 1) return false;
   return !GENERIC_TITLE.test(job.title.trim());
 }
 

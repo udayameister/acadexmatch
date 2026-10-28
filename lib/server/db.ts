@@ -326,6 +326,7 @@ export const RPC_GUARDS: Record<string, Guard> = {
   },
   // institution staff (own institute) or admin
   addJob: (me, args) => {
+    if (args[0] && JSON.stringify(args[0]).length > 300_000) return 'This vacancy is too long to save. Shorten the advertisement details.';
     if (me?.role === 'super_admin') return true;
     const job = args[0] as Job | undefined;
     if (!(isStaff(me) && job && job.instituteId === me!.instituteId)) return 'You can only post vacancies for your own institute.';

@@ -1,4 +1,5 @@
 import { promises as fs, statSync } from 'fs';
+import { JOBS_KEY, rebuildJobTable, syncJobRows } from './jobTable';
 import path from 'path';
 import type { Pool, PoolConnection, RowDataPacket } from 'mysql2/promise';
 
@@ -66,6 +67,8 @@ async function ensureSchema(): Promise<void> {
     ) ENGINE=InnoDB`);
     await p.query('INSERT IGNORE INTO acx_meta (id, version) VALUES (1, 0)');
     await migrateLegacyFiles(p);
+    // Reporting table of vacancies (mirror of acx_kv; never read back, so errors are only logged).
+    await rebuildJobTable(p).catch(e => console.error('[jobs table] rebuild failed:', (e as Error).message));
   })().catch(e => { g.__acadSchema = undefined; throw e; });
   return g.__acadSchema;
 }
@@ -125,6 +128,8 @@ export async function openStore(): Promise<StoreSession> {
         }
         for (const key of json.keys()) if (data[key] === undefined) deletes.push(key);
         if (!writes.length && !deletes.length) return;
+        const jobsChanged = writes.some(([k]) => k === JOBS_KEY);
+        const jobsBefore = json.get(JOBS_KEY);
         await conn.beginTransaction();
         try {
           for (const [key, v] of writes) await conn.query('INSERT INTO acx_kv (k, v) VALUES (?, ?) ON DUPLICATE KEY UPDATE v = VALUES(v)', [MAIN_PREFIX + key, v]);
@@ -140,6 +145,7 @@ export async function openStore(): Promise<StoreSession> {
           cache.__acadMain = undefined; // reload from the database next time
           throw e;
         }
+        if (jobsChanged) await syncJobRows(conn, jobsBefore, data[JOBS_KEY]).catch(e => console.error('[jobs table] sync failed:', (e as Error).message));
       },
       async close() {
         if (released) return;

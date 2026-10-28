@@ -5,6 +5,7 @@ import { TrackJobPanel } from '@/components/TrackJobButton';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import InstituteLogo from '@/components/InstituteLogo';
+import JobDetailsSections, { hasJobDetails } from '@/components/JobDetailsSections';
 import confetti from 'canvas-confetti';
 import { externalApplyLink, isPremiumUser, StorageService, isDeadlinePassed } from '@/lib/storage';
 import { useCurrentUser } from '@/lib/useAuth';
@@ -152,7 +153,7 @@ export default function JobDetailPage() {
                 )}
                 {job.source && (
                   <span className="text-[11px] font-bold bg-white text-slate-600 px-2.5 py-0.5 rounded-lg border border-slate-200">
-                    From the institution&apos;s website
+                    {job.source.kind === 'aggregator' ? `Listed on ${job.source.siteName || 'a job-listing site'}` : <>From the institution&apos;s website</>}
                   </span>
                 )}
                 {institute?.accreditation.naacGrade && (
@@ -269,7 +270,10 @@ export default function JobDetailPage() {
             )}
           </div>
 
-          {/* Statutory Minimum Qualifications */}
+          <JobDetailsSections job={job} />
+
+          {/* Statutory Minimum Qualifications (the advertisement's own per-post table replaces it when present) */}
+          {!(hasJobDetails(job.details) && (job.details.qualifications?.length || job.details.experience?.length)) && (
           <div className="p-7 rounded-3xl bg-white border border-slate-200 space-y-4 shadow-sm">
             <div className="flex items-center gap-2">
               <FileCheck className="w-5 h-5 text-gold-600" />
@@ -320,6 +324,7 @@ export default function JobDetailPage() {
               </div>
             )}
           </div>
+          )}
 
           {/* Institutional Allowances & Benefits */}
           {(job.payScale.allowances.length > 0 || job.benefits.length > 0) && (
