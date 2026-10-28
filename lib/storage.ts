@@ -310,8 +310,13 @@ export function isInstituteSubscribed(inst: Pick<Institute, 'subscription'> | nu
 }
 
 /** True when a user currently has active Premium access. */
+/** Every candidate gets all Premium features free; only institutions and recruiters pay. */
+export const CANDIDATE_PREMIUM_FREE = true;
+
 export function isPremiumUser(user: Pick<User, 'role' | 'plan' | 'premiumUntil'> | null | undefined): boolean {
-  if (!user || user.role !== 'candidate' || user.plan !== 'premium') return false;
+  if (!user || user.role !== 'candidate') return false;
+  if (CANDIDATE_PREMIUM_FREE) return true;
+  if (user.plan !== 'premium') return false;
   return !user.premiumUntil || user.premiumUntil >= today();
 }
 

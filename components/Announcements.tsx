@@ -118,7 +118,7 @@ export function AnnouncementsPanel() {
                 <div className="flex-1 min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-semibold text-slate-900">{a.title}</span>
-                    <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${state === 'Live' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-slate-50 border-slate-200 text-slate-600'}`}>{state}</span>
+                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${state === 'Live' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-slate-50 border-slate-200 text-slate-600'}`}>{state}</span>
                   </div>
                   <p className="text-sm text-slate-600 mt-1 whitespace-pre-line">{a.body}</p>
                   <p className="text-xs text-slate-500 mt-1">{AUDIENCES.find(x => x.key === a.audience)?.label} · {a.createdAt} by {a.createdBy}{a.expiresAt ? ` · until ${a.expiresAt}` : ''}{a.emailed ? ` · e-mailed to ${a.emailed}` : ''}</p>

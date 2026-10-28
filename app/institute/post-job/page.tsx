@@ -355,7 +355,7 @@ export default function PostJobPage() {
                   placeholder="https://www.your-institute.ac.in/careers/apply"
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-900 focus:outline-none focus:border-brand-500 font-medium"
                 />
-                <p className="text-[11px] text-slate-500 mt-1">Free-plan candidates are sent here. Leave blank to use your institute website.</p>
+                <p className="text-xs text-slate-500 mt-1">Free-plan candidates are sent here. Leave blank to use your institute website.</p>
               </div>
 
               <label className="flex items-center gap-2 font-bold text-slate-900 cursor-pointer">
@@ -400,7 +400,7 @@ export default function PostJobPage() {
           
           <div className="sticky top-24 rounded-3xl bg-white border border-slate-200 p-6 sm:p-7 space-y-5 shadow-md text-xs">
             <h3 className="font-serif font-bold text-slate-900 text-base">Departmental Screening Questions</h3>
-            <p className="text-[11px] text-slate-500 leading-relaxed font-normal">
+            <p className="text-xs text-slate-500 leading-relaxed font-normal">
               Candidates must answer these structured questions during submission for fast-triage by the selection committee.
             </p>
 
@@ -439,7 +439,7 @@ export default function PostJobPage() {
                 )}
               </button>
 
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-[11px] text-slate-500 text-center font-medium">
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-500 text-center font-medium">
                 Compliant with UGC 2018/2023 Gazette &amp; DPDP Act.
               </div>
             </div>

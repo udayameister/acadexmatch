@@ -81,14 +81,14 @@ export default function InstituteDetailPage() {
 
             <div className="space-y-1.5">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-[11px] font-bold bg-emerald-50 text-emerald-800 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                <span className="text-xs font-bold bg-emerald-50 text-emerald-800 px-2.5 py-0.5 rounded-full border border-emerald-200">
                   AISHE Code: {institute.aisheCode}
                 </span>
-                <span className="text-[11px] font-mono font-bold bg-gold-50 text-gold-800 px-2.5 py-0.5 rounded-full border border-gold-200">
+                <span className="text-xs font-mono font-bold bg-gold-50 text-gold-800 px-2.5 py-0.5 rounded-full border border-gold-200">
                   NAAC {institute.accreditation.naacGrade} (Score: {institute.accreditation.naacScore}/4.0)
                 </span>
                 {institute.accreditation.nirfRankOverall && (
-                  <span className="text-[11px] font-mono font-bold bg-brand-50 text-brand-800 px-2.5 py-0.5 rounded-full border border-brand-200">
+                  <span className="text-xs font-mono font-bold bg-brand-50 text-brand-800 px-2.5 py-0.5 rounded-full border border-brand-200">
                     NIRF #{institute.accreditation.nirfRankOverall} Overall
                   </span>
                 )}
@@ -121,7 +121,7 @@ export default function InstituteDetailPage() {
 
           {/* Contact Box */}
           <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs space-y-2 shrink-0">
-            <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider block">
+            <span className="text-[12px] uppercase font-bold text-slate-500 tracking-wider block">
               Faculty Recruitment Secretariat
             </span>
             <div className="flex items-center gap-2 text-slate-700 font-medium">
@@ -139,22 +139,22 @@ export default function InstituteDetailPage() {
         {/* Research & Infrastructure Stats Bar */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-4 border-t border-slate-100 text-xs text-center">
           <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 shadow-sm">
-            <span className="text-[10px] text-slate-500 uppercase block font-bold">Faculty Strength</span>
+            <span className="text-[12px] text-slate-500 uppercase block font-bold">Faculty Strength</span>
             <strong className="text-slate-900 font-mono text-base font-black">{institute.stats.facultyCount}</strong>
           </div>
 
           <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 shadow-sm">
-            <span className="text-[10px] text-slate-500 uppercase block font-bold">Scholars Enrolled</span>
+            <span className="text-[12px] text-slate-500 uppercase block font-bold">Scholars Enrolled</span>
             <strong className="text-brand-900 font-mono text-base font-black">{institute.stats.studentCount}</strong>
           </div>
 
           <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 shadow-sm">
-            <span className="text-[10px] text-slate-500 uppercase block font-bold">Patents Awarded</span>
+            <span className="text-[12px] text-slate-500 uppercase block font-bold">Patents Awarded</span>
             <strong className="text-gold-700 font-mono text-base font-black">{institute.stats.patentsFiled}</strong>
           </div>
 
           <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 shadow-sm">
-            <span className="text-[10px] text-slate-500 uppercase block font-bold">Average Faculty h-Index</span>
+            <span className="text-[12px] text-slate-500 uppercase block font-bold">Average Faculty h-Index</span>
             <strong className="text-emerald-700 font-mono text-base font-black">{institute.stats.hIndexAverage}</strong>
           </div>
         </div>

@@ -14,8 +14,8 @@ export function PromotionBadges({ job }: { job: Job }) {
   if (!featured && !urgent) return null;
   return (
     <>
-      {featured && <span className="text-[11px] font-bold bg-gold-50 text-gold-800 px-2.5 py-1 rounded-lg border border-gold-300 inline-flex items-center gap-1"><Star className="w-3.5 h-3.5 fill-gold-400 text-gold-500" aria-hidden="true" />Featured</span>}
-      {urgent && <span className="text-[11px] font-bold bg-crimson-50 text-crimson-700 px-2.5 py-1 rounded-lg border border-crimson-100 inline-flex items-center gap-1"><Flame className="w-3.5 h-3.5" aria-hidden="true" />Urgent hiring</span>}
+      {featured && <span className="text-xs font-bold bg-gold-50 text-gold-800 px-2.5 py-1 rounded-lg border border-gold-300 inline-flex items-center gap-1"><Star className="w-3.5 h-3.5 fill-gold-400 text-gold-500" aria-hidden="true" />Featured</span>}
+      {urgent && <span className="text-xs font-bold bg-crimson-50 text-crimson-700 px-2.5 py-1 rounded-lg border border-crimson-100 inline-flex items-center gap-1"><Flame className="w-3.5 h-3.5" aria-hidden="true" />Urgent hiring</span>}
     </>
   );
 }

@@ -54,7 +54,7 @@ function Calculator_() {
           </label>
           <label className="block space-y-1"><span className="text-xs font-semibold text-slate-700">Years in this level (annual increments)</span>
             <input type="number" min={0} max={40} className={field} value={years} onChange={e => setYears(Math.max(0, Math.min(40, Number(e.target.value) || 0)))} />
-            <span className="text-[11px] text-slate-500">Basic pay {inr(basicAfter(level, years))} · level maximum {inr(level.max)}</span>
+            <span className="text-xs text-slate-500">Basic pay {inr(basicAfter(level, years))} · level maximum {inr(level.max)}</span>
           </label>
           <label className="block space-y-1"><span className="text-xs font-semibold text-slate-700">City</span>
             <select className={field} value={city} onChange={e => pickCity(e.target.value)}>

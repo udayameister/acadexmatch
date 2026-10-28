@@ -101,7 +101,7 @@ export default function EmailsPanel() {
           {data.items.map(m => (
             <div key={m.id} className="p-4 text-sm">
               <button className="w-full text-left flex flex-wrap items-center gap-x-3 gap-y-1" onClick={() => setOpen(open === m.id ? null : m.id)} aria-expanded={open === m.id}>
-                <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${STATUS[m.status].cls}`}>{STATUS[m.status].label}</span>
+                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${STATUS[m.status].cls}`}>{STATUS[m.status].label}</span>
                 <span className="font-medium text-slate-900">{m.subject}</span>
                 <span className="text-slate-500">to {m.to}</span>
                 <span className="ml-auto text-xs text-slate-500">{new Date(m.createdAt).toLocaleString('en-IN')}</span>

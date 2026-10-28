@@ -99,10 +99,10 @@ export default function CandidateDashboardPage() {
                 {planUser && <PlanPill user={planUser} />}
                 <VerifiedBadge verified={profile.documentsVerified} />
                 {profile.phdStatus.isCompleted && (
-                  <span className="text-[10px] font-bold bg-emerald-50 text-emerald-800 px-2.5 py-0.5 rounded-full border border-emerald-200">Ph.D.</span>
+                  <span className="text-[12px] font-bold bg-emerald-50 text-emerald-800 px-2.5 py-0.5 rounded-full border border-emerald-200">Ph.D.</span>
                 )}
                 {profile.netSletStatus.isQualified && (
-                  <span className="text-[10px] font-bold bg-brand-50 text-brand-800 px-2.5 py-0.5 rounded-full border border-brand-200">{profile.netSletStatus.examType || 'NET/SLET'}</span>
+                  <span className="text-[12px] font-bold bg-brand-50 text-brand-800 px-2.5 py-0.5 rounded-full border border-brand-200">{profile.netSletStatus.examType || 'NET/SLET'}</span>
                 )}
               </div>
               <p className="text-xs text-slate-600">
@@ -120,7 +120,7 @@ export default function CandidateDashboardPage() {
           <div className="flex items-center gap-3 shrink-0">
             {isPremium ? (
             <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 text-center shadow-sm">
-              <span className="text-[10px] uppercase font-bold text-slate-500 block">UGC API Score</span>
+              <span className="text-[12px] uppercase font-bold text-slate-500 block">UGC API Score</span>
               <span className="font-mono text-2xl font-black text-brand-900">{profile.apiScore} / 100</span>
             </div>
             ) : (
@@ -128,7 +128,7 @@ export default function CandidateDashboardPage() {
             )}
 
             <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 text-center shadow-sm">
-              <span className="text-[10px] uppercase font-bold text-slate-500 block">Dossier Readiness</span>
+              <span className="text-[12px] uppercase font-bold text-slate-500 block">Dossier Readiness</span>
               <span className="font-mono text-2xl font-black text-emerald-700">{profile.profileCompleteness}%</span>
             </div>
           </div>
@@ -208,7 +208,7 @@ export default function CandidateDashboardPage() {
               >
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <span className="text-[11px] font-bold text-brand-900 block font-mono">
+                    <span className="text-xs font-bold text-brand-900 block font-mono">
                       {app.instituteName}
                     </span>
                     <h3 className="font-serif font-bold text-slate-900 text-base mt-0.5 line-clamp-1">
@@ -216,7 +216,7 @@ export default function CandidateDashboardPage() {
                     </h3>
                   </div>
 
-                  <span className={`text-[10px] font-bold uppercase px-3 py-1 rounded-full border ${
+                  <span className={`text-[12px] font-bold uppercase px-3 py-1 rounded-full border ${
                     app.status === 'interview_scheduled' || app.status === 'shortlisted'
                       ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
                       : 'bg-gold-50 text-gold-800 border-gold-300'
@@ -237,7 +237,7 @@ export default function CandidateDashboardPage() {
                         href={app.interviewSlot.meetingLink}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-[11px] font-bold bg-emerald-700 text-white px-2.5 py-1 rounded-lg hover:bg-emerald-800 transition shadow-sm"
+                        className="text-xs font-bold bg-emerald-700 text-white px-2.5 py-1 rounded-lg hover:bg-emerald-800 transition shadow-sm"
                       >
                         Join Link
                       </a>
@@ -247,7 +247,7 @@ export default function CandidateDashboardPage() {
 
                 {/* Progress Bar through 8 stages */}
                 <div className="space-y-1.5 pt-1">
-                  <div className="flex justify-between text-[11px] text-slate-500 font-medium font-mono">
+                  <div className="flex justify-between text-xs text-slate-500 font-medium font-mono">
                     <span>Applied: {app.appliedDate}</span>
                     <span className="text-emerald-700 font-bold">Fit Index: {app.matchScore}%</span>
                   </div>

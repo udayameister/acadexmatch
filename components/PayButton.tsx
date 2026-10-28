@@ -89,7 +89,7 @@ export default function PayButton({ product, label, description, className = '',
         {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4" />} {label}
       </button>
       {msg && <p className={`text-sm flex items-start gap-1.5 ${msg.ok ? 'text-emerald-800' : 'text-crimson-700'}`} role="status">{msg.ok && <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0" />}{msg.text}</p>}
-      <p className="text-[11px] text-slate-500 text-center">Secure payment by Razorpay — UPI, cards, net banking and wallets.</p>
+      <p className="text-xs text-slate-500 text-center">Secure payment by Razorpay — UPI, cards, net banking and wallets.</p>
     </div>
   );
 }

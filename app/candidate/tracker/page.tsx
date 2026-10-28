@@ -54,9 +54,9 @@ function Row({ t, job }: { t: TrackedJob; job?: Job }) {
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full border ${cd.cls}`}>{cd.text}</span>
-            {!t.jobId && <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full border bg-white text-slate-500 border-slate-200">Outside AcadeXMatch</span>}
-            {job?.status === 'closed' && <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full border bg-slate-100 text-slate-500 border-slate-200">Vacancy closed</span>}
+            <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${cd.cls}`}>{cd.text}</span>
+            {!t.jobId && <span className="text-xs font-semibold px-2 py-0.5 rounded-full border bg-white text-slate-500 border-slate-200">Outside AcadeXMatch</span>}
+            {job?.status === 'closed' && <span className="text-xs font-semibold px-2 py-0.5 rounded-full border bg-slate-100 text-slate-500 border-slate-200">Vacancy closed</span>}
           </div>
           <div className="font-semibold text-slate-900 mt-1.5">{link ? (t.jobId ? <Link href={link} className="hover:underline">{t.title}</Link> : <a href={link} target="_blank" rel="noopener noreferrer" className="hover:underline inline-flex items-center gap-1">{t.title} <ExternalLink className="w-3.5 h-3.5" /></a>) : t.title}</div>
           <div className="text-xs text-slate-500 mt-0.5">{t.institute}{deadline ? ` · Last date ${deadline}` : ''}{t.reference ? ` · Ref ${t.reference}` : ''}{t.appliedOn ? ` · Applied ${t.appliedOn}` : ''}</div>

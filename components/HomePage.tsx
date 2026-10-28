@@ -109,7 +109,7 @@ export default function HomePage() {
         <div className="relative max-w-7xl mx-auto px-4 sm:px-8 pt-16 pb-20 lg:pt-24 lg:pb-28 grid lg:grid-cols-12 gap-14 items-center">
           <div className="lg:col-span-6 space-y-8">
             <span className="inline-flex items-center gap-2 pl-1.5 pr-3 py-1 rounded-full bg-brand-50 border border-brand-100 text-xs font-medium text-brand-800">
-              <span className="px-2 py-0.5 rounded-full bg-brand-900 text-white text-[10px] font-semibold tracking-wide">New</span>
+              <span className="px-2 py-0.5 rounded-full bg-brand-900 text-white text-[12px] font-semibold tracking-wide">New</span>
               Import your academic CV in seconds
             </span>
 
@@ -289,7 +289,7 @@ export default function HomePage() {
                   className="group flex flex-col p-6 rounded-3xl bg-white border border-slate-200 hover:border-brand-200 hover:shadow-lg hover:shadow-brand-900/5 hover:-translate-y-0.5 transition"
                 >
                   <div className="flex items-center justify-between gap-3 text-xs">
-                    <span className="font-medium text-brand-700 truncate">{job.instituteShortName}{promotionRank(job) >= 2 && <span className="ml-2 text-[10px] font-bold text-gold-800 bg-gold-50 border border-gold-200 px-1.5 py-0.5 rounded">Featured</span>}{promotionRank(job) % 2 === 1 && <span className="ml-1 text-[10px] font-bold text-crimson-700 bg-crimson-50 border border-crimson-100 px-1.5 py-0.5 rounded">Urgent</span>}</span>
+                    <span className="font-medium text-brand-700 truncate">{job.instituteShortName}{promotionRank(job) >= 2 && <span className="ml-2 text-[12px] font-bold text-gold-800 bg-gold-50 border border-gold-200 px-1.5 py-0.5 rounded">Featured</span>}{promotionRank(job) % 2 === 1 && <span className="ml-1 text-[12px] font-bold text-crimson-700 bg-crimson-50 border border-crimson-100 px-1.5 py-0.5 rounded">Urgent</span>}</span>
                     <span className={`shrink-0 px-2 py-0.5 rounded-full font-medium ${left !== null && left <= 14 ? 'bg-gold-50 text-gold-800' : 'bg-slate-100 text-slate-600'}`}>
                       {left === null ? 'Deadline not specified' : `${left} days left`}
                     </span>
@@ -395,7 +395,7 @@ export default function HomePage() {
           <div className="absolute -left-16 -bottom-16 w-56 h-56 rounded-full border border-gold-300/60" aria-hidden="true" />
           <div className="absolute -right-10 -top-10 w-40 h-40 rounded-full border border-brand-200" aria-hidden="true" />
           <h2 className="relative text-3xl sm:text-4xl font-bold text-brand-800">Your next academic appointment starts here.</h2>
-          <p className="relative text-slate-600 mt-4 text-lg">Create your profile in minutes. It&apos;s free to browse and apply; <Link href="/premium" className="font-semibold text-brand-800 underline">Premium</Link> unlocks one-click applications and matching.</p>
+          <p className="relative text-slate-600 mt-4 text-lg">Create your profile in minutes. Every Premium feature — one-click applications, matching and tracking — is free for candidates.</p>
           <div className="relative flex flex-wrap justify-center gap-3 mt-8">
             <Link href="/register" className="px-6 py-3 rounded-xl bg-brand-900 hover:bg-brand-800 text-white font-semibold text-sm inline-flex items-center gap-2 shadow-sm transition">
               Get started <ArrowRight className="w-4 h-4" />

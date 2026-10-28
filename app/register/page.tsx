@@ -191,7 +191,7 @@ export default function RegisterPage() {
               <div className="p-4 rounded-2xl border-2 border-brand-900 bg-white space-y-3">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <div className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-gold-100 text-gold-800 border border-gold-300"><Crown className="w-3.5 h-3.5" /> Institution Premium</div>
+                    <div className="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-0.5 rounded-full bg-gold-100 text-gold-800 border border-gold-300"><Crown className="w-3.5 h-3.5" /> Institution Premium</div>
                     <p className="text-sm text-slate-700 mt-2">Institution accounts are Premium only; there is no free plan. Includes unlimited vacancies, Premium vacancies, the applicant pipeline, applicant documents and committee scoring.</p>
                   </div>
                   <div className="text-right shrink-0">

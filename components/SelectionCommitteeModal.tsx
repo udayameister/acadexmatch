@@ -96,7 +96,7 @@ export default function SelectionCommitteeModal({
         {/* Existing Committee Reviews if any */}
         {application.reviewerScores && application.reviewerScores.length > 0 && (
           <div className="mt-4 p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs">
-            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-2">
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-2">
               Previous Member Assessments ({application.reviewerScores.length})
             </span>
             <div className="space-y-2">
@@ -105,11 +105,11 @@ export default function SelectionCommitteeModal({
                   <div>
                     <span className="font-bold text-slate-900">{score.reviewerName}</span>{' '}
                     <span className="text-slate-500">({score.reviewerRole})</span>
-                    <p className="text-[11px] text-slate-600 mt-0.5">&quot;{score.confidentialNotes}&quot;</p>
+                    <p className="text-xs text-slate-600 mt-0.5">&quot;{score.confidentialNotes}&quot;</p>
                   </div>
                   <div className="text-right">
                     <span className="font-mono font-black text-gold-700 text-sm">{score.totalScore}/100</span>
-                    <span className="block text-[10px] text-emerald-700 font-bold">{score.recommendation}</span>
+                    <span className="block text-[12px] text-emerald-700 font-bold">{score.recommendation}</span>
                   </div>
                 </div>
               ))}
@@ -150,7 +150,7 @@ export default function SelectionCommitteeModal({
           {/* Criteria Sliders */}
           <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-4">
             <div className="flex items-center justify-between pb-2 border-b border-slate-200">
-              <span className="font-bold text-slate-600 uppercase text-[11px]">Evaluation Dimensions</span>
+              <span className="font-bold text-slate-600 uppercase text-xs">Evaluation Dimensions</span>
               <div className="flex items-center gap-1.5 font-mono">
                 <span className="text-slate-500">Total Score:</span>
                 <span className="text-lg font-black text-brand-900">{totalScore} / 100</span>
@@ -258,7 +258,7 @@ export default function SelectionCommitteeModal({
           </div>
 
           <div className="flex items-center justify-between pt-4 border-t border-slate-100">
-            <span className="text-[11px] text-slate-500 flex items-center gap-1">
+            <span className="text-xs text-slate-500 flex items-center gap-1">
               <ShieldAlert className="w-3.5 h-3.5 text-gold-600" /> Signed and logged in institute audit records.
             </span>
 

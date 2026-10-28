@@ -80,9 +80,9 @@ export default function TalentSearchPage() {
                     <div className="text-xs text-slate-600">{[r.designation, r.institute].filter(Boolean).join(' · ') || '—'}</div>
                     <div className="text-xs text-slate-500">{[r.highestDegree, [r.city, r.state].filter(Boolean).join(', ')].filter(Boolean).join(' · ')}</div>
                   </div>
-                  <div className="text-right shrink-0"><div className="text-2xl font-bold text-brand-900">{r.apiScore}</div><div className="text-[10px] text-slate-500">API score</div></div>
+                  <div className="text-right shrink-0"><div className="text-2xl font-bold text-brand-900">{r.apiScore}</div><div className="text-[12px] text-slate-500">API score</div></div>
                 </div>
-                <div className="flex flex-wrap gap-1.5 text-[11px]">
+                <div className="flex flex-wrap gap-1.5 text-xs">
                   {r.phd && <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-100">Ph.D.</span>}
                   {r.net && <span className="px-2 py-0.5 rounded-full bg-brand-50 text-brand-800 border border-brand-100">NET / SLET</span>}
                   <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">{r.indexedPublications} indexed of {r.publications} papers</span>
@@ -90,7 +90,7 @@ export default function TalentSearchPage() {
                 </div>
                 {r.researchInterests.length > 0 && <p className="text-xs text-slate-600"><strong className="text-slate-800">Research: </strong>{r.researchInterests.join(', ')}</p>}
                 <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100">
-                  <span className="text-[11px] text-slate-500">{r.appliedFor.length ? `Applied for ${r.appliedFor.length} of your vacancies` : r.invitedFor.length ? `Invited for ${r.invitedFor.length}` : ''}</span>
+                  <span className="text-xs text-slate-500">{r.appliedFor.length ? `Applied for ${r.appliedFor.length} of your vacancies` : r.invitedFor.length ? `Invited for ${r.invitedFor.length}` : ''}</span>
                   <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-900 hover:bg-brand-800 text-white text-xs font-semibold disabled:opacity-50" disabled={!jobs.length} onClick={() => setInviting(r)}><Send className="w-3.5 h-3.5" /> Invite to apply</button>
                 </div>
               </li>

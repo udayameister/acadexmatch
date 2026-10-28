@@ -39,7 +39,7 @@ export default function MiniBarChart({ title, data, format = v => v.toLocaleStri
           </div>
         )}
       </div>
-      <div className="mt-1.5 flex gap-[2px] text-[10px] text-slate-500" aria-hidden="true">
+      <div className="mt-1.5 flex gap-[2px] text-[12px] text-slate-500" aria-hidden="true">
         {data.map((d, i) => <span key={d.label + i} className="flex-1 text-center truncate">{i % every === 0 ? d.label : ''}</span>)}
       </div>
       <details className="mt-2 text-xs">

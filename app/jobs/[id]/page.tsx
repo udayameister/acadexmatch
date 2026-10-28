@@ -142,22 +142,17 @@ export default function JobDetailPage() {
             <div className="space-y-2">
               <div className="flex flex-wrap items-center gap-2">
                 {job.advertisementNumber && (
-                  <span className="text-[11px] font-bold bg-gold-100 text-gold-800 px-2.5 py-0.5 rounded-lg border border-gold-200">
+                  <span className="text-xs font-bold bg-gold-100 text-gold-800 px-2.5 py-0.5 rounded-lg border border-gold-200">
                     Advt No: {job.advertisementNumber}
                   </span>
                 )}
                 {job.reservationCategory && (
-                  <span className="text-[11px] font-bold bg-slate-100 text-slate-700 px-2.5 py-0.5 rounded-lg border border-slate-200">
+                  <span className="text-xs font-bold bg-slate-100 text-slate-700 px-2.5 py-0.5 rounded-lg border border-slate-200">
                     {job.reservationCategory}
                   </span>
                 )}
-                {job.source && (
-                  <span className="text-[11px] font-bold bg-white text-slate-600 px-2.5 py-0.5 rounded-lg border border-slate-200">
-                    {job.source.kind === 'aggregator' ? `Listed on ${job.source.siteName || 'a job-listing site'}` : <>From the institution&apos;s website</>}
-                  </span>
-                )}
                 {institute?.accreditation.naacGrade && (
-                  <span className="text-[11px] font-mono font-bold bg-brand-50 text-brand-800 px-2 py-0.5 rounded-lg border border-brand-200">
+                  <span className="text-xs font-mono font-bold bg-brand-50 text-brand-800 px-2 py-0.5 rounded-lg border border-brand-200">
                     NAAC {institute.accreditation.naacGrade}
                   </span>
                 )}
@@ -196,7 +191,7 @@ export default function JobDetailPage() {
           )}
           {matchBreakdown && (
             <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 text-center shrink-0 space-y-2">
-              <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider block">
+              <span className="text-[12px] uppercase font-bold text-slate-500 tracking-wider block">
                 Candidate Profile Fit
               </span>
               <div className="font-mono text-3xl font-black text-gold-700">
@@ -204,7 +199,7 @@ export default function JobDetailPage() {
               </div>
               <button
                 onClick={() => setShowMatchModal(true)}
-                className="text-[11px] text-brand-700 hover:text-brand-900 font-bold underline block mx-auto"
+                className="text-xs text-brand-700 hover:text-brand-900 font-bold underline block mx-auto"
               >
                 Explainable Breakdown &rarr;
               </button>
@@ -216,28 +211,28 @@ export default function JobDetailPage() {
         {/* 7th CPC Pay Scale & Highlights Ribbon */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-slate-100 text-xs">
           <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
-            <span className="text-[10px] uppercase text-slate-500 font-bold block mb-1">{job.source ? 'Pay / salary (as stated)' : '7th CPC Pay Scale'}</span>
+            <span className="text-[12px] uppercase text-slate-500 font-bold block mb-1">{job.source ? 'Pay / salary (as stated)' : '7th CPC Pay Scale'}</span>
             <div className={`font-bold flex items-center gap-1 text-sm ${job.payScale.cpcBand ? 'text-slate-900' : 'text-slate-400'}`}>
               <IndianRupee className="w-4 h-4 text-gold-600 shrink-0" />
               <span>{orNS(job.payScale.cpcBand)}</span>
             </div>
-            {job.payScale.entryPay && <div className="text-[11px] text-slate-500 mt-0.5">Entry Pay: {job.payScale.entryPay}</div>}
-            {levelKeyFrom(job.payScale.cpcBand) && <Link href={`/salary-calculator?level=${levelKeyFrom(job.payScale.cpcBand)}`} className="inline-block text-[11px] font-semibold text-brand-800 hover:underline mt-1">Estimate monthly pay →</Link>}
+            {job.payScale.entryPay && <div className="text-xs text-slate-500 mt-0.5">Entry Pay: {job.payScale.entryPay}</div>}
+            {levelKeyFrom(job.payScale.cpcBand) && <Link href={`/salary-calculator?level=${levelKeyFrom(job.payScale.cpcBand)}`} className="inline-block text-xs font-semibold text-brand-800 hover:underline mt-1">Estimate monthly pay →</Link>}
           </div>
 
           <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
-            <span className="text-[10px] uppercase text-slate-500 font-bold block mb-1">{job.source ? 'Number of posts' : 'Estimated Gross Monthly'}</span>
+            <span className="text-[12px] uppercase text-slate-500 font-bold block mb-1">{job.source ? 'Number of posts' : 'Estimated Gross Monthly'}</span>
             <div className={`font-bold text-sm ${(job.source ? job.source.numberOfPosts : job.payScale.grossMonthlyEstimated) ? 'text-emerald-800' : 'text-slate-400'}`}>{orNS(job.source ? job.source.numberOfPosts : job.payScale.grossMonthlyEstimated)}</div>
-            {!job.source && job.payScale.grossMonthlyEstimated && <div className="text-[11px] text-slate-500 mt-0.5">With 50% DA + 27% HRA + TA</div>}
+            {!job.source && job.payScale.grossMonthlyEstimated && <div className="text-xs text-slate-500 mt-0.5">With 50% DA + 27% HRA + TA</div>}
           </div>
 
           <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
-            <span className="text-[10px] uppercase text-slate-500 font-bold block mb-1">Minimum Qualification</span>
+            <span className="text-[12px] uppercase text-slate-500 font-bold block mb-1">Minimum Qualification</span>
             <div className={`font-bold flex items-start gap-1 text-sm ${job.requiredQualifications.minDegree ? 'text-slate-900' : 'text-slate-400'}`}>
               <GraduationCap className="w-4 h-4 text-brand-600 shrink-0 mt-0.5" />
               <span>{orNS(job.requiredQualifications.minDegree)}</span>
             </div>
-            {job.requiredQualifications.ugcRegulationsYear && <div className="text-[11px] text-slate-500 mt-0.5">{job.requiredQualifications.ugcRegulationsYear}</div>}
+            {job.requiredQualifications.ugcRegulationsYear && <div className="text-xs text-slate-500 mt-0.5">{job.requiredQualifications.ugcRegulationsYear}</div>}
           </div>
         </div>
 
@@ -255,19 +250,6 @@ export default function JobDetailPage() {
             <p className={`text-xs sm:text-sm leading-relaxed whitespace-pre-line font-normal ${job.description ? 'text-slate-600' : 'text-slate-400'}`}>
               {job.description || 'The source does not give a description. See the original notice for details.'}
             </p>
-            {job.source && (
-              <div className="mt-2 p-3.5 rounded-2xl bg-cream border border-slate-200 text-xs text-slate-600 space-y-1.5">
-                <div>
-                  Found on <a href={job.source.url} target="_blank" rel="noopener noreferrer" className="font-semibold text-brand-800 underline break-all">{job.source.url}</a> on {job.source.extractedAt}. Only details stated on that page are shown; always check the original notice.
-                </div>
-                {job.source.rawText && (
-                  <details>
-                    <summary className="cursor-pointer font-semibold text-slate-700">Text from the source page</summary>
-                    <p className="mt-1.5 whitespace-pre-line">{job.source.rawText}</p>
-                  </details>
-                )}
-              </div>
-            )}
           </div>
 
           <JobDetailsSections job={job} />
@@ -464,7 +446,7 @@ export default function JobDetailPage() {
                   Apply on institution website <ExternalLink className="w-4 h-4" />
                 </a>
                 <TrackJobPanel job={job} external />
-                <p className="text-[11px] text-slate-500">Found by AcadeXMatch from the institution&apos;s official careers page. Check the original notice for the latest details.</p>
+                <p className="text-xs text-slate-500">Found by AcadeXMatch from the institution&apos;s official careers page. Check the original notice for the latest details.</p>
               </div>
             ) : (
               <form onSubmit={handleApply} className="space-y-4 text-xs">
@@ -472,7 +454,7 @@ export default function JobDetailPage() {
                   <h3 className="font-serif font-bold text-slate-900 text-base">
                     Submit Formal Application
                   </h3>
-                  <p className="text-[11px] text-slate-500 mt-0.5">
+                  <p className="text-xs text-slate-500 mt-0.5">
                     Applying as <strong className="text-slate-900">{candidateProfile?.name}</strong>.{' '}
                     <Link href="/candidate/profile" className="text-brand-700 font-semibold hover:underline">Review profile</Link>
                   </p>
@@ -499,7 +481,7 @@ export default function JobDetailPage() {
                 {/* Mandatory Screening Questions */}
                 {job.screeningQuestions.length > 0 && (
                   <div className="space-y-3 pt-2 border-t border-slate-100">
-                    <span className="font-bold text-slate-700 uppercase text-[10px] tracking-wider block">
+                    <span className="font-bold text-slate-700 uppercase text-[12px] tracking-wider block">
                       Departmental Screening Questions ({job.screeningQuestions.length})
                     </span>
 
@@ -547,7 +529,7 @@ export default function JobDetailPage() {
                   </button>
                 </div>
 
-                <p className="text-[10px] text-slate-400 text-center leading-relaxed">
+                <p className="text-[12px] text-slate-400 text-center leading-relaxed">
                   By submitting, you authorize the institution&apos;s Faculty Search Committee to verify your publications and academic credentials per DPDP Act (2023) guidelines.
                 </p>
                 <TrackJobPanel job={job} external={false} />

@@ -182,7 +182,7 @@ export default function CustomersPanel() {
               <div className="min-w-0 flex-1">
                 <div className="font-semibold text-slate-900 text-sm line-clamp-2">{c.name}</div>
                 {c.website && <a href={c.website} target="_blank" rel="noopener noreferrer" className="text-xs text-slate-500 hover:text-brand-800 truncate block">{c.website.replace(/^https?:\/\//, '')}</a>}
-                {!c.visible && <div className="text-[11px] text-slate-500 mt-0.5">Hidden</div>}
+                {!c.visible && <div className="text-xs text-slate-500 mt-0.5">Hidden</div>}
                 <div className="flex gap-0.5 mt-2 -ml-1.5">
                   <button className={iconBtn} disabled={i === 0} title="Move earlier" aria-label={`Move ${c.name} earlier`} onClick={() => patch(c.id, { move: 'up' })}><ArrowUp className="w-4 h-4" /></button>
                   <button className={iconBtn} disabled={i === (list.length - 1)} title="Move later" aria-label={`Move ${c.name} later`} onClick={() => patch(c.id, { move: 'down' })}><ArrowDown className="w-4 h-4" /></button>

@@ -51,19 +51,19 @@ export default function ApplicantDetailModal({ application: app, onClose }: Appl
         <div className="p-6 sm:p-8 space-y-6 text-sm">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
             <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200">
-              <div className="text-[11px] text-slate-500">Match</div>
+              <div className="text-xs text-slate-500">Match</div>
               <div className="font-serif text-2xl font-bold text-slate-900">{app.matchScore}%</div>
             </div>
             <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200">
-              <div className="text-[11px] text-slate-500">API score</div>
+              <div className="text-xs text-slate-500">API score</div>
               <div className="font-serif text-2xl font-bold text-slate-900">{profile?.apiScore ?? '—'}</div>
             </div>
             <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200">
-              <div className="text-[11px] text-slate-500">Committee avg.</div>
+              <div className="text-xs text-slate-500">Committee avg.</div>
               <div className="font-serif text-2xl font-bold text-slate-900">{avgCommittee ?? '—'}</div>
             </div>
             <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200">
-              <div className="text-[11px] text-slate-500">Stage</div>
+              <div className="text-xs text-slate-500">Stage</div>
               <div className="font-semibold text-slate-900 capitalize mt-1.5">{app.status.replace(/_/g, ' ')}</div>
             </div>
           </div>

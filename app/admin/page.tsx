@@ -153,7 +153,7 @@ export default function AdminCompliancePage() {
           <div key={label as string} className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm">
             <div className="text-xs text-slate-500">{label}</div>
             <div className="font-serif text-3xl font-bold text-slate-900 mt-1">{value}</div>
-            <div className="text-[11px] text-slate-400 mt-1">{sub}</div>
+            <div className="text-xs text-slate-400 mt-1">{sub}</div>
           </div>
         ))}
       </div>
@@ -231,10 +231,10 @@ export default function AdminCompliancePage() {
                     <h3 className="font-serif font-bold text-slate-900 text-base truncate">
                       {inst.name}
                     </h3>
-                    <span className="font-mono text-[10px] font-bold bg-slate-100 text-slate-700 px-2 py-0.5 rounded border border-slate-200">
+                    <span className="font-mono text-[12px] font-bold bg-slate-100 text-slate-700 px-2 py-0.5 rounded border border-slate-200">
                       AISHE: {inst.aisheCode}
                     </span>
-                    <span className="text-[10px] font-bold bg-gold-50 text-gold-800 px-2 py-0.5 rounded border border-gold-200">
+                    <span className="text-[12px] font-bold bg-gold-50 text-gold-800 px-2 py-0.5 rounded border border-gold-200">
                       NAAC {inst.accreditation.naacGrade}
                     </span>
                   </div>
@@ -243,7 +243,7 @@ export default function AdminCompliancePage() {
                     {inst.type} • {inst.location.city}, {inst.location.state}
                   </p>
 
-                  <div className="flex flex-wrap items-center gap-4 text-[11px] text-slate-500 pt-1 font-medium">
+                  <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500 pt-1 font-medium">
                     <span>Contact: {inst.contactEmail || '—'}</span>
                     <span>•</span>
                     <span>UGC 2(f)/12(B): <strong className="text-slate-700">{inst.accreditation.ugc2f12bStatus ? 'Approved' : 'Pending'}</strong></span>
@@ -253,7 +253,7 @@ export default function AdminCompliancePage() {
                 </div>
 
                 <div className="flex items-center gap-3 shrink-0">
-                  <span className={`text-[10px] font-bold uppercase px-3 py-1 rounded-full border ${
+                  <span className={`text-[12px] font-bold uppercase px-3 py-1 rounded-full border ${
                     inst.verificationStatus === 'verified'
                       ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
                       : inst.verificationStatus === 'rejected'
@@ -283,7 +283,7 @@ export default function AdminCompliancePage() {
                   ) : (
                     <button
                       onClick={() => handleVerifyInstitute(inst.id, 'rejected')}
-                      className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-crimson-50 text-slate-600 hover:text-crimson-600 border border-slate-200 transition text-[11px] font-bold"
+                      className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-crimson-50 text-slate-600 hover:text-crimson-600 border border-slate-200 transition text-xs font-bold"
                     >
                       Revoke
                     </button>
@@ -326,7 +326,7 @@ export default function AdminCompliancePage() {
                     </div>
                   </div>
 
-                  <span className={`text-[10px] font-bold uppercase px-3 py-1 rounded-full border self-start ${
+                  <span className={`text-[12px] font-bold uppercase px-3 py-1 rounded-full border self-start ${
                     req.status === 'Completed'
                       ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
                       : 'bg-gold-50 text-gold-800 border-gold-300'
@@ -342,12 +342,12 @@ export default function AdminCompliancePage() {
                 )}
 
                 {req.dpoActionNotes && (
-                  <div className="p-3 rounded-2xl bg-emerald-50 text-[11px] text-emerald-900 border border-emerald-200">
+                  <div className="p-3 rounded-2xl bg-emerald-50 text-xs text-emerald-900 border border-emerald-200">
                     <strong className="text-emerald-950">DPO Action: </strong>{req.dpoActionNotes}
                   </div>
                 )}
 
-                <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-[11px] text-slate-500 font-medium">
+                <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs text-slate-500 font-medium">
                   <span className="flex items-center gap-3">
                     Requested on: {req.requestedAt}
                     <button
@@ -410,7 +410,7 @@ export default function AdminCompliancePage() {
             {visibleLogs.map((log) => (
               <div
                 key={log.id}
-                className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-2 font-mono text-[11px]"
+                className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-2 font-mono text-xs"
               >
                 <div className="space-y-0.5">
                   <div className="flex items-center gap-2">
@@ -418,12 +418,12 @@ export default function AdminCompliancePage() {
                     <span className="text-slate-400">•</span>
                     <span className="text-slate-700 font-sans">{log.target}</span>
                   </div>
-                  <div className="text-slate-500 text-[10px] font-sans font-medium">
+                  <div className="text-slate-500 text-[12px] font-sans font-medium">
                     Actor: <strong className="text-slate-900">{log.actor}</strong> ({log.actorRole.replace('_', ' ')})
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 text-slate-500 text-[10px] self-end sm:self-center">
+                <div className="flex items-center gap-2 text-slate-500 text-[12px] self-end sm:self-center">
                   <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 font-bold">
                     {log.complianceCategory}
                   </span>

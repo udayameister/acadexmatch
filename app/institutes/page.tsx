@@ -135,11 +135,11 @@ export default function InstitutesPage() {
                   </div>
 
                   <div className="flex flex-col items-end gap-1">
-                    <span className="text-[10px] font-bold bg-gold-50 text-gold-800 px-2 py-0.5 rounded border border-gold-200">
+                    <span className="text-[12px] font-bold bg-gold-50 text-gold-800 px-2 py-0.5 rounded border border-gold-200">
                       NAAC {inst.accreditation.naacGrade}
                     </span>
                     {inst.accreditation.nirfRankOverall && (
-                      <span className="text-[10px] font-bold text-brand-700">
+                      <span className="text-[12px] font-bold text-brand-700">
                         NIRF #{inst.accreditation.nirfRankOverall}
                       </span>
                     )}
@@ -161,14 +161,14 @@ export default function InstitutesPage() {
                 </p>
 
                 {/* Accreditations and Stats */}
-                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 text-[11px]">
+                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 text-xs">
                   <div className="p-2.5 rounded-xl bg-slate-50 text-slate-700 border border-slate-100">
-                    <span className="text-[9px] text-slate-500 uppercase block font-bold">Faculty Cadre</span>
+                    <span className="text-xs text-slate-500 uppercase block font-bold">Faculty Cadre</span>
                     <strong className="text-slate-900 font-mono">{inst.stats.facultyCount} Sanctioned</strong>
                   </div>
 
                   <div className="p-2.5 rounded-xl bg-slate-50 text-slate-700 border border-slate-100">
-                    <span className="text-[9px] text-slate-500 uppercase block font-bold">Live Openings</span>
+                    <span className="text-xs text-slate-500 uppercase block font-bold">Live Openings</span>
                     <strong className="text-brand-900 font-mono font-bold">{instJobs.length} Vacancies</strong>
                   </div>
                 </div>
@@ -176,7 +176,7 @@ export default function InstitutesPage() {
 
               {/* Bottom Actions */}
               <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
-                <span className="text-[11px] text-slate-500 font-mono font-medium">
+                <span className="text-xs text-slate-500 font-mono font-medium">
                   AISHE: {inst.aisheCode}
                 </span>
 

@@ -419,7 +419,7 @@ function ProfileEditor() {
           <Section icon={BookOpen} title={`Publications (${profile.publications.length})`} subtitle="Indexing is estimated from the venue — tick or untick to match the official UGC-CARE list.">
             <div className="flex flex-wrap items-center gap-2">
               <button type="button" onClick={() => setShowImport(true)} className="px-4 py-2 rounded-xl bg-brand-50 hover:bg-brand-100 text-brand-900 border border-brand-200 text-xs font-bold inline-flex items-center gap-1.5"><Download className="w-4 h-4" /> Import from ORCID, DOI or Google Scholar</button>
-              <span className="text-[11px] text-slate-500">or add one by hand below</span>
+              <span className="text-xs text-slate-500">or add one by hand below</span>
             </div>
             {showImport && (
               <PublicationImport

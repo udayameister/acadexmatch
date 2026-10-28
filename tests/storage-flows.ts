@@ -89,11 +89,8 @@ async function main() {
   check('API score recomputed from real data', profile.apiScore === 13 + 25 + 30 + 7 + 0 + 10 + 0, profile.apiScore);
   check('completeness > 0', profile.profileCompleteness > 0);
 
-  const free = StorageService.applyToJob(job.id, [{ question: 'q', answer: 'a' }]);
-  check('free candidate cannot one-click apply', !free.success, free);
-  // Applying through AcadeXMatch is a Premium feature: grant Premium as the admin would.
-  const accts = memCtx.get(storage.STORAGE_KEYS.USERS) as any[];
-  memCtx.set(storage.STORAGE_KEYS.USERS, accts.map(u => (u.id === memCtx.userId ? { ...u, plan: 'premium', premiumUntil: '2099-12-31' } : u)));
+  // Premium is free for every candidate (CANDIDATE_PREMIUM_FREE), so a new candidate can apply right away.
+  check('every candidate counts as Premium', storage.isPremiumUser(StorageService.getCurrentUser()));
   const ok = StorageService.applyToJob(job.id, [{ question: 'q', answer: 'a' }]);
   check('candidate can apply', ok.success, ok);
   check('duplicate application refused', !StorageService.applyToJob(job.id, []).success);

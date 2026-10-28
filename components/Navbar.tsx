@@ -163,7 +163,7 @@ export default function Navbar() {
                 <UserBadge userId={user.role === 'candidate' ? user.id : undefined} name={user.name} />
                 <span className="hidden sm:block text-left">
                   <span className="block text-sm font-medium text-slate-900 max-w-[140px] truncate">{user.name}</span>
-                  <span className="block text-[11px] text-slate-500 -mt-0.5">{ROLE_LABEL[user.role]}</span>
+                  <span className="block text-xs text-slate-500 -mt-0.5">{ROLE_LABEL[user.role]}</span>
                 </span>
                 <ChevronDown className="w-4 h-4 text-slate-400" />
               </button>

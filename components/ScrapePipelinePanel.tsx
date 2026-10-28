@@ -232,7 +232,7 @@ export default function ScrapePipelinePanel() {
                     <tr key={q.id} className="hover:bg-ivory align-top">
                       <td className="px-4 py-3"><input type="checkbox" className="accent-brand-900 w-4 h-4" aria-label={`Select ${j.title}`} checked={selected.has(q.id)} onChange={() => toggle(q.id)} /></td>
                       <td className="px-4 py-3 max-w-md">
-                        <div className="font-medium text-slate-900">{j.title}{edits[q.id] && <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-gold-100 text-gold-800">edited</span>}</div>
+                        <div className="font-medium text-slate-900">{j.title}{edits[q.id] && <span className="ml-2 text-[12px] px-1.5 py-0.5 rounded bg-gold-100 text-gold-800">edited</span>}</div>
                         <div className="text-xs text-slate-600">{j.instituteName} · {orNS(j.department)}</div>
                         <dl className="mt-1 grid grid-cols-[auto_1fr] gap-x-2 text-xs">
                           {([
@@ -247,7 +247,7 @@ export default function ScrapePipelinePanel() {
                           ))}
                         </dl>
                         {(j.source?.fromPdf || j.source?.pdfNote) && (
-                          <div className="flex flex-wrap gap-1.5 mt-1.5 text-[11px]">
+                          <div className="flex flex-wrap gap-1.5 mt-1.5 text-xs">
                             {j.source?.fromPdf && <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 font-semibold">Details read from PDF notice</span>}
                             {j.source?.pdfNote && <span className="px-2 py-0.5 rounded-full bg-gold-50 text-gold-900 border border-gold-200">PDF: {j.source.pdfNote}</span>}
                           </div>

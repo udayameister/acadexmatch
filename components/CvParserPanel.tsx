@@ -144,7 +144,7 @@ export default function CvParserPanel({ onSaved, compact }: CvParserPanelProps) 
         )}
 
         <div className="flex items-center justify-between gap-3">
-          <span className="text-[11px] text-slate-500">Parsed in your browser — your CV is never uploaded to a server.</span>
+          <span className="text-xs text-slate-500">Parsed in your browser — your CV is never uploaded to a server.</span>
           <button
             onClick={handleParse}
             disabled={isParsing || isReading || cvText.trim().length < 40}
@@ -173,11 +173,11 @@ export default function CvParserPanel({ onSaved, compact }: CvParserPanelProps) 
               </div>
               <div className="flex gap-2">
                 <div className="px-3 py-1.5 rounded-xl bg-gold-50 border border-gold-200 text-center">
-                  <span className="text-[10px] text-slate-500 block uppercase font-semibold">Est. API</span>
+                  <span className="text-[12px] text-slate-500 block uppercase font-semibold">Est. API</span>
                   <span className="font-mono font-bold text-gold-700">{p.apiScore}/100</span>
                 </div>
                 <div className="px-3 py-1.5 rounded-xl bg-brand-50 border border-brand-200 text-center">
-                  <span className="text-[10px] text-slate-500 block uppercase font-semibold">Coverage</span>
+                  <span className="text-[12px] text-slate-500 block uppercase font-semibold">Coverage</span>
                   <span className="font-mono font-bold text-brand-700">{result.confidenceScore}%</span>
                 </div>
               </div>
@@ -215,7 +215,7 @@ export default function CvParserPanel({ onSaved, compact }: CvParserPanelProps) 
                 {p.publications!.map(pub => (
                   <div key={pub.id} className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs">
                     <div className="font-semibold text-slate-900 line-clamp-1">{pub.title}</div>
-                    <div className="text-[11px] text-slate-500 flex justify-between gap-2">
+                    <div className="text-xs text-slate-500 flex justify-between gap-2">
                       <span className="truncate">{pub.journalOrConference}{pub.year ? ` (${pub.year})` : ''}</span>
                       {(pub.scopusIndexed || pub.sciScieIndexed) && <span className="text-emerald-700 font-semibold shrink-0">Likely indexed</span>}
                     </div>
@@ -225,7 +225,7 @@ export default function CvParserPanel({ onSaved, compact }: CvParserPanelProps) 
             )}
 
             <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-3">
-              <span className="text-[11px] text-slate-500">You can edit everything on your profile afterwards.</span>
+              <span className="text-xs text-slate-500">You can edit everything on your profile afterwards.</span>
               <button
                 onClick={handleSave}
                 disabled={saved}

@@ -293,7 +293,7 @@ export default function TransactionsLedger({ online }: { online: boolean }) {
           ['Net received', rs(gross - refunded - feeTotal), 'collected − refunds − fees'],
           ['Unfinished orders', String(pending), 'checked every 10 min'],
         ].map(([l, v, s]) => (
-          <div key={l} className="p-3 rounded-xl bg-ivory border border-slate-200"><div className="text-xs text-slate-500">{l}</div><div className="text-xl font-bold text-slate-900">{v}</div><div className="text-[11px] text-slate-500">{s}</div></div>
+          <div key={l} className="p-3 rounded-xl bg-ivory border border-slate-200"><div className="text-xs text-slate-500">{l}</div><div className="text-xl font-bold text-slate-900">{v}</div><div className="text-xs text-slate-500">{s}</div></div>
         ))}
       </div>
 
@@ -341,7 +341,7 @@ export default function TransactionsLedger({ online }: { online: boolean }) {
                   <td className="px-4 py-2.5 whitespace-nowrap text-slate-600">{istDate(when(p))}</td>
                   <td className="px-4 py-2.5"><div className="font-medium text-slate-900">{p.userName}</div><div className="text-xs text-slate-500">{p.userEmail}</div></td>
                   <td className="px-4 py-2.5 text-slate-700">{PRODUCT[p.product]}<div className="text-xs text-slate-500 max-w-[16rem] truncate">{p.instituteName || p.jobTitle || ''}{p.testMode ? ' · test' : ''}</div></td>
-                  <td className="px-4 py-2.5 text-slate-600 text-xs">{p.methodDetail || (p.status === 'failed' ? <span className="text-crimson-700">{p.failureReason || 'Failed'}</span> : '—')}{p.source === 'offline' && <div className="text-[11px] text-slate-400">offline</div>}</td>
+                  <td className="px-4 py-2.5 text-slate-600 text-xs">{p.methodDetail || (p.status === 'failed' ? <span className="text-crimson-700">{p.failureReason || 'Failed'}</span> : '—')}{p.source === 'offline' && <div className="text-xs text-slate-400">offline</div>}</td>
                   <td className="px-4 py-2.5 text-right whitespace-nowrap"><div className="font-semibold text-slate-900">{rs(p.amount)}</div>{p.refundedAmount ? <div className="text-xs text-gold-800">−{rs(p.refundedAmount)}</div> : null}</td>
                   <td className="px-4 py-2.5"><span className={`text-xs font-semibold px-2 py-0.5 rounded-full border whitespace-nowrap ${PAYMENT_STATE_STYLE[paymentState(p)]}`}>{PAYMENT_STATE_LABEL[paymentState(p)]}</span></td>
                   <td className="px-4 py-2.5" onClick={e => e.stopPropagation()}>

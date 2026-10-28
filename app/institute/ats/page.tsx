@@ -167,7 +167,7 @@ export default function InstituteAtsKanbanPage() {
                   <span className="font-bold text-slate-900 text-xs truncate">
                     {stage.label}
                   </span>
-                  <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full ${stage.countColor}`}>
+                  <span className={`text-[12px] font-mono font-bold px-2 py-0.5 rounded-full ${stage.countColor}`}>
                     {stageApps.length}
                   </span>
                 </div>
@@ -185,17 +185,17 @@ export default function InstituteAtsKanbanPage() {
                           <button onClick={() => setDetailApp(app)} className="font-bold text-slate-900 text-sm truncate hover:text-brand-700 text-left">
                             {app.candidateName}
                           </button>
-                          <span className="text-[10px] font-bold font-mono bg-emerald-50 text-emerald-800 px-1.5 py-0.5 rounded border border-emerald-200">
+                          <span className="text-[12px] font-bold font-mono bg-emerald-50 text-emerald-800 px-1.5 py-0.5 rounded border border-emerald-200">
                             {app.matchScore}% Fit
                           </span>
                         </div>
-                        <p className="text-[11px] text-slate-500 line-clamp-1 mt-0.5 font-medium">
+                        <p className="text-xs text-slate-500 line-clamp-1 mt-0.5 font-medium">
                           {app.jobTitle}
                         </p>
                       </div>
 
                       {/* UGC Metrics */}
-                      <div className="grid grid-cols-2 gap-1.5 p-2 rounded-xl bg-slate-50 text-[10px] text-slate-600 border border-slate-100">
+                      <div className="grid grid-cols-2 gap-1.5 p-2 rounded-xl bg-slate-50 text-[12px] text-slate-600 border border-slate-100">
                         <div className="truncate">Degree: <strong className="text-brand-900">{app.highestDegree || '—'}</strong></div>
                         <div>
                           {app.matchBreakdown.meetsMandatoryNetPhd
@@ -206,20 +206,20 @@ export default function InstituteAtsKanbanPage() {
 
                       {/* Interview Badge if present */}
                       {app.interviewSlot && (
-                        <div className="p-2 rounded-xl bg-emerald-50 border border-emerald-200 text-[10px] text-emerald-900">
+                        <div className="p-2 rounded-xl bg-emerald-50 border border-emerald-200 text-[12px] text-emerald-900">
                           Interview: <strong>{app.interviewSlot.date}</strong>
                         </div>
                       )}
 
                       {/* Committee Scores if present */}
                       {app.reviewerScores && app.reviewerScores.length > 0 && (
-                        <div className="p-2 rounded-xl bg-purple-50 border border-purple-200 text-[10px] text-purple-900">
+                        <div className="p-2 rounded-xl bg-purple-50 border border-purple-200 text-[12px] text-purple-900">
                           {app.reviewerScores.length} committee review{app.reviewerScores.length === 1 ? '' : 's'}
                         </div>
                       )}
 
                       {/* Quick Action Buttons */}
-                      <div className="flex flex-wrap items-center justify-between gap-1 pt-2 border-t border-slate-100 text-[11px]">
+                      <div className="flex flex-wrap items-center justify-between gap-1 pt-2 border-t border-slate-100 text-xs">
                         <button
                           onClick={() => setDetailApp(app)}
                           className="px-2 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold transition"
@@ -253,7 +253,7 @@ export default function InstituteAtsKanbanPage() {
                             <button
                               onClick={() => handleMoveStage(app.id, app.status, 'backward')}
                               title="Move Back"
-                              className="p-1 rounded bg-slate-100 text-slate-600 hover:bg-slate-200 font-mono text-[10px]"
+                              className="p-1 rounded bg-slate-100 text-slate-600 hover:bg-slate-200 font-mono text-[12px]"
                             >
                               &larr;
                             </button>
@@ -262,7 +262,7 @@ export default function InstituteAtsKanbanPage() {
                             <button
                               onClick={() => handleMoveStage(app.id, app.status, 'forward')}
                               title="Advance Stage"
-                              className="p-1 rounded bg-brand-900 text-white hover:bg-brand-800 font-mono text-[10px]"
+                              className="p-1 rounded bg-brand-900 text-white hover:bg-brand-800 font-mono text-[12px]"
                             >
                               &rarr;
                             </button>
@@ -273,7 +273,7 @@ export default function InstituteAtsKanbanPage() {
                   ))}
 
                   {stageApps.length === 0 && (
-                    <div className="h-32 flex items-center justify-center border-2 border-dashed border-slate-200 rounded-2xl text-[11px] text-slate-400 text-center p-2 font-medium">
+                    <div className="h-32 flex items-center justify-center border-2 border-dashed border-slate-200 rounded-2xl text-xs text-slate-400 text-center p-2 font-medium">
                       No candidates in this stage
                     </div>
                   )}

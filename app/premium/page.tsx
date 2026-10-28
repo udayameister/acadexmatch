@@ -9,6 +9,7 @@ import { PlanSettings, PremiumPlanOption, UpgradeRequest } from '@/types';
 import { Check, Minus, Crown, Clock, ArrowRight, ExternalLink, Building2 } from 'lucide-react';
 import { INSTITUTION_FEATURES } from '@/components/InstituteSubscriptionGate';
 import PayButton, { useOnlinePayment } from '@/components/PayButton';
+import { CANDIDATE_PREMIUM_FREE } from '@/lib/storage';
 
 const FEATURES: { label: string; free: boolean | string; premium: boolean | string }[] = [
   { label: 'Browse all faculty job listings', free: true, premium: true },
@@ -101,7 +102,7 @@ export default function PremiumPage() {
         {needsDeclaration
           ? <button type="button" disabled className="w-full px-5 py-3 rounded-xl bg-slate-200 text-slate-500 font-semibold text-sm">Confirm the scholar declaration to continue</button>
           : <PayButton product="candidate_premium" plan={plan?.key} label={`Pay ${price} and upgrade now`} description={`Premium — ${months} month${months === 1 ? '' : 's'}`} />}
-        {online.testMode && <p className="text-[11px] text-center text-gold-800">Test mode: use Razorpay test cards; no real money is charged.</p>}
+        {online.testMode && <p className="text-xs text-center text-gold-800">Test mode: use Razorpay test cards; no real money is charged.</p>}
       </div>
     );
   } else if (myRequest) {
@@ -130,56 +131,83 @@ export default function PremiumPage() {
 
   return (
     <div className="w-full">
+      {CANDIDATE_PREMIUM_FREE ? (
+        <>
+          <section className="hero-backdrop border-b border-slate-200">
+            <div className="max-w-5xl mx-auto px-4 sm:px-8 py-14 text-center">
+              <p className="text-sm font-semibold text-brand-700 inline-flex items-center gap-3"><span className="gold-rule" />Plans</p>
+              <h1 className="text-3xl sm:text-5xl font-bold text-brand-800 mt-3 tracking-[-0.02em]">Premium is free for every candidate.</h1>
+              <p className="text-slate-600 mt-4 text-lg max-w-2xl mx-auto">Every candidate account gets the full AcadeXMatch toolkit at no cost. Only institutions and recruiters subscribe.</p>
+            </div>
+          </section>
+          <section className="max-w-3xl mx-auto px-4 sm:px-8 py-14">
+            <div className="relative p-7 rounded-3xl bg-white border-2 border-brand-900 shadow-lg">
+              <div className="absolute -top-3 left-7"><PremiumBadge label="Included free" /></div>
+              <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2"><Crown className="w-5 h-5 text-gold-500" /> Candidate Premium</h2>
+              <div className="mt-2 text-3xl font-bold text-brand-900">₹0</div>
+              <ul className="mt-6 grid sm:grid-cols-2 gap-2.5 text-sm text-slate-700">
+                {FEATURES.map(f => <li key={f.label} className="flex gap-2"><Check className="w-4 h-4 text-gold-600 mt-0.5 shrink-0" />{f.label}</li>)}
+              </ul>
+              <div className="mt-6 text-sm">
+                {isCandidate ? <span className="font-semibold text-emerald-700">Active on your account</span> : !user ? <Link href="/register" className="font-semibold text-brand-800 hover:underline">Create your free profile</Link> : null}
+              </div>
+            </div>
+          </section>
+        </>
+      ) : (
+      <>
       <section className="hero-backdrop border-b border-slate-200">
-        <div className="max-w-5xl mx-auto px-4 sm:px-8 py-14 text-center">
-          <p className="text-sm font-semibold text-brand-700 inline-flex items-center gap-3"><span className="gold-rule" />Plans</p>
-          <h1 className="text-3xl sm:text-5xl font-bold text-brand-800 mt-3 tracking-[-0.02em]">Free to browse. Premium to get hired faster.</h1>
-          <p className="text-slate-600 mt-4 text-lg max-w-2xl mx-auto">Every candidate can see every vacancy and apply on the institution&apos;s own website. Premium adds one-click applications, Premium vacancies and all our matching tools.</p>
-        </div>
-      </section>
-
-      <section className="max-w-5xl mx-auto px-4 sm:px-8 py-14 grid md:grid-cols-2 gap-6 items-stretch">
-        <div className="p-7 rounded-3xl bg-white border border-slate-200 shadow-sm flex flex-col">
-          <h2 className="text-xl font-bold text-slate-900">Free</h2>
-          <div className="mt-2 text-3xl font-bold text-slate-900">₹0</div>
-          <p className="text-sm text-slate-500 mt-1">For browsing vacancies and applying directly to institutions.</p>
-          <ul className="mt-6 space-y-2.5 text-sm text-slate-700 flex-1">
-            {FEATURES.filter(f => f.free).map(f => <li key={f.label} className="flex gap-2"><Check className="w-4 h-4 text-emerald-600 mt-0.5 shrink-0" />{f.label}</li>)}
-          </ul>
-          <div className="mt-6 text-sm text-slate-500">
-            {isCandidate && !isPremium ? <span className="font-semibold text-slate-700">Your current plan</span> : !user ? <Link href="/register" className="font-semibold text-brand-800 hover:underline">Sign up free</Link> : null}
+          <div className="max-w-5xl mx-auto px-4 sm:px-8 py-14 text-center">
+            <p className="text-sm font-semibold text-brand-700 inline-flex items-center gap-3"><span className="gold-rule" />Plans</p>
+            <h1 className="text-3xl sm:text-5xl font-bold text-brand-800 mt-3 tracking-[-0.02em]">Free to browse. Premium to get hired faster.</h1>
+            <p className="text-slate-600 mt-4 text-lg max-w-2xl mx-auto">Every candidate can see every vacancy and apply on the institution&apos;s own website. Premium adds one-click applications, Premium vacancies and all our matching tools.</p>
           </div>
-        </div>
-
-        <div className="relative p-7 rounded-3xl bg-white border-2 border-brand-900 shadow-lg flex flex-col">
-          <div className="absolute -top-3 left-7"><PremiumBadge label="Recommended" /></div>
-          <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2"><Crown className="w-5 h-5 text-gold-500" /> Premium</h2>
-          <div className="mt-2 text-3xl font-bold text-brand-900">{plan?.priceInr ? <>{price}<span className="text-base font-semibold text-slate-500"> / {period(months)}</span></> : settings.premiumPriceLabel}</div>
-          {plans.length > 1 && <p className="text-xs text-slate-500">Plans from ₹{Math.min(...plans.map(p => p.priceInr)).toLocaleString('en-IN')}</p>}
-          <p className="text-sm text-slate-500 mt-1">Everything in Free, plus the full AcadeXMatch toolkit.</p>
-          <ul className="mt-6 space-y-2.5 text-sm text-slate-700 flex-1">
-            {FEATURES.filter(f => !f.free).map(f => <li key={f.label} className="flex gap-2"><Check className="w-4 h-4 text-gold-600 mt-0.5 shrink-0" />{f.label}</li>)}
-          </ul>
-          <div className="mt-6">{cta}</div>
-        </div>
-      </section>
-
-      <section className="max-w-5xl mx-auto px-4 sm:px-8 pb-6">
-        <h2 className="text-2xl font-bold text-brand-800 mb-5">Compare plans</h2>
-        <div className="rounded-2xl bg-white border border-slate-200 overflow-x-auto shadow-sm">
-          <table className="w-full text-sm">
-            <thead className="bg-cream text-slate-700">
-              <tr><th className="text-left px-5 py-3 font-semibold">Feature</th><th className="px-5 py-3 font-semibold w-28">Free</th><th className="px-5 py-3 font-semibold w-28">Premium</th></tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {FEATURES.map(f => (
-                <tr key={f.label}><td className="px-5 py-3 text-slate-700">{f.label}</td><td className="px-5 py-3 text-center"><Cell v={f.free} /></td><td className="px-5 py-3 text-center"><Cell v={f.premium} /></td></tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <p className="text-xs text-slate-500 mt-4 flex items-center gap-1.5"><ExternalLink className="w-3.5 h-3.5" /> Free members apply through the link the institution provides; AcadeXMatch does not track those applications.</p>
-      </section>
+        </section>
+  
+        <section className="max-w-5xl mx-auto px-4 sm:px-8 py-14 grid md:grid-cols-2 gap-6 items-stretch">
+          <div className="p-7 rounded-3xl bg-white border border-slate-200 shadow-sm flex flex-col">
+            <h2 className="text-xl font-bold text-slate-900">Free</h2>
+            <div className="mt-2 text-3xl font-bold text-slate-900">₹0</div>
+            <p className="text-sm text-slate-500 mt-1">For browsing vacancies and applying directly to institutions.</p>
+            <ul className="mt-6 space-y-2.5 text-sm text-slate-700 flex-1">
+              {FEATURES.filter(f => f.free).map(f => <li key={f.label} className="flex gap-2"><Check className="w-4 h-4 text-emerald-600 mt-0.5 shrink-0" />{f.label}</li>)}
+            </ul>
+            <div className="mt-6 text-sm text-slate-500">
+              {isCandidate && !isPremium ? <span className="font-semibold text-slate-700">Your current plan</span> : !user ? <Link href="/register" className="font-semibold text-brand-800 hover:underline">Sign up free</Link> : null}
+            </div>
+          </div>
+  
+          <div className="relative p-7 rounded-3xl bg-white border-2 border-brand-900 shadow-lg flex flex-col">
+            <div className="absolute -top-3 left-7"><PremiumBadge label="Recommended" /></div>
+            <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2"><Crown className="w-5 h-5 text-gold-500" /> Premium</h2>
+            <div className="mt-2 text-3xl font-bold text-brand-900">{plan?.priceInr ? <>{price}<span className="text-base font-semibold text-slate-500"> / {period(months)}</span></> : settings.premiumPriceLabel}</div>
+            {plans.length > 1 && <p className="text-xs text-slate-500">Plans from ₹{Math.min(...plans.map(p => p.priceInr)).toLocaleString('en-IN')}</p>}
+            <p className="text-sm text-slate-500 mt-1">Everything in Free, plus the full AcadeXMatch toolkit.</p>
+            <ul className="mt-6 space-y-2.5 text-sm text-slate-700 flex-1">
+              {FEATURES.filter(f => !f.free).map(f => <li key={f.label} className="flex gap-2"><Check className="w-4 h-4 text-gold-600 mt-0.5 shrink-0" />{f.label}</li>)}
+            </ul>
+            <div className="mt-6">{cta}</div>
+          </div>
+        </section>
+  
+        <section className="max-w-5xl mx-auto px-4 sm:px-8 pb-6">
+          <h2 className="text-2xl font-bold text-brand-800 mb-5">Compare plans</h2>
+          <div className="rounded-2xl bg-white border border-slate-200 overflow-x-auto shadow-sm">
+            <table className="w-full text-sm">
+              <thead className="bg-cream text-slate-700">
+                <tr><th className="text-left px-5 py-3 font-semibold">Feature</th><th className="px-5 py-3 font-semibold w-28">Free</th><th className="px-5 py-3 font-semibold w-28">Premium</th></tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {FEATURES.map(f => (
+                  <tr key={f.label}><td className="px-5 py-3 text-slate-700">{f.label}</td><td className="px-5 py-3 text-center"><Cell v={f.free} /></td><td className="px-5 py-3 text-center"><Cell v={f.premium} /></td></tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="text-xs text-slate-500 mt-4 flex items-center gap-1.5"><ExternalLink className="w-3.5 h-3.5" /> Free members apply through the link the institution provides; AcadeXMatch does not track those applications.</p>
+        </section>
+      </>
+      )}
 
       <section id="institutions" className="scroll-mt-24 max-w-5xl mx-auto px-4 sm:px-8 py-14">
         <div className="relative overflow-hidden rounded-[2rem] bg-brand-950 text-white p-8 sm:p-12">

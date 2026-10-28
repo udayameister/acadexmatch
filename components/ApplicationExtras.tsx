@@ -74,7 +74,7 @@ export function ApplicationExtras({ app }: { app: Application }) {
                   <div className="flex flex-wrap gap-2">
                     {list.map(s => (
                       <button key={s.id} onClick={() => book(s.id)} className="px-3 py-2 rounded-lg bg-white border border-slate-200 hover:border-brand-400 hover:bg-brand-50 text-sm font-semibold text-slate-900" title={`${s.platform}${s.roomVenue ? ` · ${s.roomVenue}` : ''}`}>
-                        {s.time} <span className="text-[11px] font-normal text-slate-500">· {s.durationMin} min · {s.platform.startsWith('In-Person') ? 'On campus' : s.platform}</span>
+                        {s.time} <span className="text-xs font-normal text-slate-500">· {s.durationMin} min · {s.platform.startsWith('In-Person') ? 'On campus' : s.platform}</span>
                       </button>
                     ))}
                   </div>
@@ -124,7 +124,7 @@ export function TalentInvitesCard() {
             <div className="min-w-0">
               <div className="text-sm font-semibold text-slate-900">{i.instituteName} · {i.jobTitle}</div>
               {i.message && <p className="text-xs text-slate-600 mt-0.5 line-clamp-2">“{i.message}”</p>}
-              <div className="text-[11px] text-slate-500 mt-0.5">Sent {i.sentAt} by {i.sentBy}{i.status === 'interested' ? ' · you said you are interested' : ''}</div>
+              <div className="text-xs text-slate-500 mt-0.5">Sent {i.sentAt} by {i.sentBy}{i.status === 'interested' ? ' · you said you are interested' : ''}</div>
             </div>
             <div className="flex gap-2 shrink-0">
               <Link href={`/jobs/${i.jobId}`} className="px-3 py-1.5 rounded-lg bg-brand-900 hover:bg-brand-800 text-white text-xs font-semibold">See vacancy</Link>

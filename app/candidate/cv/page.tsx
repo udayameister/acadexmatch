@@ -136,7 +136,7 @@ export default function CvPage() {
         {p.skills.length > 0 && <Section title="Skills"><p>{p.skills.join(' · ')}</p></Section>}
         {opts.philosophy && p.teachingPhilosophy && <Section title="Teaching philosophy"><p className="whitespace-pre-line">{p.teachingPhilosophy}</p></Section>}
 
-        <div className="pt-4 border-t border-slate-200 text-[11px] text-slate-500 flex justify-between gap-4">
+        <div className="pt-4 border-t border-slate-200 text-xs text-slate-500 flex justify-between gap-4">
           <span>I declare that the information above is true to the best of my knowledge.</span>
           <span>{new Date().toLocaleDateString('en-IN')}</span>
         </div>

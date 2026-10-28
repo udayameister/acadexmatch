@@ -78,14 +78,14 @@ export default function InstituteDashboardPage() {
                 <h1 className="font-serif text-xl sm:text-2xl font-bold text-slate-900">
                   {institute.name}
                 </h1>
-                <span className="text-[10px] font-bold bg-emerald-50 text-emerald-800 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                <span className="text-[12px] font-bold bg-emerald-50 text-emerald-800 px-2.5 py-0.5 rounded-full border border-emerald-200">
                   AISHE: {institute.aisheCode}
                 </span>
-                <span className="text-[10px] font-bold bg-gold-50 text-gold-800 px-2.5 py-0.5 rounded-full border border-gold-200">
+                <span className="text-[12px] font-bold bg-gold-50 text-gold-800 px-2.5 py-0.5 rounded-full border border-gold-200">
                   NAAC {institute.accreditation.naacGrade}
                 </span>
                 {!isVerified && (
-                  <span className="text-[10px] font-bold bg-crimson-50 text-crimson-700 px-2.5 py-0.5 rounded-full border border-crimson-100 capitalize">
+                  <span className="text-[12px] font-bold bg-crimson-50 text-crimson-700 px-2.5 py-0.5 rounded-full border border-crimson-100 capitalize">
                     {institute.verificationStatus}
                   </span>
                 )}
@@ -140,22 +140,22 @@ export default function InstituteDashboardPage() {
         {/* Quick Institutional Stats Ribbon */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-6 mt-6 border-t border-slate-100 text-center">
           <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 shadow-sm">
-            <span className="text-[10px] uppercase text-slate-500 font-bold block">Open vacancies</span>
+            <span className="text-[12px] uppercase text-slate-500 font-bold block">Open vacancies</span>
             <strong className="font-mono text-2xl font-black text-brand-900">{openJobs.length}</strong>
           </div>
 
           <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 shadow-sm">
-            <span className="text-[10px] uppercase text-slate-500 font-bold block">Total Applicants</span>
+            <span className="text-[12px] uppercase text-slate-500 font-bold block">Total Applicants</span>
             <strong className="font-mono text-2xl font-black text-gold-700">{applications.length}</strong>
           </div>
 
           <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 shadow-sm">
-            <span className="text-[10px] uppercase text-slate-500 font-bold block">Interviews scheduled</span>
+            <span className="text-[12px] uppercase text-slate-500 font-bold block">Interviews scheduled</span>
             <strong className="font-mono text-2xl font-black text-emerald-700">{interviewsScheduled}</strong>
           </div>
 
           <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 shadow-sm">
-            <span className="text-[10px] uppercase text-slate-500 font-bold block">Average match</span>
+            <span className="text-[12px] uppercase text-slate-500 font-bold block">Average match</span>
             <strong className="font-mono text-2xl font-black text-purple-700">{avgMatch === null ? '—' : `${avgMatch}%`}</strong>
           </div>
         </div>
@@ -195,7 +195,7 @@ export default function InstituteDashboardPage() {
               >
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <span className="text-[10px] font-bold uppercase text-gold-800 bg-gold-50 px-2 py-0.5 rounded border border-gold-200">
+                    <span className="text-[12px] font-bold uppercase text-gold-800 bg-gold-50 px-2 py-0.5 rounded border border-gold-200">
                       {orNS(job.reservationCategory)}
                     </span>
                     <h3 className="font-serif font-bold text-slate-900 text-base sm:text-lg mt-1">
@@ -275,17 +275,17 @@ export default function InstituteDashboardPage() {
                   </div>
 
                   <div className="text-right">
-                    <span className="text-[10px] font-mono text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded font-bold border border-emerald-200">
+                    <span className="text-[12px] font-mono text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded font-bold border border-emerald-200">
                       {app.matchScore}% Match
                     </span>
-                    <span className="block text-[10px] text-slate-400 font-mono mt-0.5">
+                    <span className="block text-[12px] text-slate-400 font-mono mt-0.5">
                       {app.highestDegree || '—'}
                     </span>
                   </div>
                 </div>
 
                 <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
-                  <span className="text-[11px] uppercase font-bold text-gold-800 bg-gold-50 px-2 py-0.5 rounded border border-gold-200">
+                  <span className="text-xs uppercase font-bold text-gold-800 bg-gold-50 px-2 py-0.5 rounded border border-gold-200">
                     Stage: {app.status.replace(/_/g, ' ')}
                   </span>
 

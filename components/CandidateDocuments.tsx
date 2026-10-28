@@ -108,7 +108,7 @@ export function DocumentUploader({ userId, hasExperience }: { userId: string; ha
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="font-semibold text-slate-900 text-sm">{c.title}</h3>
-                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${req === 'Required' ? (list.length ? 'bg-emerald-50 text-emerald-700' : 'bg-gold-100 text-gold-800') : 'bg-slate-100 text-slate-600'}`}>
+                    <span className={`text-[12px] font-semibold px-2 py-0.5 rounded-full ${req === 'Required' ? (list.length ? 'bg-emerald-50 text-emerald-700' : 'bg-gold-100 text-gold-800') : 'bg-slate-100 text-slate-600'}`}>
                       {list.length && req === 'Required' ? 'Done' : req}
                     </span>
                   </div>

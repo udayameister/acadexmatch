@@ -152,7 +152,7 @@ export default function PublicationImport({ existing, defaultOrcid, fallbackAuth
                   <li key={i} className="p-3 flex gap-3 items-start">
                     <input type="checkbox" className="mt-1 accent-brand-700" checked={picked.has(i)} onChange={e => { const n = new Set(picked); if (e.target.checked) n.add(i); else n.delete(i); setPicked(n); }} aria-label={`Import ${f.title}`} />
                     <div className="min-w-0 text-sm">
-                      <div className="font-semibold text-slate-900 leading-snug">{f.title}{isDup(f) && <span className="ml-2 text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 align-middle">Already in profile</span>}</div>
+                      <div className="font-semibold text-slate-900 leading-snug">{f.title}{isDup(f) && <span className="ml-2 text-[12px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 align-middle">Already in profile</span>}</div>
                       <div className="text-xs text-slate-500 mt-0.5">{[f.authors, f.venue, f.year, f.type, f.doi && `DOI ${f.doi}`].filter(Boolean).join(' · ')}</div>
                     </div>
                   </li>

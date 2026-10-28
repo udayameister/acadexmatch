@@ -185,7 +185,7 @@ export default function InterviewScheduleModal({
           </div>
 
           <div className="flex items-center justify-between pt-4 border-t border-slate-100">
-            <span className="text-[11px] text-slate-500">
+            <span className="text-xs text-slate-500">
               Notification &amp; Calendar invites dispatched instantly.
             </span>
 

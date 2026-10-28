@@ -123,7 +123,7 @@ function Practice({ track, userId }: { track: PrepTrack; userId: string | null }
       </div>
       <p className="text-xs text-slate-500">Answer aloud as you would to the committee. Aim for one to two minutes per answer.</p>
       <div className="p-5 rounded-2xl bg-blush border border-brand-100">
-        <div className="text-[11px] font-semibold uppercase tracking-wide text-brand-700">{q.category} · question {(index % pool.length) + 1} of {pool.length}</div>
+        <div className="text-xs font-semibold uppercase tracking-wide text-brand-700">{q.category} · question {(index % pool.length) + 1} of {pool.length}</div>
         <p className="mt-2 text-lg font-semibold text-slate-900">{q.q}</p>
         {showTip && <p className="mt-3 text-sm text-slate-700 flex gap-2"><Lightbulb className="w-4 h-4 text-gold-600 shrink-0 mt-0.5" />{q.tip}</p>}
       </div>

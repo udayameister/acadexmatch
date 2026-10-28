@@ -244,10 +244,10 @@ export function UsersPanel() {
         {visible.map(u => (
           <tr key={u.id} className={sel.has(u.id) ? 'bg-brand-50/60' : 'hover:bg-ivory'}>
             <RowCheck sel={sel} id={u.id} label={u.name} />
-            <td className="px-4 py-3 font-medium text-slate-900 whitespace-nowrap">{u.name}{u.id === me?.id && <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-gold-100 text-gold-800">You</span>}</td>
+            <td className="px-4 py-3 font-medium text-slate-900 whitespace-nowrap">{u.name}{u.id === me?.id && <span className="ml-2 text-[12px] px-1.5 py-0.5 rounded bg-gold-100 text-gold-800">You</span>}</td>
             <td className="px-4 py-3 text-slate-600">{u.email}</td>
             <td className="px-4 py-3"><span className={`text-xs px-2 py-0.5 rounded-full ${u.role === 'super_admin' ? 'bg-brand-900 text-white' : 'bg-brand-50 text-brand-800'}`}>{ROLE_LABEL[u.role]}</span></td>
-            <td className="px-4 py-3 whitespace-nowrap">{u.role === 'candidate' ? <PlanPill user={u} /> : <span className="text-slate-400">—</span>}{u.role === 'candidate' && u.plan === 'premium' && u.premiumUntil && <div className={`text-[10px] mt-0.5 ${isPremiumUser(u) ? 'text-slate-500' : 'text-crimson-700'}`}>{isPremiumUser(u) ? 'until' : 'expired'} {u.premiumUntil}</div>}</td>
+            <td className="px-4 py-3 whitespace-nowrap">{u.role === 'candidate' ? <PlanPill user={u} /> : <span className="text-slate-400">—</span>}{u.role === 'candidate' && u.plan === 'premium' && u.premiumUntil && <div className={`text-[12px] mt-0.5 ${isPremiumUser(u) ? 'text-slate-500' : 'text-crimson-700'}`}>{isPremiumUser(u) ? 'until' : 'expired'} {u.premiumUntil}</div>}</td>
             <td className="px-4 py-3 text-slate-600">{instName(u.instituteId)}</td>
             <td className="px-4 py-3 text-slate-500 whitespace-nowrap">{u.createdAt}</td>
             <td className="px-4 py-3">
@@ -507,12 +507,12 @@ export function InstitutionsPanel() {
 export function SubscriptionPill({ inst }: { inst: Institute }) {
   const sub = inst.subscription;
   if (isInstituteSubscribed(inst)) {
-    return <span className="inline-flex flex-col"><span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-gold-100 text-gold-800 border border-gold-300 self-start"><Crown className="w-3 h-3" />Active</span><span className="text-[10px] text-slate-500 mt-0.5">{sub?.activeUntil ? `until ${sub.activeUntil}` : 'no end date'}</span></span>;
+    return <span className="inline-flex flex-col"><span className="inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full bg-gold-100 text-gold-800 border border-gold-300 self-start"><Crown className="w-3 h-3" />Active</span><span className="text-[12px] text-slate-500 mt-0.5">{sub?.activeUntil ? `until ${sub.activeUntil}` : 'no end date'}</span></span>;
   }
-  if (sub?.status === 'pending') return <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-gold-50 text-gold-800 border border-gold-200">Payment pending</span>;
-  if (sub?.status === 'active') return <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-crimson-50 text-crimson-700 border border-crimson-100">Expired {sub.activeUntil}</span>;
-  if (sub?.status === 'declined') return <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-crimson-50 text-crimson-700 border border-crimson-100">Declined</span>;
-  return <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">None</span>;
+  if (sub?.status === 'pending') return <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-gold-50 text-gold-800 border border-gold-200">Payment pending</span>;
+  if (sub?.status === 'active') return <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-crimson-50 text-crimson-700 border border-crimson-100">Expired {sub.activeUntil}</span>;
+  if (sub?.status === 'declined') return <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-crimson-50 text-crimson-700 border border-crimson-100">Declined</span>;
+  return <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">None</span>;
 }
 
 function SubscriptionForm({ inst, onClose, onDone }: { inst: Institute; onClose: () => void; onDone: (m: string) => void }) {
@@ -691,14 +691,14 @@ export function VacanciesPanel() {
           <tr key={j.id} className={sel.has(j.id) ? 'bg-brand-50/60' : 'hover:bg-ivory'}>
             <RowCheck sel={sel} id={j.id} label={j.title} />
             <td className="px-4 py-3 max-w-xs">
-              <div className="font-medium text-slate-900 line-clamp-2">{j.isPremium && <Crown className="inline w-3.5 h-3.5 text-gold-600 mr-1 -mt-0.5" aria-label="Premium vacancy" />}{(j.featured || isJobFeatured(j)) && <Star className="inline w-3.5 h-3.5 fill-gold-400 text-gold-500 mr-1 -mt-0.5" aria-label={isJobFeatured(j) ? `Paid featured until ${j.featuredUntil}` : 'Featured'} />}{isJobUrgent(j) && <span className="text-[10px] font-bold text-crimson-700 mr-1">URGENT</span>}{j.title}</div>
+              <div className="font-medium text-slate-900 line-clamp-2">{j.isPremium && <Crown className="inline w-3.5 h-3.5 text-gold-600 mr-1 -mt-0.5" aria-label="Premium vacancy" />}{(j.featured || isJobFeatured(j)) && <Star className="inline w-3.5 h-3.5 fill-gold-400 text-gold-500 mr-1 -mt-0.5" aria-label={isJobFeatured(j) ? `Paid featured until ${j.featuredUntil}` : 'Featured'} />}{isJobUrgent(j) && <span className="text-[12px] font-bold text-crimson-700 mr-1">URGENT</span>}{j.title}</div>
               <div className="text-xs text-slate-500 truncate">{j.department}</div>
             </td>
             <td className="px-4 py-3 text-slate-600 whitespace-nowrap">{j.instituteShortName}</td>
             <td className={`px-4 py-3 whitespace-nowrap ${isDeadlinePassed(j) ? 'text-crimson-700' : 'text-slate-600'}`}>{j.applicationDeadline}</td>
             <td className="px-4 py-3 text-slate-600">{j.applicantCount || 0}</td>
             <td className="px-4 py-3">
-              {j.status === 'closed' && j.autoClosedAt && <div className="text-[10px] text-slate-500 mb-1">Auto-closed {j.autoClosedAt.slice(0, 10)}</div>}
+              {j.status === 'closed' && j.autoClosedAt && <div className="text-[12px] text-slate-500 mb-1">Auto-closed {j.autoClosedAt.slice(0, 10)}</div>}
               <select aria-label={`Status of ${j.title}`} value={j.status} onChange={e => { StorageService.setJobStatus(j.id, e.target.value as Job['status']); setFlash('Status updated.'); }} className="text-xs rounded-lg border border-slate-200 bg-white px-2 py-1">
                 <option value="published">Published</option>
                 <option value="draft">Draft</option>
@@ -1027,9 +1027,9 @@ export function SitePanel() {
               <div className="flex items-end gap-2 h-32" role="img" aria-label="Visits over the last 7 days">
                 {shown.last7.map(d => (
                   <div key={d.date} className="flex-1 flex flex-col items-center gap-1 h-full justify-end">
-                    <span className="text-[10px] text-slate-600">{d.count}</span>
+                    <span className="text-[12px] text-slate-600">{d.count}</span>
                     <div className="w-full rounded-t-md bg-brand-900" style={{ height: `${Math.max(3, (d.count / max) * 100)}%` }} />
-                    <span className="text-[10px] text-slate-500">{d.date.slice(5)}</span>
+                    <span className="text-[12px] text-slate-500">{d.date.slice(5)}</span>
                   </div>
                 ))}
               </div>
@@ -1236,7 +1236,7 @@ export function PremiumPanel() {
                   </div>
                 ))}
               </div>
-              <p className="text-[11px] text-slate-500 mt-1">Columns: on/off · name · months · price. The yearly plan is also used when you approve an offline upgrade request.</p>
+              <p className="text-xs text-slate-500 mt-1">Columns: on/off · name · months · price. The yearly plan is also used when you approve an offline upgrade request.</p>
             </div>
             <Field label="How to upgrade (instructions for candidates)"><textarea rows={3} className={inputCls} value={form.upgradeInstructions} onChange={e => setSettings({ ...form, upgradeInstructions: e.target.value })} /></Field>
             <div className="pt-2 border-t border-slate-100 text-xs font-semibold text-slate-500 uppercase tracking-wide">Institution Premium</div>

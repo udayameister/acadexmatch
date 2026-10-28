@@ -19,7 +19,7 @@ function Area({ f, s, k, label, hint, rows = 3, ph }: FieldProps) {
   return (
     <div>
       <label htmlFor={`jd-${k}`} className="block font-bold text-slate-700 mb-1">{label}</label>
-      {hint && <p className="text-[11px] text-slate-500 mb-1">{hint}</p>}
+      {hint && <p className="text-xs text-slate-500 mb-1">{hint}</p>}
       <textarea id={`jd-${k}`} rows={rows} value={f[k]} onChange={s(k)} placeholder={ph} className={box} />
     </div>
   );
@@ -42,21 +42,21 @@ export default function JobDetailsFields({ value, onChange }: { value: DetailsFo
       <summary className="cursor-pointer list-none flex items-center justify-between gap-3">
         <span>
           <span className="font-serif font-bold text-slate-900 text-base block">Full advertisement details (optional)</span>
-          <span className="text-[11px] text-slate-500">Type it the way your advertisement is printed — one item per line. Lines ending with “:” start a group; “Post: requirement” ties a requirement to a post.</span>
+          <span className="text-xs text-slate-500">Type it the way your advertisement is printed — one item per line. Lines ending with “:” start a group; “Post: requirement” ties a requirement to a post.</span>
         </span>
         <span className="text-brand-700 font-bold group-open:rotate-180 transition">▾</span>
       </summary>
 
       <div className="mt-5 space-y-6">
         <fieldset className="space-y-3">
-          <legend className="text-[11px] font-bold uppercase tracking-wider text-brand-800 mb-1">Posts and departments</legend>
+          <legend className="text-xs font-bold uppercase tracking-wider text-brand-800 mb-1">Posts and departments</legend>
           <Line f={value} s={set} k="numberOfPosts" label="Number of posts" ph="e.g. 12, or Not specified" />
           <Area f={value} s={set} k="posts" label="Posts advertised" rows={5} ph={'Academic Posts:\nProfessor\nAssociate Professor\n\nNon-Teaching Posts:\nAssistant Registrar'} />
           <Area f={value} s={set} k="departments" label="Departments / subjects with vacancies" rows={5} ph={'Engineering and Technology:\nComputer Science and Engineering\nData Science\n\nManagement:\nFinance'} />
         </fieldset>
 
         <fieldset className="space-y-3">
-          <legend className="text-[11px] font-bold uppercase tracking-wider text-brand-800 mb-1">Eligibility</legend>
+          <legend className="text-xs font-bold uppercase tracking-wider text-brand-800 mb-1">Eligibility</legend>
           <Area f={value} s={set} k="qualifications" label="Required qualifications (per post)" ph={'Professor: Ph.D. with 10 years experience as per UGC Regulations 2018\nAssistant Registrar: Postgraduate degree'} />
           <Area f={value} s={set} k="preferred" label="Preferred / desirable qualifications" ph="Assistant Professor: NET/SET preferable" />
           <Area f={value} s={set} k="experience" label="Experience (per post)" ph="Professor: 10 years of teaching and research" />
@@ -69,7 +69,7 @@ export default function JobDetailsFields({ value, onChange }: { value: DetailsFo
         </fieldset>
 
         <fieldset className="space-y-3">
-          <legend className="text-[11px] font-bold uppercase tracking-wider text-brand-800 mb-1">Pay and selection</legend>
+          <legend className="text-xs font-bold uppercase tracking-wider text-brand-800 mb-1">Pay and selection</legend>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Line f={value} s={set} k="salaryText" label="Salary (as printed)" ph="e.g. As per 7th CPC / Negotiable" />
             <div>
@@ -87,7 +87,7 @@ export default function JobDetailsFields({ value, onChange }: { value: DetailsFo
         </fieldset>
 
         <fieldset className="space-y-3">
-          <legend className="text-[11px] font-bold uppercase tracking-wider text-brand-800 mb-1">Dates</legend>
+          <legend className="text-xs font-bold uppercase tracking-wider text-brand-800 mb-1">Dates</legend>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Line f={value} s={set} k="notificationDate" label="Notification date" type="date" />
             <Line f={value} s={set} k="interviewText" label="Interview / walk-in" ph="e.g. 15 November 2026, 10 am" />
@@ -96,7 +96,7 @@ export default function JobDetailsFields({ value, onChange }: { value: DetailsFo
         </fieldset>
 
         <fieldset className="space-y-3">
-          <legend className="text-[11px] font-bold uppercase tracking-wider text-brand-800 mb-1">How to apply</legend>
+          <legend className="text-xs font-bold uppercase tracking-wider text-brand-800 mb-1">How to apply</legend>
           <div className="flex flex-wrap gap-2" role="group" aria-label="Apply mode">
             {MODES.map(([m, label]) => (
               <label key={m} className={`px-3 py-1.5 rounded-full border cursor-pointer font-semibold ${value.applyModes.includes(m) ? 'bg-brand-50 border-brand-300 text-brand-900' : 'bg-white border-slate-200 text-slate-600'}`}>
@@ -115,7 +115,7 @@ export default function JobDetailsFields({ value, onChange }: { value: DetailsFo
         </fieldset>
 
         <fieldset className="space-y-3">
-          <legend className="text-[11px] font-bold uppercase tracking-wider text-brand-800 mb-1">Links and address</legend>
+          <legend className="text-xs font-bold uppercase tracking-wider text-brand-800 mb-1">Links and address</legend>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Line f={value} s={set} k="applicationLink" label="Online application link" ph="https://" />
             <Line f={value} s={set} k="officialWebsite" label="Official website" ph="https://" />

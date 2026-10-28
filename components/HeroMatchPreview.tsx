@@ -127,14 +127,14 @@ export default function HeroMatchPreview({ jobs, institutes, user }: { jobs: Job
             <span className="w-10 h-10 rounded-xl bg-white/10 ring-1 ring-gold-300/40 grid place-items-center shrink-0">
               <Building2 className="w-5 h-5 text-gold-300" />
             </span>
-            <div className="text-[11px] leading-tight min-w-0">
+            <div className="text-xs leading-tight min-w-0">
               <div className="font-semibold text-gold-200 tracking-wide uppercase">{label}</div>
               <div className="text-brand-100/90 truncate flex items-center gap-1">{job.instituteName}{naac ? ` · ${naac}` : ''}{verified && <BadgeCheck className="w-3.5 h-3.5 text-gold-300 shrink-0" aria-label="Verified institution" />}</div>
             </div>
           </div>
           <div className={`relative font-serif text-xl font-bold leading-snug mt-4 line-clamp-2 ${match ? 'pr-24' : ''}`}>{job.title}</div>
           {job.department && <div className={`relative text-sm text-brand-100/90 line-clamp-1 ${match ? 'pr-24' : ''}`}>{job.department}</div>}
-          <div className={`relative flex flex-wrap gap-1.5 mt-3 text-[11px] ${match ? 'pr-24' : ''}`}>
+          <div className={`relative flex flex-wrap gap-1.5 mt-3 text-xs ${match ? 'pr-24' : ''}`}>
             {location && <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-white/10"><MapPin className="w-3 h-3" /> {location}</span>}
             {has(pay) && <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-white/10"><IndianRupee className="w-3 h-3" /> {pay}{entry}</span>}
             {days !== null && days >= 0 && <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gold-400/25 text-gold-100"><CalendarDays className="w-3 h-3" /> {days === 0 ? 'Closes today' : `Closes in ${days} day${days === 1 ? '' : 's'}`}</span>}
@@ -158,7 +158,7 @@ export default function HeroMatchPreview({ jobs, institutes, user }: { jobs: Job
             </svg>
             <div className="relative text-center leading-none">
               <div className="font-serif text-2xl font-bold text-brand-900">{Math.round(match.overallScore)}%</div>
-              <div className="text-[9px] font-semibold uppercase tracking-wider text-slate-500 mt-1">match</div>
+              <div className="text-xs font-semibold uppercase tracking-wider text-slate-500 mt-1">match</div>
             </div>
           </div>
         )}
@@ -181,7 +181,7 @@ export default function HeroMatchPreview({ jobs, institutes, user }: { jobs: Job
                   </div>
                 ))}
               </div>
-              <div className="flex flex-wrap gap-1.5 text-[11px]">
+              <div className="flex flex-wrap gap-1.5 text-xs">
                 {match.positiveSignals.slice(0, 2).map(t => (
                   <span key={t} className="inline-flex items-start gap-1 px-2.5 py-1 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-800 font-medium"><CheckCircle2 className="w-3 h-3 mt-0.5 shrink-0" /> <span className="line-clamp-2">{t}</span></span>
                 ))}
@@ -210,7 +210,7 @@ export default function HeroMatchPreview({ jobs, institutes, user }: { jobs: Job
           )}
 
           <div className="flex items-center justify-between gap-3 pt-4 border-t border-slate-100">
-            <span className="inline-flex items-center gap-1.5 text-[11px] text-slate-500">
+            <span className="inline-flex items-center gap-1.5 text-xs text-slate-500">
               {job.applicantCount > 0
                 ? <><Users className="w-3.5 h-3.5" /> {job.applicantCount} applicant{job.applicantCount === 1 ? '' : 's'}</>
                 : <>Posted {new Date(job.postedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</>}
@@ -227,7 +227,7 @@ export default function HeroMatchPreview({ jobs, institutes, user }: { jobs: Job
         <div className={`hidden sm:flex absolute -top-7 ${myApp ? '-right-8' : 'left-6'} items-center gap-3 rounded-2xl bg-brand-950 text-white shadow-xl shadow-brand-900/30 px-4 py-3 acx-float`}>
           <span className="w-8 h-8 rounded-lg bg-gold-400/20 grid place-items-center"><TrendingUp className="w-4 h-4 text-gold-300" /></span>
           <div className="leading-tight">
-            <div className="text-[10px] uppercase tracking-wider text-brand-200">Your API score</div>
+            <div className="text-[12px] uppercase tracking-wider text-brand-200">Your API score</div>
             <div className="text-sm font-bold">{apiScore}</div>
           </div>
         </div>
@@ -236,7 +236,7 @@ export default function HeroMatchPreview({ jobs, institutes, user }: { jobs: Job
       {myApp && (
         <div className="hidden sm:flex absolute -top-4 left-8 items-center gap-2 rounded-full bg-white border border-gold-200 shadow-lg px-3 py-1.5 acx-float" style={{ animationDelay: '0.8s' }}>
           <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-          <span className="text-[11px] font-semibold text-slate-800">{shortStage(myApp.status)}</span>
+          <span className="text-xs font-semibold text-slate-800">{shortStage(myApp.status)}</span>
         </div>
       )}
 
@@ -248,7 +248,7 @@ export default function HeroMatchPreview({ jobs, institutes, user }: { jobs: Job
           </span>
           <div>
             <div className="text-xs font-semibold text-slate-900">Your interview · {nextInterview.instituteName}</div>
-            <div className="text-[11px] text-slate-500">{new Date(nextInterview.interviewSlot.date).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}, {nextInterview.interviewSlot.time}</div>
+            <div className="text-xs text-slate-500">{new Date(nextInterview.interviewSlot.date).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}, {nextInterview.interviewSlot.time}</div>
           </div>
         </div>
       ) : (
@@ -256,7 +256,7 @@ export default function HeroMatchPreview({ jobs, institutes, user }: { jobs: Job
           <span className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 grid place-items-center"><Building2 className="w-5 h-5" /></span>
           <div>
             <div className="text-xs font-semibold text-slate-900">{open.length} open vacanc{open.length === 1 ? 'y' : 'ies'} right now</div>
-            <div className="text-[11px] text-slate-500">from {verifiedCount} verified institution{verifiedCount === 1 ? '' : 's'}</div>
+            <div className="text-xs text-slate-500">from {verifiedCount} verified institution{verifiedCount === 1 ? '' : 's'}</div>
           </div>
         </div>
       )}

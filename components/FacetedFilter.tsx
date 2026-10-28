@@ -95,7 +95,7 @@ export default function FacetedFilter({
           <Filter className="w-4 h-4 text-brand-700" />
           <h3 className="font-serif font-bold text-slate-900 text-base">Faceted Filters</h3>
           {activeFiltersCount > 0 && (
-            <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded-full bg-brand-50 text-brand-700 border border-brand-200">
+            <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-full bg-brand-50 text-brand-700 border border-brand-200">
               {activeFiltersCount} active
             </span>
           )}
@@ -191,7 +191,7 @@ export default function FacetedFilter({
 
       {/* Quick UGC Qualification Toggles */}
       <div className="pt-3 border-t border-slate-200 space-y-2.5">
-        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
           Statutory Eligibility Checks
         </span>
 

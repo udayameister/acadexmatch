@@ -67,7 +67,7 @@ export default function ExplainableMatchModal({
           <div className="flex items-center gap-4">
             <div className="relative w-16 h-16 rounded-2xl bg-white border border-gold-300 flex flex-col items-center justify-center shadow-sm">
               <span className="font-mono text-2xl font-black text-gold-700">{match.overallScore}%</span>
-              <span className="text-[9px] uppercase tracking-wider text-slate-400 font-bold">Fit Index</span>
+              <span className="text-xs uppercase tracking-wider text-slate-400 font-bold">Fit Index</span>
             </div>
 
             <div>
@@ -206,7 +206,7 @@ export default function ExplainableMatchModal({
 
         {/* Footer Actions */}
         <div className="flex items-center justify-between mt-8 pt-4 border-t border-slate-100">
-          <span className="text-[11px] text-slate-500">
+          <span className="text-xs text-slate-500">
             Deterministic weighted score: qualifications 35%, research 30%, publications 20%, experience 15%.
           </span>
 

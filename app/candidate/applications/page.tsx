@@ -126,7 +126,7 @@ export default function CandidateApplicationsPage() {
               {/* 8-Stage Visual Progress Ribbon */}
               {app.status !== 'rejected' && (
               <div className="space-y-2 pt-2 border-t border-slate-100">
-                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">
                   Selection Pipeline (8 Stages):
                 </span>
 
@@ -153,7 +153,7 @@ export default function CandidateApplicationsPage() {
                             <div className="w-2 h-2 rounded-full bg-slate-300" />
                           )}
                         </div>
-                        <span className="text-[10px] font-bold block leading-tight">
+                        <span className="text-[12px] font-bold block leading-tight">
                           {stage.label}
                         </span>
                       </div>

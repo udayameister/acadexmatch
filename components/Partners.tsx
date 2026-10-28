@@ -22,15 +22,15 @@ export function PartnerOffers({ limit = 4 }: { limit?: number }) {
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
                 <a href={p.url} target="_blank" rel="noopener noreferrer sponsored" className="font-semibold text-slate-900 hover:text-brand-800 inline-flex items-center gap-1">{p.name} <ExternalLink className="w-3 h-3" /></a>
-                <div className="text-[11px] text-slate-500">{p.category}</div>
+                <div className="text-xs text-slate-500">{p.category}</div>
               </div>
-              {p.offer && <span className="text-[11px] font-semibold bg-gold-50 text-gold-800 border border-gold-200 px-2 py-0.5 rounded-full text-right">{p.offer}</span>}
+              {p.offer && <span className="text-xs font-semibold bg-gold-50 text-gold-800 border border-gold-200 px-2 py-0.5 rounded-full text-right">{p.offer}</span>}
             </div>
             {p.description && <p className="text-xs text-slate-600 mt-1.5">{p.description}</p>}
           </li>
         ))}
       </ul>
-      <p className="text-[10px] text-slate-400 mt-3">Partner listings are paid placements.</p>
+      <p className="text-[12px] text-slate-400 mt-3">Partner listings are paid placements.</p>
     </section>
   );
 }
@@ -74,7 +74,7 @@ export function PartnersPanel() {
           {all.map(p => (
             <div key={p.id} className="p-4 flex flex-col sm:flex-row sm:items-start gap-3">
               <div className="flex-1 min-w-0">
-                <div className="flex flex-wrap items-center gap-2"><a href={p.url} target="_blank" rel="noopener noreferrer" className="font-semibold text-slate-900 hover:underline">{p.name}</a><span className="text-xs text-slate-500">{p.category}</span>{!p.active && <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-slate-50 border border-slate-200 text-slate-600">Hidden</span>}</div>
+                <div className="flex flex-wrap items-center gap-2"><a href={p.url} target="_blank" rel="noopener noreferrer" className="font-semibold text-slate-900 hover:underline">{p.name}</a><span className="text-xs text-slate-500">{p.category}</span>{!p.active && <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-50 border border-slate-200 text-slate-600">Hidden</span>}</div>
                 {p.offer && <p className="text-xs text-gold-800 mt-0.5">{p.offer}</p>}
                 {p.description && <p className="text-sm text-slate-600 mt-1">{p.description}</p>}
                 <p className="text-xs text-slate-400 mt-1">Added {p.createdAt}</p>

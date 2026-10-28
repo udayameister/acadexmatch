@@ -30,9 +30,9 @@ function Groups({ groups }: { groups: JobListGroup[] }) {
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
       {groups.map((g, i) => (
         <div key={i} className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200">
-          {g.group && <div className="text-[11px] font-bold uppercase tracking-wide text-brand-800 mb-1.5">{g.group}</div>}
+          {g.group && <div className="text-xs font-bold uppercase tracking-wide text-brand-800 mb-1.5">{g.group}</div>}
           <div className="flex flex-wrap gap-1.5">
-            {g.items.map((t, j) => <span key={j} className="px-2 py-0.5 rounded-full bg-white border border-slate-200 text-[11px] text-slate-700">{t}</span>)}
+            {g.items.map((t, j) => <span key={j} className="px-2 py-0.5 rounded-full bg-white border border-slate-200 text-xs text-slate-700">{t}</span>)}
           </div>
         </div>
       ))}
@@ -97,8 +97,8 @@ export default function JobDetailsSections({ job }: { job: Job }) {
     <>
       {aggregator && (
         <div className="p-4 rounded-2xl bg-gold-50 border border-gold-200 text-xs sm:text-sm text-slate-700">
-          These details were collected from {job.source?.siteName || 'a job-listing site'}, which is not the recruiter.
-          {d.officialWebsite ? <> Confirm them on the official website of {job.instituteName}: {ext(d.officialWebsite)}.</> : <> Confirm them with {job.instituteName} before applying.</>}
+          Please confirm these details with the recruiting institution before applying.
+          {d.officialWebsite ? <> Official website of {job.instituteName}: {ext(d.officialWebsite)}.</> : null}
         </div>
       )}
 
@@ -134,7 +134,7 @@ export default function JobDetailsSections({ job }: { job: Job }) {
         <Card title="Important dates">
           <Rows rows={dates.map(x => [x.label, x.value] as [string, React.ReactNode])} />
           {d.deadlineEstimated && job.applicationDeadline && (
-            <p className="text-[11px] text-slate-500">The closing date {job.applicationDeadline} was worked out from “{d.lastDateText}” and the date the advertisement was posted. Check the exact date with the institution.</p>
+            <p className="text-xs text-slate-500">The closing date {job.applicationDeadline} was worked out from “{d.lastDateText}” and the date the advertisement was posted. Check the exact date with the institution.</p>
           )}
         </Card>
       )}

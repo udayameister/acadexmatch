@@ -90,7 +90,7 @@ export default function AlertsPage() {
               <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="font-semibold text-slate-900 flex items-center gap-2 flex-wrap">{a.name}
-                    <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${a.active ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-slate-50 text-slate-500 border-slate-200'}`}>{a.active ? `On · ${a.frequency}` : 'Paused'}</span>
+                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${a.active ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-slate-50 text-slate-500 border-slate-200'}`}>{a.active ? `On · ${a.frequency}` : 'Paused'}</span>
                   </div>
                   {describeFilters(a.filters) !== a.name && nameFromFilters(a.filters) !== a.name && <div className="text-xs text-slate-500 mt-1">{describeFilters(a.filters)}</div>}
                   <div className="text-xs text-slate-500 mt-1">{counts[a.id] ?? 0} open {counts[a.id] === 1 ? 'vacancy matches' : 'vacancies match'} now{a.lastSentAt ? ` · last email ${new Date(a.lastSentAt).toLocaleDateString('en-IN')} (${a.lastSentCount} new)` : ''}</div>

@@ -43,20 +43,20 @@ export default function JobCard({ job, candidateProfile, onOpenMatchModal, featu
       <div className="flex flex-wrap items-center justify-between gap-2 mb-3.5">
         <div className="flex flex-wrap items-center gap-2">
           {job.instituteType && (
-          <span className="text-[11px] font-bold bg-slate-100 text-slate-700 px-2.5 py-1 rounded-lg border border-slate-200 flex items-center gap-1">
+          <span className="text-xs font-bold bg-slate-100 text-slate-700 px-2.5 py-1 rounded-lg border border-slate-200 flex items-center gap-1">
             <Building2 className="w-3.5 h-3.5 text-brand-700" />
             {job.instituteType.split(' ')[0]}
           </span>
           )}
           {job.reservationCategory && (
-            <span className="text-[11px] font-bold bg-gold-100 text-gold-800 px-2.5 py-1 rounded-lg border border-gold-200">
+            <span className="text-xs font-bold bg-gold-100 text-gold-800 px-2.5 py-1 rounded-lg border border-gold-200">
               {job.reservationCategory}
             </span>
           )}
           <PromotionBadges job={job} />
           {job.isPremium && <PremiumBadge />}
           {job.requiredQualifications.netSletMandatory && (
-            <span className="text-[11px] font-semibold bg-brand-50 text-brand-800 px-2.5 py-1 rounded-lg border border-brand-200">
+            <span className="text-xs font-semibold bg-brand-50 text-brand-800 px-2.5 py-1 rounded-lg border border-brand-200">
               NET/SLET Required
             </span>
           )}
@@ -113,13 +113,13 @@ export default function JobCard({ job, candidateProfile, onOpenMatchModal, featu
         {job.specializationTags.slice(0, 4).map((tag, idx) => (
           <span 
             key={idx}
-            className="text-[11px] font-medium bg-slate-50 text-slate-700 px-2.5 py-1 rounded-lg border border-slate-200 font-sans"
+            className="text-xs font-medium bg-slate-50 text-slate-700 px-2.5 py-1 rounded-lg border border-slate-200 font-sans"
           >
             {tag}
           </span>
         ))}
         {job.specializationTags.length > 4 && (
-          <span className="text-[11px] text-slate-500 px-1 py-1 font-medium">
+          <span className="text-xs text-slate-500 px-1 py-1 font-medium">
             +{job.specializationTags.length - 4} more
           </span>
         )}
@@ -130,7 +130,7 @@ export default function JobCard({ job, candidateProfile, onOpenMatchModal, featu
         <div className="flex items-center gap-2 text-slate-700">
           <IndianRupee className="w-4 h-4 text-gold-600 shrink-0" />
           <span className={`font-bold line-clamp-1 ${job.payScale.cpcBand ? 'text-slate-900' : 'text-slate-400'}`}>{payLabel(job)}</span>
-          {job.payScale.entryPay && <span className="text-slate-500 text-[11px]">({job.payScale.entryPay} Entry)</span>}
+          {job.payScale.entryPay && <span className="text-slate-500 text-xs">({job.payScale.entryPay} Entry)</span>}
         </div>
 
         <div className="flex items-center gap-2 text-slate-700">

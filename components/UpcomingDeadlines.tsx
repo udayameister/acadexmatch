@@ -33,9 +33,9 @@ export default function UpcomingDeadlines() {
             const cd = countdown(t.deadline);
             return (
               <li key={t.id} className="p-3 rounded-xl bg-ivory border border-slate-200">
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${cd.cls}`}>{cd.text}</span>
+                <span className={`text-[12px] font-bold px-2 py-0.5 rounded-full border ${cd.cls}`}>{cd.text}</span>
                 <div className="text-sm font-semibold text-slate-900 mt-1.5 line-clamp-2">{t.jobId ? <Link href={`/jobs/${t.jobId}`} className="hover:underline">{t.title}</Link> : t.title}</div>
-                <div className="text-[11px] text-slate-500 mt-0.5 truncate">{t.institute}</div>
+                <div className="text-xs text-slate-500 mt-0.5 truncate">{t.institute}</div>
               </li>
             );
           })}
