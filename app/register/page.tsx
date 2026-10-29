@@ -3,7 +3,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { StorageService, institutionDomain } from '@/lib/storage';
+import { StorageService, institutionDomain, institutionPriceFor } from '@/lib/storage';
+import { InstitutionPriceTable } from '@/components/InstitutionPricing';
 import { homePathForRole } from '@/lib/useAuth';
 import { Institute, UserRole } from '@/types';
 import { GraduationCap, Building2, ArrowRight, CheckCircle2, Crown } from 'lucide-react';
@@ -48,6 +49,8 @@ export default function RegisterPage() {
   const [consent, setConsent] = useState(false);
   const [agreePlan, setAgreePlan] = useState(false);
   const planSettings = StorageService.getPlanSettings();
+  const instCode = instituteMode === 'new' ? newInst.aisheCode : institutes.find(i => i.id === instituteId)?.aisheCode || '';
+  const instPrice = institutionPriceFor(planSettings, instCode);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setErrorState] = useState<string | null>(null);
   const errorRef = useRef<HTMLDivElement>(null);
@@ -236,19 +239,24 @@ export default function RegisterPage() {
 
             {role === 'institute_admin' && (
               <div className="p-4 rounded-2xl border-2 border-brand-900 bg-white space-y-3">
-                <div className="flex items-start justify-between gap-3">
+                <div className="flex flex-col-reverse sm:flex-row sm:items-start justify-between gap-3">
                   <div>
                     <div className="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-0.5 rounded-full bg-gold-100 text-gold-800 border border-gold-300"><Crown className="w-3.5 h-3.5" /> Institution Premium</div>
                     <p className="text-sm text-slate-700 mt-2">Institution accounts are Premium only; there is no free plan. Includes unlimited vacancies, Premium vacancies, the applicant pipeline, applicant documents and committee scoring.</p>
                   </div>
-                  <div className="text-right shrink-0">
-                    <div className="text-lg font-bold text-brand-900 whitespace-nowrap">{planSettings.institutionPriceLabel}</div>
-                  </div>
+                  {instPrice.category && (
+                    <div className="sm:text-right shrink-0">
+                      <div className="text-lg font-bold text-brand-900 whitespace-nowrap">{instPrice.label}</div>
+                      <div className="text-xs text-slate-500">{instPrice.categoryLabel}</div>
+                    </div>
+                  )}
                 </div>
+                {!instPrice.category && <InstitutionPriceTable settings={planSettings} />}
+                {instPrice.category && <p className="text-xs text-slate-600">The price depends on the AISHE category: AISHE code {instCode.toUpperCase()} is a {instPrice.categoryLabel.toLowerCase()}.</p>}
                 <p className="text-xs text-slate-500">{planSettings.institutionInstructions}</p>
                 <label className="flex items-start gap-2.5 text-sm text-slate-700 cursor-pointer">
                   <input type="checkbox" checked={agreePlan} onChange={e => setAgreePlan(e.target.checked)} className="mt-0.5 w-4 h-4 accent-brand-700" />
-                  <span>I agree to subscribe to Institution Premium at <strong>{planSettings.institutionPriceLabel}</strong> on behalf of my institute. If the institute already has an active subscription, no new charge applies. <Link href="/premium#institutions" className="text-brand-800 underline">Plan details</Link></span>
+                  <span>I agree to subscribe to Institution Premium at <strong>{instPrice.category ? instPrice.label : 'the price for my institute’s AISHE category'}</strong> on behalf of my institute. If the institute already has an active subscription, no new charge applies. <Link href="/premium#institutions" className="text-brand-800 underline">Plan details</Link></span>
                 </label>
               </div>
             )}

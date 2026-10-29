@@ -48,3 +48,19 @@ changed by an upload.
   the published AISHE fields only.
 - Code: `lib/server/sheet.ts` (xlsx/csv reader), `lib/server/aishe.ts`, `components/AisheLookup.tsx`,
   `components/AisheDirectoryPanel.tsx`. Test: `npm run test:aishe`.
+
+## Institution Premium price by AISHE category
+
+The Institution Premium price is set by the category in the institute's AISHE code:
+
+| Code prefix | Category | Default price (per subscription period, incl. GST) |
+|---|---|---|
+| `U-` | University | ₹30,000 |
+| `C-` | College | ₹20,000 |
+| `R-` | R&D institution | ₹10,000 |
+| `S-` | Standalone institution | ₹5,000 |
+
+Codes with any other prefix use the general institution price. The administrator can change the four prices in
+Admin console → Premium → plan settings. The same function (`institutionPriceFor` in `lib/storage.ts`) sets the
+Razorpay order amount, the sign-up form price, the Premium page table, the subscription screen and the suggested
+amount for offline payments, so the price shown is always the price charged.

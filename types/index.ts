@@ -79,6 +79,8 @@ export interface PlanSettings {
   /** Amounts charged online through Razorpay, in rupees, inclusive of GST. */
   premiumPriceInr?: number;
   institutionPriceInr?: number;
+  /** Institution Premium price by AISHE category (₹ per subscription period, incl. GST). */
+  institutionCategoryPrices?: InstitutionCategoryPrices;
   /** GST rate included in the prices (e.g. 18). Shown on invoices when a GSTIN is set. */
   gstPercent?: number;
   invoiceBusinessName?: string;
@@ -92,6 +94,11 @@ export interface PlanSettings {
   urgentPriceInr?: number;
   urgentDays?: number;
 }
+
+/** AISHE institution category, read from the AISHE code prefix (C-, S-, U-, R-). */
+export type InstitutionCategory = 'college' | 'standalone' | 'university' | 'rnd';
+/** Institution Premium price (₹, incl. GST) for each AISHE category. */
+export type InstitutionCategoryPrices = Record<InstitutionCategory, number>;
 
 export type PaymentProduct = 'candidate_premium' | 'institution_premium' | 'featured_listing' | 'urgent_listing';
 

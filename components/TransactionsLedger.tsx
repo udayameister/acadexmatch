@@ -2,7 +2,7 @@
 
 import React, { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { StorageService, premiumPlansOf } from '@/lib/storage';
+import { StorageService, premiumPlansOf, institutionPriceFor } from '@/lib/storage';
 import { useStorageValue } from '@/lib/useAuth';
 import { hydrate } from '@/lib/clientSync';
 import { productLabel, paymentState, PaymentState, PAYMENT_STATE_LABEL, PAYMENT_STATE_STYLE } from '@/lib/paymentLabel';
@@ -175,7 +175,7 @@ function OfflineForm({ onClose }: { onClose: () => void }) {
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setF({ ...f, [k]: e.target.value });
 
   const suggested = f.product === 'candidate_premium' ? plans.find(p => p.key === f.plan)?.priceInr
-    : f.product === 'institution_premium' ? settings.institutionPriceInr
+    : f.product === 'institution_premium' ? institutionPriceFor(settings, StorageService.getInstitutes().find(i => i.id === buyer?.instituteId)).amount
       : f.product === 'featured_listing' ? settings.featuredPriceInr : settings.urgentPriceInr;
 
   const submit = async (e: React.FormEvent) => {

@@ -4,7 +4,7 @@ import { AdminPromotionControls } from '@/components/Promotions';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useSelection, RowCheck, BulkBar, type Selection } from '@/components/Selection';
-import { StorageService, isDeadlinePassed, isPremiumUser, isInstituteSubscribed, expiredOpenJobs, DEFAULT_PREMIUM_PLANS, DEFAULT_PROMOTION, isJobFeatured, isJobUrgent } from '@/lib/storage';
+import { StorageService, isDeadlinePassed, isPremiumUser, isInstituteSubscribed, expiredOpenJobs, DEFAULT_PREMIUM_PLANS, DEFAULT_PROMOTION, isJobFeatured, isJobUrgent, INSTITUTION_CATEGORIES, categoryPricesOf } from '@/lib/storage';
 import { PlanPill } from '@/components/Premium';
 import { useStorageValue, useCurrentUser } from '@/lib/useAuth';
 import { useVisitStats } from '@/components/VisitCounter';
@@ -15,6 +15,7 @@ import {
   Application, ApplicationStage, DesignationType, Institute, InstitutionType, Job, ReservationCategory, User, UserRole,
   PlanSettings, UpgradeRequest, Payment,
   PremiumPlanOption,
+  InstitutionCategoryPrices,
 } from '@/types';
 import TransactionsLedger from '@/components/TransactionsLedger';
 import { useOnlinePayment } from '@/components/PayButton';
@@ -1117,6 +1118,7 @@ export function PremiumPanel() {
       institutionDurationMonths: Math.max(1, Number(form.institutionDurationMonths) || 12),
       premiumPriceInr: yearly.priceInr,
       institutionPriceInr: Math.max(1, Math.round(Number(form.institutionPriceInr) || 0)),
+      institutionCategoryPrices: Object.fromEntries(INSTITUTION_CATEGORIES.map(c => [c.key, Math.max(1, Math.round(Number(categoryPricesOf(form)[c.key]) || 0))])) as InstitutionCategoryPrices,
       gstPercent: Math.min(28, Math.max(0, Number(form.gstPercent) || 0)),
     });
     setSettings(null);
@@ -1240,12 +1242,24 @@ export function PremiumPanel() {
             </div>
             <Field label="How to upgrade (instructions for candidates)"><textarea rows={3} className={inputCls} value={form.upgradeInstructions} onChange={e => setSettings({ ...form, upgradeInstructions: e.target.value })} /></Field>
             <div className="pt-2 border-t border-slate-100 text-xs font-semibold text-slate-500 uppercase tracking-wide">Institution Premium</div>
-            <Field label="Institution price (as displayed)"><input required className={inputCls} value={form.institutionPriceLabel} onChange={e => setSettings({ ...form, institutionPriceLabel: e.target.value })} /></Field>
+            <div>
+              <div className="text-sm font-medium text-slate-700 mb-1.5">Price by AISHE category (₹ per subscription, incl. GST)</div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {INSTITUTION_CATEGORIES.map(c => (
+                  <Field key={c.key} label={`${c.label} (${c.prefix}-)`}>
+                    <input required type="number" min={1} className={inputCls} value={categoryPricesOf(form)[c.key]}
+                      onChange={e => setSettings({ ...form, institutionCategoryPrices: { ...categoryPricesOf(form), [c.key]: Number(e.target.value) } })} />
+                  </Field>
+                ))}
+              </div>
+              <p className="text-xs text-slate-500 mt-1">The category is read from the institute’s AISHE code: C- college, S- standalone, U- university, R- R&amp;D. Checkout, sign-up and the Premium page use these prices.</p>
+            </div>
+            <Field label="Institution price label (used only when the AISHE code has no known category)"><input required className={inputCls} value={form.institutionPriceLabel} onChange={e => setSettings({ ...form, institutionPriceLabel: e.target.value })} /></Field>
             <Field label="Default institution subscription (months)"><input required type="number" min={1} className={inputCls} value={form.institutionDurationMonths} onChange={e => setSettings({ ...form, institutionDurationMonths: Number(e.target.value) })} /></Field>
             <Field label="Instructions shown to institutions"><textarea rows={3} className={inputCls} value={form.institutionInstructions} onChange={e => setSettings({ ...form, institutionInstructions: e.target.value })} /></Field>
             <div className="pt-2 border-t border-slate-100 text-xs font-semibold text-slate-500 uppercase tracking-wide">Online payment and invoices</div>
             <div className="grid sm:grid-cols-3 gap-3">
-              <Field label="Institution Premium (₹, incl. GST)"><input required type="number" min={1} className={inputCls} value={form.institutionPriceInr} onChange={e => setSettings({ ...form, institutionPriceInr: Number(e.target.value) })} /></Field>
+              <Field label="Institution Premium, other codes (₹, incl. GST)"><input required type="number" min={1} className={inputCls} value={form.institutionPriceInr} onChange={e => setSettings({ ...form, institutionPriceInr: Number(e.target.value) })} /></Field>
               <Field label="GST %"><input required type="number" min={0} max={28} step="0.01" className={inputCls} value={form.gstPercent} onChange={e => setSettings({ ...form, gstPercent: Number(e.target.value) })} /></Field>
             </div>
             <div className="pt-2 border-t border-slate-100 text-xs font-semibold text-slate-500 uppercase tracking-wide">Vacancy promotions (paid by institutions)</div>

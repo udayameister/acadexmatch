@@ -2,7 +2,8 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { StorageService, premiumPlansOf } from '@/lib/storage';
+import { InstitutionPriceTable, lowestInstitutionPrice } from '@/components/InstitutionPricing';
+import { StorageService, premiumPlansOf, formatInr, periodLabel } from '@/lib/storage';
 import { useStorageValue } from '@/lib/useAuth';
 import { usePlan, PremiumBadge } from '@/components/Premium';
 import { PlanSettings, PremiumPlanOption, UpgradeRequest } from '@/types';
@@ -216,8 +217,9 @@ export default function PremiumPage() {
             <div>
               <p className="text-sm font-semibold text-gold-300 flex items-center gap-2"><Building2 className="w-4 h-4" /> For universities &amp; colleges</p>
               <h2 className="text-3xl font-bold mt-2">Institution Premium</h2>
-              <div className="text-3xl font-bold text-gold-300 mt-3">{settings.institutionPriceLabel}</div>
-              <p className="text-brand-100/80 mt-2 text-sm">Institution accounts are Premium only; there is no free plan. One subscription covers your whole institute.</p>
+              <div className="text-3xl font-bold text-gold-300 mt-3">From {formatInr(lowestInstitutionPrice(settings))} {periodLabel(settings.institutionDurationMonths || 12)}</div>
+              <p className="text-brand-100/80 mt-2 text-sm">Institution accounts are Premium only; there is no free plan. One subscription covers your whole institute. The price depends on your AISHE category, read from your AISHE code.</p>
+              <div className="mt-4"><InstitutionPriceTable settings={settings} dark /></div>
               <Link href="/register" className="inline-flex items-center gap-2 mt-6 px-5 py-3 rounded-xl bg-white text-brand-950 font-semibold text-sm hover:bg-gold-50">Register your institute <ArrowRight className="w-4 h-4" /></Link>
             </div>
             <ul className="space-y-2.5 text-sm">

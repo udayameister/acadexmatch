@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { StorageService, isInstituteSubscribed } from '@/lib/storage';
+import { StorageService, isInstituteSubscribed, institutionPriceFor, formatInr } from '@/lib/storage';
 import { useCurrentUser, useStorageValue } from '@/lib/useAuth';
 import { Institute, PlanSettings } from '@/types';
 import { Crown, Clock, CheckCircle2, XCircle, Building2, Check } from 'lucide-react';
@@ -28,6 +28,7 @@ export default function InstituteSubscriptionGate({ children }: { children: Reac
   if (!ready || !user) return null;
   if (institute && isInstituteSubscribed(institute)) return <>{children}</>;
 
+  const price = institutionPriceFor(settings, institute);
   const sub = institute?.subscription;
   const expired = sub?.status === 'active' && !isInstituteSubscribed(institute);
   const canRequest = institute && user.role === 'institute_admin' && sub?.status !== 'pending';
@@ -58,8 +59,8 @@ export default function InstituteSubscriptionGate({ children }: { children: Reac
                 </div>
               </div>
               <div className="text-right">
-                <div className="text-2xl font-bold text-brand-900">{settings.institutionPriceLabel}</div>
-                <div className="text-xs text-slate-500">No free plan for institutions</div>
+                <div className="text-2xl font-bold text-brand-900">{price.label}</div>
+                <div className="text-xs text-slate-500">{price.category ? `${price.categoryLabel} rate (AISHE ${institute.aisheCode})` : 'No free plan for institutions'}</div>
               </div>
             </div>
 
@@ -84,7 +85,7 @@ export default function InstituteSubscriptionGate({ children }: { children: Reac
             )}
 
             {online?.configured && institute && user.role === 'institute_admin' && (
-              <PayButton product="institution_premium" label={`Pay ${settings.institutionPriceInr ? `₹${settings.institutionPriceInr.toLocaleString('en-IN')}` : settings.institutionPriceLabel} and activate now`} description={`Institution Premium — ${institute.name}`} />
+              <PayButton product="institution_premium" label={`Pay ${price.amount ? formatInr(price.amount) : settings.institutionPriceLabel} and activate now`} description={`Institution Premium — ${institute.name}`} />
             )}
             {online?.configured ? null : canRequest ? (
               <form onSubmit={e => { e.preventDefault(); StorageService.requestInstituteSubscription(institute.id, user.email, note); }} className="space-y-3">

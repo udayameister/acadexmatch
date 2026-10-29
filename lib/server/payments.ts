@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from 'crypto';
-import { STORAGE_KEYS, DEFAULT_PLAN_SETTINGS, DEFAULT_PROMOTION, StorageService, isPremiumUser, isInstituteSubscribed, premiumPlansOf } from '@/lib/storage';
+import { STORAGE_KEYS, DEFAULT_PLAN_SETTINGS, DEFAULT_PROMOTION, StorageService, isPremiumUser, isInstituteSubscribed, premiumPlansOf, institutionPriceFor } from '@/lib/storage';
 import { withDb, accountOf } from './db';
 import { emailLayout, sendMail, appUrl } from './mailer';
 import { productLabel } from '@/lib/paymentLabel';
@@ -70,7 +70,7 @@ export async function createOrder(userId: string, product: PaymentProduct, opts:
     if (me.role !== 'institute_admin' || !me.instituteId) return { error: 'Only an institute administrator can pay for the institution plan.' };
     const inst = (db[STORAGE_KEYS.INSTITUTES] as Institute[]).find(i => i.id === me.instituteId);
     if (!inst) return { error: 'Your account is not linked to an institute.' };
-    return { me, inst, amount: Math.round(s.institutionPriceInr || 0), months: s.institutionDurationMonths };
+    return { me, inst, amount: institutionPriceFor(s, inst).amount, months: s.institutionDurationMonths };
   });
   if ('error' in prep) return { ok: false, error: prep.error!, status: 403 };
   if (!prep.amount || prep.amount < 1) return { ok: false, error: 'The price has not been set. Please contact the administrator.', status: 400 };

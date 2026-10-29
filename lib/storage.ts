@@ -24,6 +24,8 @@ import {
   PremiumPlanOption,
   LinkedIdentity,
   AisheRecord,
+  InstitutionCategory,
+  InstitutionCategoryPrices,
 } from '@/types';
 import { INITIAL_INSTITUTES, INITIAL_JOBS } from './data';
 import { calculateMatchScore, withDerivedProfileFields } from './scoring';
@@ -307,6 +309,52 @@ export function premiumPlansOf(s: PlanSettings): PremiumPlanOption[] {
   return s.premiumPlans.filter(p => p.enabled && p.priceInr > 0 && p.months > 0);
 }
 
+// ------------------------------------------------------------------ Institution Premium price by AISHE category
+
+export const DEFAULT_CATEGORY_PRICES: InstitutionCategoryPrices = { college: 20000, standalone: 5000, university: 30000, rnd: 10000 };
+export const INSTITUTION_CATEGORIES: { key: InstitutionCategory; label: string; prefix: string }[] = [
+  { key: 'university', label: 'University', prefix: 'U' },
+  { key: 'college', label: 'College', prefix: 'C' },
+  { key: 'rnd', label: 'R&D institution', prefix: 'R' },
+  { key: 'standalone', label: 'Standalone institution', prefix: 'S' },
+];
+
+/** AISHE category from the code prefix: C- college, S- standalone, U- university, R- R&D. */
+export function institutionCategoryOf(aisheCode: string | undefined): InstitutionCategory | null {
+  const p = String(aisheCode || '').trim().toUpperCase().match(/^([A-Z])\s*[-–/ ]?\s*\d/)?.[1];
+  return p === 'C' ? 'college' : p === 'S' ? 'standalone' : p === 'U' ? 'university' : p === 'R' ? 'rnd' : null;
+}
+
+export function categoryPricesOf(s: PlanSettings): InstitutionCategoryPrices {
+  const c = s.institutionCategoryPrices || {} as Partial<InstitutionCategoryPrices>;
+  return Object.fromEntries(INSTITUTION_CATEGORIES.map(({ key }) => [key, Math.round(Number(c[key]) || DEFAULT_CATEGORY_PRICES[key])])) as InstitutionCategoryPrices;
+}
+
+export function formatInr(amount: number): string {
+  return `₹${Math.round(amount).toLocaleString('en-IN')}`;
+}
+
+export function periodLabel(months: number): string {
+  return months === 12 ? 'per year' : months === 1 ? 'per month' : `for ${months} months`;
+}
+
+/**
+ * Institution Premium price for an institute (or an AISHE code), from its AISHE category.
+ * Codes without a known prefix use the general institution price.
+ */
+export function institutionPriceFor(s: PlanSettings, inst: { aisheCode?: string } | string | undefined): { amount: number; category: InstitutionCategory | null; categoryLabel: string; label: string } {
+  const code = typeof inst === 'string' ? inst : inst?.aisheCode;
+  const category = institutionCategoryOf(code);
+  const amount = category ? categoryPricesOf(s)[category] : Math.round(s.institutionPriceInr || 0);
+  const months = s.institutionDurationMonths || 12;
+  return {
+    amount,
+    category,
+    categoryLabel: category ? INSTITUTION_CATEGORIES.find(c => c.key === category)!.label : 'Institution',
+    label: amount ? `${formatInr(amount)} ${periodLabel(months)}` : s.institutionPriceLabel,
+  };
+}
+
 export const DEFAULT_PROMOTION = { featuredPriceInr: 1999, featuredDays: 30, urgentPriceInr: 499, urgentDays: 14 };
 
 export const DEFAULT_PLAN_SETTINGS: PlanSettings = {
@@ -318,6 +366,7 @@ export const DEFAULT_PLAN_SETTINGS: PlanSettings = {
   institutionInstructions: 'After you register, the AcadeXMatch team will send an invoice to your official email. Your institution tools are activated as soon as payment is received. Questions: info@acadexmatch.com',
   premiumPriceInr: 999,
   institutionPriceInr: 14999,
+  institutionCategoryPrices: DEFAULT_CATEGORY_PRICES,
   premiumPlans: DEFAULT_PREMIUM_PLANS,
   ...DEFAULT_PROMOTION,
   gstPercent: 18,
