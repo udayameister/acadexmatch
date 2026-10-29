@@ -17,7 +17,7 @@ to test. Nothing here needs a database migration that changes or deletes existin
 * **Email + password** — strong-password rules (`lib/passwordPolicy.ts`), limits per address+IP, per IP and per address, the same error for “no such account” and “wrong password”, cross-site requests refused.
 * **Mobile number + SMS code** (`lib/server/otp.ts`, `lib/server/sms.ts`) — 6 random digits, valid 5 minutes, single use, 5 wrong tries, 60 s between codes, max 5 per hour / 10 per day per number and 20 per hour per IP, only an HMAC of the code is stored, never logged. For an unknown number the answer is identical but no SMS is sent and the challenge can never be verified.
 * **Continue with Google / Microsoft** (`lib/server/oidc.ts`) — OpenID Connect authorization code flow with PKCE (S256), `state` (signed, 10-minute cookie) and `nonce`; the ID token’s RS256 signature is checked against the provider’s published keys, plus issuer (Microsoft: tenant rules), audience, expiry and nonce. Accounts are keyed by the provider’s `sub`, never by email. An existing account with the same email is **not** merged: the person signs in the usual way and links the provider under *My account → Security*. New social accounts are candidate accounts (institutions register with the form). Buttons appear only for configured providers.
-* **Administrator** — after the password, a 6-digit code by email (once email sending works; `ADMIN_EMAIL_CODE=off` disables).
+* **Administrator** — after the password, a 6-digit code by email. It switches on by itself once email delivery is proven (an email was accepted by the provider in the last 30 days), so a blocked or unfinished email setup can never lock the administrator out. `ADMIN_EMAIL_CODE=off` disables it.
 * **LinkedIn** — not built. “Sign In with LinkedIn using OpenID Connect” can be added as another entry in `PROVIDERS` in `lib/server/oidc.ts` once the LinkedIn app has that product approved.
 
 ### Recovery
@@ -28,7 +28,7 @@ to test. Nothing here needs a database migration that changes or deletes existin
 
 ### Verification rules
 * New accounts start with `emailVerified: false` and get a welcome + confirmation email. Existing accounts are unchanged (missing = confirmed).
-* Once email sending works (`REQUIRE_VERIFIED_EMAIL=auto`, default), applying and posting vacancies need a confirmed email. Optional emails go only to confirmed addresses; security emails always go out.
+* Once email delivery is proven (`REQUIRE_VERIFIED_EMAIL=auto`, default: an email was accepted by the provider in the last 30 days), applying and posting vacancies need a confirmed email. While email cannot be delivered (for example GoDaddy blocking SMTP), nobody is asked to confirm. Optional emails go only to confirmed addresses; security emails always go out.
 
 ### Notifications (`lib/server/notifications.ts`, `lib/server/notify.ts`)
 `notify()` is called only **after** the change has been saved (`/api/rpc` calls `afterRpc` only on success), so refused, duplicate or failed actions send nothing. Each message has an idempotency key; the queue retries failures at 1, 5, 30, 120, 360, 720 minutes; 4xx provider errors are not retried; bodies are dropped after sending and messages with links/codes are never stored with content; bounces and spam reports (webhook) suppress optional emails to that address.
@@ -168,7 +168,7 @@ Not covered automatically: real Google/Microsoft/MSG91/Brevo accounts (need the 
 - [ ] (After SMS setup) confirm mobile on Account → Security; sign in with SMS code; recover by SMS.
 - [ ] (After Google/Microsoft setup) Continue with Google/Microsoft for a new address; link to an existing account from Security; existing email is not merged.
 - [ ] Notification settings: switch off job alerts, unsubscribe link from an email works, history lists messages.
-- [ ] Administrator sign-in asks for the emailed code.
+- [ ] After the first email is delivered (e.g. admin console → Emails → send a test), administrator sign-in asks for the emailed code.
 - [ ] Mobile layout of /login, /register, /forgot-password, /account, /account/notifications.
 
 ## 11. Needs your accounts or approval

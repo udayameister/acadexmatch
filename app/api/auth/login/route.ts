@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { StorageService } from '@/lib/storage';
-import { withDb } from '@/lib/server/db';
+import { withDb, emailProven } from '@/lib/server/db';
 import { badOrigin, completeSignIn, notAllowed, tooMany } from '@/lib/server/auth';
 import { allow, clientIp, resetLimit, retryAfter } from '@/lib/server/security';
 import { startChallenge } from '@/lib/server/otp';
@@ -9,8 +9,8 @@ import { emailConfigured } from '@/lib/server/mailer';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-/** Administrators confirm a code sent by email after their password, when email sending is set up. */
-const adminNeedsCode = () => emailConfigured() && process.env.ADMIN_EMAIL_CODE !== 'off';
+/** Administrators confirm a code sent by email after their password, once email delivery is proven to work. */
+const adminNeedsCode = () => process.env.ADMIN_EMAIL_CODE !== 'off' && emailConfigured() && withDb(null, db => emailProven(db));
 
 export async function POST(req: NextRequest) {
   if (badOrigin(req)) return notAllowed();
@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
   const result = await withDb(null, () => StorageService.login(email, String(body.password || '').slice(0, 256)));
   if (!result.success) return NextResponse.json({ success: false, error: 'Incorrect email or password.' }, { status: 401 });
   resetLimit(keys[0]);
-  if (result.user.role === 'super_admin' && adminNeedsCode()) {
+  if (result.user.role === 'super_admin' && (await adminNeedsCode())) {
     const r = await startChallenge({ purpose: 'admin-mfa', channel: 'email', target: result.user.email, userId: result.user.id, ip, data: { remember }, name: result.user.name });
     if (!r.ok) return NextResponse.json({ success: false, error: r.error }, { status: r.status || 400 });
     return NextResponse.json({ success: false, mfa: { challengeId: r.challengeId, channel: 'email', resendIn: r.resendIn } });

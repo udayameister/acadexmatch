@@ -321,11 +321,22 @@ const candidate: Guard = me => (me?.role === 'candidate' ? true : 'Candidate acc
  * (REQUIRE_VERIFIED_EMAIL=off switches this off; =on enforces it even without email set up).
  */
 const emailSendingOn = () => (['brevo', 'resend'].includes((process.env.EMAIL_API || '').toLowerCase()) && !!process.env.EMAIL_API_KEY) || !!(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
-export function verifiedEmailRequired(): boolean {
-  const v = (process.env.REQUIRE_VERIFIED_EMAIL || 'auto').toLowerCase();
-  return v === 'on' || (v !== 'off' && emailSendingOn());
+/**
+ * Email counts as working only after a message was actually delivered to the provider in the last
+ * 30 days (a "sent" entry in the outbox). Settings alone are not enough: a host can block SMTP, and
+ * steps that depend on email (confirming an address, the administrator's sign-in code) must not
+ * lock people out while nothing can be delivered.
+ */
+export function emailProven(db: Db): boolean {
+  if (!emailSendingOn()) return false;
+  const since = Date.now() - 30 * 86400_000;
+  return ((db['_outbox'] as { status?: string; createdAt?: string }[]) || []).some(m => m.status === 'sent' && Date.parse(m.createdAt || '') > since);
 }
-const unverified = (me?: UserAccount) => !!me && me.role !== 'super_admin' && me.emailVerified === false && verifiedEmailRequired();
+export function verifiedEmailRequired(db: Db): boolean {
+  const v = (process.env.REQUIRE_VERIFIED_EMAIL || 'auto').toLowerCase();
+  return v === 'on' || (v !== 'off' && emailProven(db));
+}
+const unverified = (me: UserAccount | undefined, db: Db) => !!me && me.role !== 'super_admin' && me.emailVerified === false && verifiedEmailRequired(db);
 const VERIFY_FIRST = 'Please confirm your email address first — open the link we emailed you, or send a new one from My account.';
 const jobOfOwnInstitute: Guard = (me, args, db) => {
   if (me?.role === 'super_admin') return true;
@@ -368,7 +379,7 @@ export const RPC_GUARDS: Record<string, Guard> = {
   // candidates
   updateCandidateProfile: ownProfile,
   saveProfileRecord: ownProfile,
-  applyToJob: (me, args, db) => (unverified(me) ? VERIFY_FIRST : candidate(me, args, db)),
+  applyToJob: (me, args, db) => (unverified(me, db) ? VERIFY_FIRST : candidate(me, args, db)),
   withdrawApplication: candidate,
   requestPremiumUpgrade: candidate,
   saveJobAlert: (me, args, db) => {
@@ -397,8 +408,8 @@ export const RPC_GUARDS: Record<string, Guard> = {
     return true;
   },
   // institution staff (own institute) or admin
-  addJob: (me, args) => {
-    if (unverified(me)) return VERIFY_FIRST;
+  addJob: (me, args, db) => {
+    if (unverified(me, db)) return VERIFY_FIRST;
     if (args[0] && JSON.stringify(args[0]).length > 300_000) return 'This vacancy is too long to save. Shorten the advertisement details.';
     if (me?.role === 'super_admin') return true;
     const job = args[0] as Job | undefined;
