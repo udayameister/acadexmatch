@@ -23,6 +23,7 @@ import {
   Partner,
   PremiumPlanOption,
   LinkedIdentity,
+  AisheRecord,
 } from '@/types';
 import { INITIAL_INSTITUTES, INITIAL_JOBS } from './data';
 import { calculateMatchScore, withDerivedProfileFields } from './scoring';
@@ -68,7 +69,7 @@ export interface RegisterInput {
   /** Existing institute an institute admin belongs to. */
   instituteId?: string;
   /** Details for a new institute registered by an institute admin (created as pending verification). */
-  newInstitute?: { name: string; aisheCode: string; city: string; state: string; website?: string };
+  newInstitute?: { name: string; aisheCode: string; city: string; state: string; website?: string; type?: InstitutionType; directory?: AisheRecord };
   /** Mobile number in E.164 form, already validated by the caller. */
   phone?: string;
   /** Country of the mobile number (ISO code, default IN), used when the number has no +code. */
@@ -856,7 +857,7 @@ export const StorageService = {
   },
 
   createPendingInstitute(
-    ni: { name: string; aisheCode: string; city: string; state: string; website?: string },
+    ni: { name: string; aisheCode: string; city: string; state: string; website?: string; type?: InstitutionType; directory?: AisheRecord },
     contactEmail: string,
   ): Institute {
     const name = ni.name.trim();
@@ -864,7 +865,7 @@ export const StorageService = {
       id: newId('inst'),
       name,
       shortName: name.length > 28 ? name.split(/\s+/).map(w => w[0]).join('').toUpperCase() : name,
-      type: 'Autonomous Engineering College',
+      type: ni.type || 'Autonomous Engineering College',
       location: { city: ni.city.trim(), state: ni.state.trim(), pincode: '', campusType: 'Urban' },
       accreditation: { naacGrade: 'Under Review', aicteApproved: false, ugc2f12bStatus: false, nbaAccreditedDepts: [] },
       departments: [],
@@ -874,6 +875,7 @@ export const StorageService = {
       logo: '',
       bannerImage: '',
       verificationStatus: 'pending',
+      ...(ni.directory ? { aisheDirectory: ni.directory } : {}),
       about: `${name} registered on the platform and is awaiting AISHE verification.`,
       contactEmail,
       contactPhone: '',

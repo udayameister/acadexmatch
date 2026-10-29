@@ -191,6 +191,21 @@ export type InstitutionType =
   | 'Premier Private University'
   | 'Autonomous Engineering College';
 
+/** One institution from the AISHE directory (uploaded by the platform administrator). */
+export interface AisheRecord {
+  code: string;
+  name: string;
+  category: string;
+  university: string;
+  type: string;
+  state: string;
+  district: string;
+  status: string;
+  website: string;
+  established: string;
+  management: string;
+}
+
 export interface Institute {
   id: string;
   name: string;
@@ -220,6 +235,8 @@ export interface Institute {
   bannerImage: string;
   verificationStatus: 'verified' | 'pending' | 'rejected';
   verifiedAt?: string;
+  /** The AISHE directory entry matching aisheCode when the institute signed up (helps verification). */
+  aisheDirectory?: AisheRecord;
   /** Institution Premium subscription. Institutions have no free plan. */
   subscription?: InstituteSubscription;
   /** Offer letter wording with {placeholders}; the default template is used when empty. */

@@ -5,6 +5,7 @@ import { badOrigin, completeSignIn, notAllowed, tooMany } from '@/lib/server/aut
 import { allow, clientIp } from '@/lib/server/security';
 import { sendVerificationEmail } from '@/lib/server/authEmails';
 import { normalisePhone } from '@/lib/phone';
+import { getAishe, institutionTypeFor, normaliseAisheCode } from '@/lib/server/aishe';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -33,6 +34,19 @@ export async function POST(req: NextRequest) {
       website: body.newInstitute.website ? String(body.newInstitute.website) : undefined,
     } : undefined,
   };
+  // A new institute whose AISHE code is in the uploaded AISHE directory gets the directory details.
+  if (input.newInstitute) {
+    const ni = input.newInstitute;
+    ni.aisheCode = normaliseAisheCode(ni.aisheCode) || ni.aisheCode.trim().toUpperCase();
+    const rec = await getAishe(ni.aisheCode).catch(() => null);
+    if (rec) {
+      ni.directory = rec;
+      ni.type = institutionTypeFor(rec);
+      ni.city ||= rec.district;
+      ni.state ||= rec.state;
+      if (!ni.website && rec.website) ni.website = rec.website;
+    }
+  }
   const result = await withDb(null, () => StorageService.register(input));
   if (!result.success) return NextResponse.json(result, { status: 400 });
   // The account is saved first; the email is queued and retried, so sign-up never depends on it.

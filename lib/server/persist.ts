@@ -73,6 +73,12 @@ async function ensureSchema(): Promise<void> {
   return g.__acadSchema;
 }
 
+/** The MySQL pool, after the schema exists (MySQL mode only). */
+export async function sqlPool(): Promise<Pool> {
+  await ensureSchema();
+  return pool();
+}
+
 // ------------------------------------------------------------------ main store
 
 export type Db = Record<string, unknown>;

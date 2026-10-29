@@ -9,6 +9,7 @@ import { Institute, UserRole } from '@/types';
 import { GraduationCap, Building2, ArrowRight, CheckCircle2, Crown } from 'lucide-react';
 import { PasswordField, PhoneField, SocialButtons, Spinner, useAuthMethods } from '@/components/AuthWidgets';
 import { normalisePhone } from '@/lib/phone';
+import { AisheCard, AisheHit, InstituteNameSearch, lookupAisheCode } from '@/components/AisheLookup';
 import { passwordProblem, passwordStrength } from '@/lib/passwordPolicy';
 import type { CountryCode } from 'libphonenumber-js/min';
 
@@ -30,6 +31,20 @@ export default function RegisterPage() {
   const [instituteMode, setInstituteMode] = useState<'existing' | 'new'>('existing');
   const [instituteId, setInstituteId] = useState('');
   const [newInst, setNewInst] = useState({ name: '', aisheCode: '', city: '', state: '', website: '' });
+  const [aisheHit, setAisheHit] = useState<AisheHit | null>(null);
+  const codeLookup = useRef<AbortController | null>(null);
+  const fillFromAishe = (h: AisheHit) => {
+    setAisheHit(h);
+    setNewInst(cur => ({ name: h.name, aisheCode: h.code, city: h.district || cur.city, state: h.state || cur.state, website: h.website || cur.website }));
+  };
+  const onAisheCode = (code: string) => {
+    setNewInst(cur => ({ ...cur, aisheCode: code }));
+    if (aisheHit && code.trim().toUpperCase() !== aisheHit.code) setAisheHit(null);
+    codeLookup.current?.abort();
+    const ctl = new AbortController();
+    codeLookup.current = ctl;
+    lookupAisheCode(code, ctl.signal).then(h => { if (h && !ctl.signal.aborted) fillFromAishe(h); }).catch(() => undefined);
+  };
   const [consent, setConsent] = useState(false);
   const [agreePlan, setAgreePlan] = useState(false);
   const planSettings = StorageService.getPlanSettings();
@@ -194,11 +209,23 @@ export default function RegisterPage() {
                   </div>
                 ) : (
                   <div className="grid sm:grid-cols-2 gap-3">
-                    <input required placeholder="Institute name" value={newInst.name} onChange={e => setNewInst({ ...newInst, name: e.target.value })} className={`${inputCls} sm:col-span-2`} />
-                    <input required placeholder="AISHE code (e.g. C-12345)" value={newInst.aisheCode} onChange={e => setNewInst({ ...newInst, aisheCode: e.target.value })} className={`${inputCls} font-mono`} />
-                    <input type="text" inputMode="url" autoCapitalize="none" spellCheck={false} placeholder="Website (e.g. www.college.ac.in)" value={newInst.website} onChange={e => setNewInst({ ...newInst, website: e.target.value })} className={inputCls} />
-                    <input required placeholder="City" value={newInst.city} onChange={e => setNewInst({ ...newInst, city: e.target.value })} className={inputCls} />
-                    <input required placeholder="State" value={newInst.state} onChange={e => setNewInst({ ...newInst, state: e.target.value })} className={inputCls} />
+                    <div className="sm:col-span-2 space-y-1.5">
+                      <label className="text-xs font-semibold text-slate-700" htmlFor="reg-inst-name">Find your institute</label>
+                      <InstituteNameSearch
+                        id="reg-inst-name"
+                        value={newInst.name}
+                        onChange={v => { setNewInst({ ...newInst, name: v }); if (aisheHit && v !== aisheHit.name) setAisheHit(null); }}
+                        onPick={fillFromAishe}
+                        className={inputCls}
+                        placeholder="Type the institute name or AISHE code"
+                      />
+                      {!aisheHit && <p className="text-xs text-slate-500">Choose it from the list to fill in the details. Not listed? Type them below.</p>}
+                    </div>
+                    {aisheHit && <div className="sm:col-span-2"><AisheCard hit={aisheHit} onClear={() => { setAisheHit(null); setNewInst({ name: '', aisheCode: '', city: '', state: '', website: '' }); }} /></div>}
+                    <input required placeholder="AISHE code (e.g. C-12345)" aria-label="AISHE code" value={newInst.aisheCode} onChange={e => onAisheCode(e.target.value)} className={`${inputCls} font-mono`} />
+                    <input type="text" inputMode="url" autoCapitalize="none" spellCheck={false} placeholder="Website (e.g. www.college.ac.in)" aria-label="Website" value={newInst.website} onChange={e => setNewInst({ ...newInst, website: e.target.value })} className={inputCls} />
+                    <input required placeholder="City / District" aria-label="City or district" value={newInst.city} onChange={e => setNewInst({ ...newInst, city: e.target.value })} className={inputCls} />
+                    <input required placeholder="State" aria-label="State" value={newInst.state} onChange={e => setNewInst({ ...newInst, state: e.target.value })} className={inputCls} />
                     <p className="sm:col-span-2 text-xs text-slate-500">
                       New institutes can post vacancies after the platform administrator verifies the AISHE code.
                     </p>

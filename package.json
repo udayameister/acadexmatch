@@ -8,12 +8,13 @@
     "start": "next start",
     "test": "npm run test:app && npm run test:scraper",
     "scrape": "python scraper.py",
-    "test:app": "tsx tests/storage-flows.ts && tsx tests/cv-parser.ts && tsx tests/crawler.ts",
+    "test:app": "tsx tests/storage-flows.ts && tsx tests/cv-parser.ts && tsx tests/crawler.ts && tsx tests/aishe.ts",
     "test:scraper": "python test_engine.py",
     "typecheck": "tsc --noEmit",
     "scrape:daily": "tsx scripts/daily-scrape.ts",
     "test:seo": "node tests/seo-check.mjs",
-    "test:notice": "tsx tests/notice-parser.ts"
+    "test:notice": "tsx tests/notice-parser.ts",
+    "test:aishe": "tsx tests/aishe.ts"
   },
   "dependencies": {
     "canvas-confetti": "^1.9.4",

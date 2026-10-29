@@ -7,6 +7,7 @@ import CustomersPanel from '@/components/CustomersPanel';
 import EmailsPanel from '@/components/EmailsPanel';
 import GrowthPanel from '@/components/GrowthPanel';
 import QualityPanel from '@/components/QualityPanel';
+import AisheDirectoryPanel from '@/components/AisheDirectoryPanel';
 import { AnnouncementsPanel } from '@/components/Announcements';
 import { PartnersPanel } from '@/components/Partners';
 import { UsersPanel, InstitutionsPanel, VacanciesPanel, ApplicationsPanel, SitePanel, PremiumPanel } from '@/components/AdminManagement';
@@ -31,9 +32,10 @@ import {
   ShieldAlert,
   Megaphone,
   Handshake,
+  Library,
 } from 'lucide-react';
 
-type AdminTab = 'growth' | 'quality' | 'announcements' | 'partners' | 'users' | 'institutions' | 'customers' | 'vacancies' | 'scraping' | 'applications' | 'premium' | 'verification' | 'dpdp' | 'audit' | 'emails' | 'site';
+type AdminTab = 'growth' | 'quality' | 'announcements' | 'partners' | 'users' | 'institutions' | 'customers' | 'vacancies' | 'scraping' | 'applications' | 'premium' | 'verification' | 'dpdp' | 'audit' | 'emails' | 'site' | 'directory';
 
 export default function AdminCompliancePage() {
   const [institutes, setInstitutes] = useState<Institute[]>([]);
@@ -170,6 +172,7 @@ export default function AdminCompliancePage() {
           ['applications', ClipboardList, `Applications (${appCount})`],
           ['premium', Crown, `Premium${upgradeCount ? ` (${upgradeCount} new)` : ''}`],
           ['quality', ShieldAlert, 'Quality checks'],
+          ['directory', Library, 'Institute directory'],
           ['verification', CheckCircle2, `Verification (${pendingInstitutes} pending)`],
           ['dpdp', Lock, `Data rights (${openRequests} open)`],
           ['audit', Activity, `Audit log (${auditLogs.length})`],
@@ -204,6 +207,7 @@ export default function AdminCompliancePage() {
       {activeTab === 'vacancies' && <VacanciesPanel />}
       {activeTab === 'applications' && <ApplicationsPanel />}
       {activeTab === 'site' && <SitePanel />}
+      {activeTab === 'directory' && <AisheDirectoryPanel />}
       {activeTab === 'scraping' && <ScrapePipelinePanel />}
       {activeTab === 'customers' && <CustomersPanel />}
       {activeTab === 'emails' && <EmailsPanel />}
@@ -242,6 +246,15 @@ export default function AdminCompliancePage() {
                   <p className="text-slate-600 text-xs font-medium">
                     {inst.type} • {inst.location.city}, {inst.location.state}
                   </p>
+
+                  {inst.aisheDirectory ? (
+                    <p className="text-xs text-emerald-800 font-medium">
+                      ✓ In the AISHE directory: {inst.aisheDirectory.name}{inst.aisheDirectory.university ? ` · ${inst.aisheDirectory.university}` : ''}
+                      {inst.aisheDirectory.district ? ` · ${inst.aisheDirectory.district}` : ''}{inst.aisheDirectory.status ? ` · ${inst.aisheDirectory.status}` : ''}
+                    </p>
+                  ) : inst.verificationStatus === 'pending' ? (
+                    <p className="text-xs text-gold-800 font-medium">AISHE code not found in the uploaded directory. Check it on the AISHE portal.</p>
+                  ) : null}
 
                   <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500 pt-1 font-medium">
                     <span>Contact: {inst.contactEmail || '—'}</span>
