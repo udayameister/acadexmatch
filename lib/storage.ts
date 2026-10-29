@@ -281,12 +281,12 @@ export function createEmptyCandidateProfile(user: User): CandidateProfile {
 
 /**
  * Default platform administrator, available in every browser until another admin exists.
- * Email: admin@acadexmatch.in  Password: Admin@12345  (change it after first login).
+ * Email: info@acadexmatch.com  Password: Admin@12345  (change it after first login).
  */
 export const DEFAULT_ADMIN: UserAccount = {
   id: 'user-default-admin',
   name: 'Platform Administrator',
-  email: 'admin@acadexmatch.in',
+  email: 'info@acadexmatch.com',
   role: 'super_admin',
   createdAt: '2026-10-21',
   salt: 'a5c3d9e1f7b2468c0d1e2f3a4b5c6d7e',
