@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { DM_Sans } from 'next/font/google';
 import './globals.css';
 import Navbar from '@/components/Navbar';
+import HelpAssistant from '@/components/HelpAssistant';
 import Footer from '@/components/Footer';
 import AppBootstrap from '@/components/AppBootstrap';
 import StoreSeed from '@/components/StoreSeed';
@@ -93,6 +94,7 @@ export default async function RootLayout({
           <AppBootstrap>{children}</AppBootstrap>
         </main>
         <Footer />
+        <HelpAssistant />
       </body>
     </html>
   );
