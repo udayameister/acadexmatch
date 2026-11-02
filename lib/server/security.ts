@@ -120,6 +120,35 @@ export function clientIp(req: NextRequest): string {
   return (req.headers.get('cf-connecting-ip') || xff?.[xff.length - 1] || req.headers.get('x-real-ip') || 'local').trim().slice(0, 64);
 }
 
+/**
+ * The site's public address for a request, e.g. "https://acadexmatch.com". Behind the host's proxy the
+ * request URL is the app's internal address (http://localhost:<port>), so it is never used for links or
+ * redirects. The browser's host (X-Forwarded-Host / Host) is used only when it is APP_URL's host or its
+ * www / bare-domain twin (so a sign-in that starts on www.acadexmatch.com also returns there);
+ * otherwise APP_URL.
+ */
+export function publicOrigin(req: NextRequest): string {
+  const app = (process.env.APP_URL || '').replace(/\/$/, '');
+  let appHost = '', proto = 'https:';
+  try { if (app) { const u = new URL(app); appHost = u.host.toLowerCase(); proto = u.protocol; } } catch { /* invalid APP_URL */ }
+  const seen = (req.headers.get('x-forwarded-host') || req.headers.get('host') || '').split(',')[0].trim().toLowerCase();
+  if (appHost && seen) {
+    const bare = (h: string) => h.replace(/^www\./, '');
+    if (seen === appHost || bare(seen) === bare(appHost)) return `${proto}//${seen}`;
+  }
+  if (app) return app;
+  return req.nextUrl.origin;
+}
+
+/** Cookie Domain covering both the bare domain and www (e.g. "acadexmatch.com"), or undefined. */
+export function sharedCookieDomain(origin: string): string | undefined {
+  try {
+    const h = new URL(origin).hostname.toLowerCase();
+    if (h === 'localhost' || /^[\d.]+$/.test(h) || !h.includes('.')) return undefined;
+    return h.replace(/^www\./, '');
+  } catch { return undefined; }
+}
+
 /** Short description of the browser for security emails ("Chrome on Windows"). */
 export function deviceLabel(ua: string | null): string {
   const s = ua || '';

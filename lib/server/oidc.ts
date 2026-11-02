@@ -82,7 +82,9 @@ export function configuredProviders(): IdentityProvider[] {
 }
 
 export function redirectUri(p: IdentityProvider, origin?: string): string {
-  return `${(process.env.OAUTH_REDIRECT_BASE || appUrl(origin)).replace(/\/$/, '')}/api/auth/oauth/${p}/callback`;
+  // `origin` is the request's public origin (publicOrigin(): APP_URL's host or its www twin), so the
+  // provider returns the browser to the host that holds the state cookie.
+  return `${(process.env.OAUTH_REDIRECT_BASE || origin || appUrl()).replace(/\/$/, '')}/api/auth/oauth/${p}/callback`;
 }
 
 // ------------------------------------------------------------------ discovery & keys (cached 1 hour)
@@ -114,7 +116,7 @@ export function discovery(p: IdentityProvider): Promise<Discovery> {
 
 export const STATE_COOKIE = 'acad_oauth';
 
-export interface FlowState { p: IdentityProvider; state: string; nonce: string; verifier: string; next: string | null; mode: 'login' | 'link'; uid?: string; t: number }
+export interface FlowState { p: IdentityProvider; state: string; nonce: string; verifier: string; next: string | null; mode: 'login' | 'link'; uid?: string; t: number; /** redirect_uri sent to the provider (the token request must repeat it exactly). */ ru?: string }
 
 const sign = (data: string) => createHmac('sha256', serverSecret()).update(`oauth:${data}`).digest('base64url');
 
@@ -138,10 +140,10 @@ export function decodeState(cookie: string | undefined): FlowState | null {
 /** Builds the provider's sign-in address for a new flow. */
 export async function startFlow(p: IdentityProvider, opts: { next: string | null; mode: 'login' | 'link'; uid?: string; origin?: string }): Promise<{ url: string; cookie: string }> {
   const d = await discovery(p);
-  const st: FlowState = { p, state: randomToken(24), nonce: randomToken(24), verifier: randomToken(48), next: opts.next, mode: opts.mode, uid: opts.uid, t: Date.now() };
+  const st: FlowState = { p, state: randomToken(24), nonce: randomToken(24), verifier: randomToken(48), next: opts.next, mode: opts.mode, uid: opts.uid, t: Date.now(), ru: redirectUri(p, opts.origin) };
   const challenge = createHash('sha256').update(st.verifier).digest('base64url');
   const params = new URLSearchParams({
-    client_id: PROVIDERS[p].clientId()!, response_type: 'code', redirect_uri: redirectUri(p, opts.origin), scope: PROVIDERS[p].scopes,
+    client_id: PROVIDERS[p].clientId()!, response_type: 'code', redirect_uri: st.ru!, scope: PROVIDERS[p].scopes,
     state: st.state, nonce: st.nonce, code_challenge: challenge, code_challenge_method: 'S256', ...(PROVIDERS[p].extraAuthParams || {}),
   });
   return { url: `${d.authorization_endpoint}?${params}`, cookie: encodeState(st) };
@@ -199,7 +201,7 @@ export async function finishFlow(p: IdentityProvider, code: string, st: FlowStat
       method: 'POST', signal: ctrl.signal,
       headers: { 'Content-Type': 'application/x-www-form-urlencoded', accept: 'application/json' },
       body: new URLSearchParams({
-        grant_type: 'authorization_code', code, redirect_uri: redirectUri(p, origin),
+        grant_type: 'authorization_code', code, redirect_uri: st.ru || redirectUri(p, origin),
         client_id: def.clientId()!, client_secret: def.clientSecret()!, code_verifier: st.verifier,
       }).toString(),
     });

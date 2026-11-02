@@ -3,7 +3,7 @@ import { STORAGE_KEYS, StorageService } from '@/lib/storage';
 import { withDb, createSession } from '@/lib/server/db';
 import { currentUserId, setSessionCookie } from '@/lib/server/auth';
 import { decodeState, finishFlow, isProvider, providerConfigured, STATE_COOKIE } from '@/lib/server/oidc';
-import { allow, clientIp, deviceLabel, safeEqual } from '@/lib/server/security';
+import { allow, clientIp, deviceLabel, publicOrigin, safeEqual, sharedCookieDomain } from '@/lib/server/security';
 import { sendIdentityLinked, sendNewSignIn, sendSocialWelcome, sendVerificationEmail } from '@/lib/server/authEmails';
 import { prefsOf } from '@/lib/server/notifications';
 import type { UserAccount } from '@/types';
@@ -21,10 +21,11 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET(req: NextRequest, ctx: { params: Promise<{ provider: string }> }) {
   const { provider } = await ctx.params;
-  const origin = req.nextUrl.origin;
+  const origin = publicOrigin(req);
   const go = (path: string) => {
     const res = NextResponse.redirect(new URL(path, origin));
-    res.cookies.set(STATE_COOKIE, '', { path: '/api/auth/oauth', maxAge: 0 });
+    const domain = sharedCookieDomain(origin);
+    res.cookies.set(STATE_COOKIE, '', { path: '/api/auth/oauth', maxAge: 0, ...(domain ? { domain } : {}) });
     return res;
   };
   if (!isProvider(provider) || !providerConfigured(provider)) return go('/login?oauth_error=unavailable');
