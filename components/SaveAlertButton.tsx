@@ -51,7 +51,7 @@ export default function SaveAlertButton({ filters }: { filters: JobSearchFilters
             <input value={name} onChange={e => setName(e.target.value)} maxLength={80} placeholder={nameFromFilters(filters).slice(0, 60)} className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100" />
           </label>
           <fieldset className="flex gap-2 text-xs">
-            {(['daily', 'weekly'] as const).map(f => (
+            {(['instant', 'daily', 'weekly'] as const).map(f => (
               <label key={f} className={`flex-1 text-center px-3 py-2 rounded-lg border cursor-pointer font-semibold capitalize ${frequency === f ? 'border-brand-700 bg-brand-50 text-brand-900' : 'border-slate-200 text-slate-600'}`}>
                 <input type="radio" name="freq" value={f} checked={frequency === f} onChange={() => setFrequency(f)} className="sr-only" />{f}
               </label>

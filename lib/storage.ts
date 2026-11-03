@@ -724,7 +724,7 @@ export const StorageService = {
     const all = this.getJobAlerts();
     const mine = all.filter(a => a.userId === user.id);
     const name = (input.name || '').trim().slice(0, 80) || nameFromFilters(cleanFilters(input.filters)).slice(0, 80);
-    const frequency: AlertFrequency = input.frequency === 'weekly' ? 'weekly' : 'daily';
+    const frequency: AlertFrequency = input.frequency === 'weekly' ? 'weekly' : input.frequency === 'instant' ? 'instant' : 'daily';
     if (input.id) {
       const cur = mine.find(a => a.id === input.id);
       if (!cur) return { success: false, error: 'Alert not found.' };

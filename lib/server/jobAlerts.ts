@@ -15,7 +15,10 @@ const MAX_ITEMS = 25;
 /** Alerts go out after this hour, India time, so they arrive after the early-morning vacancy import. */
 const SEND_HOUR_IST = 8;
 
-type AlertState = Record<string, { seen: string[]; lastRun?: string }>;
+type AlertState = Record<string, { seen: string[]; lastRun?: string; lastSentMs?: number }>;
+/** Instant alerts: at most one email per alert in this many minutes (matches that arrive meanwhile wait for the next one). */
+const INSTANT_GAP_MIN = 30;
+const FREQ_WORD = { instant: 'instant', daily: 'daily', weekly: 'weekly' } as const;
 
 function istNow(): { day: string; hour: number } {
   const d = new Date();
@@ -70,7 +73,9 @@ export interface AlertRunResult { checked: number; emails: number; vacancies: nu
 export async function runJobAlerts(opts: { force?: boolean } = {}): Promise<AlertRunResult> {
   const { day, hour } = istNow();
   const result: AlertRunResult = { checked: 0, emails: 0, vacancies: 0, skippedUnverified: 0 };
-  if (!opts.force && hour < SEND_HOUR_IST) return result;
+  const nowMs = Date.now();
+  // Daily and weekly alerts wait for the morning send hour; instant alerts go out on every run.
+  const scheduledOpen = opts.force || hour >= SEND_HOUR_IST;
 
   const due = await withDb(null, (db, c) => {
     const state: AlertState = { ...((db[STATE_KEY] as AlertState) || {}) };
@@ -84,7 +89,12 @@ export async function runJobAlerts(opts: { force?: boolean } = {}): Promise<Aler
       const matching = open.filter(j => matchesFilters(j, alert.filters));
       if (!st) { state[alert.id] = { seen: matching.map(j => j.id), lastRun: day }; continue; }
       if (!alert.active) continue;
-      if (!opts.force && st.lastRun && (alert.frequency === 'weekly' ? daysBetween(st.lastRun, day) < 7 : st.lastRun === day)) continue;
+      if (alert.frequency === 'instant') {
+        if (!opts.force && st.lastSentMs && nowMs - st.lastSentMs < INSTANT_GAP_MIN * 60_000) continue;
+      } else {
+        if (!scheduledOpen) continue;
+        if (!opts.force && st.lastRun && (alert.frequency === 'weekly' ? daysBetween(st.lastRun, day) < 7 : st.lastRun === day)) continue;
+      }
       const user = users.find(u => u.id === alert.userId);
       if (!user) continue;
       result.checked++;
@@ -94,6 +104,7 @@ export async function runJobAlerts(opts: { force?: boolean } = {}): Promise<Aler
       if (fresh.length === 0) continue;
       if (user.emailVerified === false) { result.skippedUnverified++; continue; }
       st.seen = [...fresh.map(j => j.id), ...st.seen].slice(0, MAX_SEEN);
+      st.lastSentMs = nowMs;
       out.push({ alert, user, jobs: fresh });
     }
     // forget state of deleted alerts
@@ -121,7 +132,7 @@ export async function runJobAlerts(opts: { force?: boolean } = {}): Promise<Aler
     }));
     const more = jobs.length - shown.length;
     const r = await notify({
-      key: `jobalert:${alert.id}:${day}`, category: 'jobAlerts', kind: 'job_alert', user,
+      key: alert.frequency === 'instant' ? `jobalert:${alert.id}:${jobs.map(j => j.id).sort().join(',').slice(0, 200)}` : `jobalert:${alert.id}:${day}`, category: 'jobAlerts', kind: 'job_alert', user,
       subject: `${jobs.length} new faculty ${jobs.length === 1 ? 'vacancy' : 'vacancies'}: ${alert.name}`,
       heading: `${jobs.length} new ${jobs.length === 1 ? 'vacancy matches' : 'vacancies match'} “${alert.name}”`,
       paragraphs: [
@@ -131,7 +142,7 @@ export async function runJobAlerts(opts: { force?: boolean } = {}): Promise<Aler
       ],
       items,
       button: { label: 'Manage my job alerts', url: `${base}/candidate/alerts` },
-      footer: `You get this ${alert.frequency} email because you created the job alert “${alert.name}”.`,
+      footer: `You get this ${FREQ_WORD[alert.frequency] || 'daily'} email because you created the job alert “${alert.name}”.`,
       footerLink: { label: 'Pause this alert', url: `${base}/api/alerts/unsubscribe?a=${encodeURIComponent(alert.id)}&t=${await unsubscribeToken(alert.id)}` },
       ref: { label: alert.name },
     });

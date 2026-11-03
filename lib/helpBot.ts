@@ -192,7 +192,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
   {
     id: 'alerts', for: ['candidate'], title: 'Job alerts',
     keywords: ['alert', 'alerts', 'job alert', 'notify me', 'email me jobs', 'new vacancies', 'saved search'],
-    answer: 'Save a search and we email you new vacancies that match it. Create alerts on the Alerts page, or use "Email me new matches" on Find Jobs. You can keep up to 10 alerts.',
+    answer: 'Save a search and we email you new vacancies that match it: instantly (as soon as a match is posted), daily (about 8 AM) or weekly. Create alerts on the Alerts page, or use "Email me new matches" on Find Jobs. You can keep up to 10 alerts.\nAll candidates with a confirmed email address also get a short email when new vacancies or events are approved. You can turn either off under My account → Notifications.',
     links: [{ label: 'Job alerts', href: '/candidate/alerts' }],
   },
   {

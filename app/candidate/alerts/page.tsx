@@ -41,7 +41,7 @@ function AlertForm({ draft, onCancel, onSaved }: { draft: Draft; onCancel?: () =
         <select className={input} value={f.instituteType} onChange={e => setF({ instituteType: e.target.value })}>{INSTITUTE_TYPES.map(x => <option key={x}>{x}</option>)}</select>
       </label>
       <label className="block space-y-1"><span className="text-xs font-semibold text-slate-700">How often</span>
-        <select className={input} value={d.frequency} onChange={e => setD({ ...d, frequency: e.target.value as AlertFrequency })}><option value="daily">Daily (about 8 AM)</option><option value="weekly">Weekly</option></select>
+        <select className={input} value={d.frequency} onChange={e => setD({ ...d, frequency: e.target.value as AlertFrequency })}><option value="instant">Instant (as soon as a match is posted)</option><option value="daily">Daily (about 8 AM)</option><option value="weekly">Weekly</option></select>
       </label>
       <div className="sm:col-span-2 flex flex-wrap gap-4 text-sm text-slate-700">
         <label className="flex items-center gap-2"><input type="checkbox" checked={f.netSletOnly} onChange={e => setF({ netSletOnly: e.target.checked })} /> Only where NET/SLET is required</label>

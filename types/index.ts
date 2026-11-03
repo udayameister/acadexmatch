@@ -768,7 +768,8 @@ export interface JobSearchFilters {
   phdOnly: boolean;
 }
 
-export type AlertFrequency = 'daily' | 'weekly';
+/** instant = within about 10 minutes of a matching vacancy being published (at most every 30 minutes). */
+export type AlertFrequency = 'instant' | 'daily' | 'weekly';
 
 /** A saved search that emails new matching vacancies to the candidate. */
 export interface JobAlert {
