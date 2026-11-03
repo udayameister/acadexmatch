@@ -9,7 +9,7 @@ import type { NotificationPrefs, UserAccount } from '@/types';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const OPTIONAL: Category[] = ['applications', 'statusUpdates', 'interviews', 'jobAlerts', 'deadlineReminders', 'recruiter', 'announcements', 'marketing'];
+const OPTIONAL: Category[] = ['applications', 'statusUpdates', 'interviews', 'jobAlerts', 'newVacancies', 'deadlineReminders', 'recruiter', 'announcements', 'marketing'];
 
 /**
  * Unsubscribes from one optional email category with the signed link from an email

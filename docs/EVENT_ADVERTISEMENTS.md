@@ -52,3 +52,18 @@ with schema.org Event data for search engines, and is in the sitemap while live.
 - `components/HomeEventSections.tsx`, `EventCard.tsx`, `EventsBrowser.tsx`, `EventsAdminPanel.tsx`
 - `app/events/*`, `app/conferences`
 - Tests: `tests/events.ts`
+
+## New-post email to candidates
+
+When the administrator approves vacancies or publishes an event listing, every candidate gets one email listing
+them (`lib/server/newPostDigest.ts`). Vacancies count when they are approved in FacultyTick or Job scraping, or
+added by the administrator.
+
+- Approvals made close together go into one email. It is sent once no new approval has come for 20 minutes, and at
+  most once every 3 hours. Both times can be changed in **Admin console → Emails → New-post email to candidates**,
+  which also has **Send now**, **Don't email these** and the history.
+- Only posts still open at sending time are included: up to 15 vacancies and 6 events, with links.
+- It uses the email queue, so candidates with "New vacancies and events" switched off in their notification
+  settings, unconfirmed addresses and bounced addresses are skipped. Every email has a one-click unsubscribe link.
+- Institution and administrator accounts are not emailed. Vacancies posted by institutions themselves are covered
+  by candidates' own job alerts instead.

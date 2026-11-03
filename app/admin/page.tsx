@@ -5,6 +5,7 @@ import { StorageService } from '@/lib/storage';
 import ScrapePipelinePanel from '@/components/ScrapePipelinePanel';
 import FacultyTickPanel from '@/components/FacultyTickPanel';
 import EventsAdminPanel from '@/components/EventsAdminPanel';
+import NewPostEmailCard from '@/components/NewPostEmailCard';
 import { useStorageValue } from '@/lib/useAuth';
 import type { AcademicEvent } from '@/types';
 import CustomersPanel from '@/components/CustomersPanel';
@@ -227,7 +228,7 @@ export default function AdminCompliancePage() {
       {activeTab === 'facultytick' && <FacultyTickPanel />}
       {activeTab === 'events' && <EventsAdminPanel />}
       {activeTab === 'customers' && <CustomersPanel />}
-      {activeTab === 'emails' && <EmailsPanel />}
+      {activeTab === 'emails' && <div className="space-y-5"><NewPostEmailCard /><EmailsPanel /></div>}
       {activeTab === 'premium' && <PremiumPanel />}
 
       {/* TAB 1: AISHE & NAAC Verification Queue */}

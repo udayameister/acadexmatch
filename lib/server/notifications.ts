@@ -25,23 +25,23 @@ const MAX_ATTEMPTS = 6;
 const BACKOFF_MIN = [1, 5, 30, 120, 360, 720];
 
 export type Category =
-  | 'security' | 'account' | 'applications' | 'statusUpdates' | 'interviews' | 'jobAlerts'
+  | 'security' | 'account' | 'applications' | 'statusUpdates' | 'interviews' | 'jobAlerts' | 'newVacancies'
   | 'deadlineReminders' | 'recruiter' | 'announcements' | 'marketing';
 
 /** Preference key for each optional category (security/account have none: always sent). */
 const PREF_OF: Partial<Record<Category, keyof NotificationPrefs>> = {
-  applications: 'applications', statusUpdates: 'statusUpdates', interviews: 'interviews', jobAlerts: 'jobAlerts',
+  applications: 'applications', statusUpdates: 'statusUpdates', interviews: 'interviews', jobAlerts: 'jobAlerts', newVacancies: 'newVacancies',
   deadlineReminders: 'deadlineReminders', recruiter: 'recruiter', announcements: 'announcements', marketing: 'marketing',
 };
 
 export const PREF_DEFAULTS: Required<NotificationPrefs> = {
-  applications: true, statusUpdates: true, interviews: true, jobAlerts: true, deadlineReminders: true,
+  applications: true, statusUpdates: true, interviews: true, jobAlerts: true, newVacancies: true, deadlineReminders: true,
   recruiter: true, announcements: true, marketing: false, loginAlerts: true,
 };
 
 export const CATEGORY_LABEL: Record<Category, string> = {
   security: 'Account security', account: 'Account', applications: 'Applications', statusUpdates: 'Application status',
-  interviews: 'Interviews', jobAlerts: 'Job alerts', deadlineReminders: 'Deadline reminders', recruiter: 'Recruiter',
+  interviews: 'Interviews', jobAlerts: 'Job alerts', newVacancies: 'New vacancies and events', deadlineReminders: 'Deadline reminders', recruiter: 'Recruiter',
   announcements: 'Announcements', marketing: 'News and offers',
 };
 

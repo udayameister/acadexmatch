@@ -48,6 +48,8 @@ export interface NotificationPrefs {
   statusUpdates?: boolean;
   interviews?: boolean;
   jobAlerts?: boolean;
+  /** A short email when the AcadeXMatch team publishes new vacancies and events. */
+  newVacancies?: boolean;
   deadlineReminders?: boolean;
   recruiter?: boolean;
   announcements?: boolean;

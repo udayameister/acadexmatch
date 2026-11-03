@@ -15,6 +15,7 @@ const OPTIONS: { key: string; label: string; desc: string; roles?: string[] }[] 
   { key: 'statusUpdates', label: 'Application status changes', desc: 'Shortlisted, not selected, offer and other updates.', roles: ['candidate'] },
   { key: 'interviews', label: 'Interviews', desc: 'Invitations, scheduled interviews and reminders before them.', roles: ['candidate'] },
   { key: 'jobAlerts', label: 'Job alerts', desc: 'New vacancies matching your saved alerts.', roles: ['candidate'] },
+  { key: 'newVacancies', label: 'New vacancies and events', desc: 'A short email when the AcadeXMatch team publishes new vacancies, FDPs, workshops or conferences.', roles: ['candidate'] },
   { key: 'deadlineReminders', label: 'Deadline reminders', desc: 'Before the closing date of vacancies you saved.', roles: ['candidate'] },
   { key: 'recruiter', label: 'Recruiter updates', desc: 'New applications, interview bookings, vacancy approvals and expiry reminders.', roles: ['institute_admin', 'recruiter', 'super_admin'] },
   { key: 'announcements', label: 'Service announcements', desc: 'Important news about AcadeXMatch.' },

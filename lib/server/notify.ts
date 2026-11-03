@@ -1,3 +1,4 @@
+import { recordApproved } from './newPostDigest';
 import { STORAGE_KEYS, isPremiumUser } from '@/lib/storage';
 import { withDb } from './db';
 import { appUrl } from './mailer';
@@ -49,6 +50,18 @@ export async function afterRpc(method: string, args: unknown[], actorId: string 
     if (method === 'updateJob' || method === 'setJobStatus' || method === 'deleteJob') pingIndexNow(jobPaths([args[0]])).catch(() => undefined);
     if (method === 'addJobs') pingIndexNow([...jobPaths(((args[0] as { id?: string }[]) || []).map(j => j?.id)), '/jobs']).catch(() => undefined);
     if (method === 'updateInstitute' || method === 'updateInstituteVerification' || method === 'adminUpdateInstitute') pingIndexNow([`/institutes/${encodeURIComponent(String(args[0]))}`]).catch(() => undefined);
+
+    // Vacancies the administrator approved or added: announce them to every candidate (grouped into one email).
+    if (method === 'addJobs' || method === 'addJob') {
+      const ids = (method === 'addJobs' ? ((args[0] as { id?: string }[]) || []) : [args[0] as { id?: string }]).map(j => j?.id).filter((x): x is string => !!x);
+      const approved = await withDb(null, db => {
+        const actor = users(db).find(u => u.id === actorId);
+        if (actor?.role !== 'super_admin') return [];
+        const set = new Set(ids);
+        return jobs(db).filter(j => set.has(j.id) && j.status === 'published').map(j => ({ type: 'job' as const, id: j.id }));
+      });
+      if (approved.length) recordApproved(approved).catch(e => console.error('[AcadeXMatch] new-post email', (e as Error).message));
+    }
 
     const out: NotifyInput[] = await withDb(null, db => build(db, method, args, actorId, result, base));
     let queued = 0;
