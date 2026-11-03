@@ -83,7 +83,7 @@ export default function JobCard({ job, candidateProfile, onOpenMatchModal, featu
 
       {/* Title & Institute Header */}
       <div className="flex items-start gap-4">
-        <div className="w-13 h-13 sm:w-14 sm:h-14 rounded-2xl bg-slate-50 border border-slate-200 p-1 flex items-center justify-center shrink-0 overflow-hidden shadow-sm">
+        <div className="w-[52px] h-[52px] sm:w-14 sm:h-14 rounded-2xl bg-slate-50 border border-slate-200 p-1 flex items-center justify-center shrink-0 overflow-hidden shadow-sm">
           <InstituteLogo src={job.instituteLogo} name={job.instituteName} size={56} className="rounded-xl" />
         </div>
 

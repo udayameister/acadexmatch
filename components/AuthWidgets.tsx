@@ -148,7 +148,7 @@ export function OtpInput({ length = 6, value, onChange, autoFocus = true, disabl
             const v = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, length);
             if (v) { e.preventDefault(); onChange(v); refs.current[Math.min(length - 1, v.length)]?.focus(); }
           }}
-          className="w-11 h-12 sm:w-12 sm:h-13 text-center text-lg font-bold rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100 disabled:opacity-60"
+          className="w-11 h-12 sm:w-12 sm:h-[52px] text-center text-lg font-bold rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100 disabled:opacity-60"
         />
       ))}
     </div>
