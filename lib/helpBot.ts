@@ -124,6 +124,12 @@ export const HELP_ARTICLES: HelpArticle[] = [
 
   // ---------------- candidates
   {
+    id: 'resume-checker', for: ['candidate', 'guest'], title: 'Resume checker (ATS score) and resume builder',
+    keywords: ['resume checker', 'resume check', 'ats score', 'ats', 'check my resume', 'check my cv', 'resume score', 'cv score', 'resume builder', 'build resume', 'build cv', 'resume template', 'cv template', 'job description match', 'keyword gap', 'skill gap', 'resume intelligence', 'improve resume', 'improve cv'],
+    answer: 'The Resume checker is free for candidates. Upload your resume (PDF, Word .docx or text, up to 5 MB) and, if you like, paste a job description or choose an AcadeXMatch vacancy. You get:\n• an ATS score out of 100 with what to fix first\n• missing skills and keywords for that job\n• formatting checks and stronger wording for your bullet points\n• for academic CVs, an indicative UGC eligibility check\n• matching vacancies\nThe Resume builder has four ATS-friendly templates and downloads as PDF or Word. Your resumes are private to you, and you can delete them at any time.',
+    links: [{ label: 'Resume checker', href: '/candidate/resume-checker' }],
+  },
+  {
     id: 'find-jobs', for: ['candidate', 'guest'], title: 'Finding vacancies',
     keywords: ['find job', 'search job', 'vacancy', 'vacancies', 'jobs', 'openings', 'assistant professor', 'associate professor', 'professor', 'filter', 'state', 'discipline', 'department', 'job board'],
     answer: 'Open Find Jobs and search by post, subject or institution, then narrow the list with the filters. Each vacancy shows the pay scale, eligibility (degree, NET/SET/PhD) and last date. Signed in as a candidate, you also see your match score.',
