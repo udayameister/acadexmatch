@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { badOrigin, currentUserId, requireAdmin } from '@/lib/server/auth';
 import { withDb } from '@/lib/server/db';
-import { reviewEvent } from '@/lib/server/events';
+import { reviewEvent, setHighlight } from '@/lib/server/events';
 import { recordApproved } from '@/lib/server/newPostDigest';
 import { STORAGE_KEYS, DEFAULT_PLAN_SETTINGS, StorageService } from '@/lib/storage';
 import type { PlanSettings } from '@/types';
@@ -19,6 +19,10 @@ export async function POST(req: NextRequest) {
   if (body?.action === 'review' && typeof body.id === 'string' && ['approve', 'reject', 'waive'].includes(String(body.decision))) {
     const r = await reviewEvent(adminId, body.id, body.decision as 'approve' | 'reject' | 'waive', body.note);
     if (r.ok && r.event.status === 'published') await recordApproved([{ type: 'event', id: r.event.id }]).catch(() => undefined);
+    return r.ok ? NextResponse.json({ ok: true, event: r.event }) : NextResponse.json({ error: r.error }, { status: r.status });
+  }
+  if (body?.action === 'highlight' && typeof body.id === 'string') {
+    const r = await setHighlight(adminId, body.id, (body as { on?: boolean }).on === true);
     return r.ok ? NextResponse.json({ ok: true, event: r.event }) : NextResponse.json({ error: r.error }, { status: r.status });
   }
   if (body?.action === 'prices') {

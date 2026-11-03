@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import OurCustomers from '@/components/OurCustomers';
 import HeroMatchPreview from '@/components/HeroMatchPreview';
 import HomeEventSections from '@/components/HomeEventSections';
+import HomeEventPosters from '@/components/HomeEventPosters';
 import { StorageService, isDeadlinePassed } from '@/lib/storage';
 import { payLabel, orNS, deadlineLabel, NOT_SPECIFIED } from '@/lib/display';
 import { useCurrentUser, useStorageValue, homePathForRole } from '@/lib/useAuth';
@@ -175,6 +176,9 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* ───────────────────────── Highlighted events, as posters ───────────────────────── */}
+      <HomeEventPosters />
 
       {/* ───────────────────────── Institutions strip ───────────────────────── */}
       {verifiedInstitutes.length > 0 && (

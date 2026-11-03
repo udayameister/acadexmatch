@@ -1,7 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { CalendarDays, MapPin, Monitor, Megaphone } from 'lucide-react';
-import { EVENT_KIND_SHORT, formatEventDates } from '@/lib/events';
+import { EVENT_KIND_SHORT, formatEventDates, posterUrl } from '@/lib/events';
 import type { AcademicEvent } from '@/types';
 
 /** One advertised event (FDP, workshop, seminar or conference). Works in server and client components. */
@@ -13,11 +13,15 @@ export default function EventCard({ event: e, compact = false }: { event: Academ
       href={`/events/${encodeURIComponent(e.id)}`}
       className={`group flex flex-col h-full p-5 sm:p-6 rounded-3xl border transition hover:-translate-y-0.5 hover:shadow-lg ${conf ? 'bg-brand-950 border-brand-900 text-white hover:shadow-brand-950/30' : 'bg-white border-slate-200 hover:border-brand-200 hover:shadow-brand-900/5'}`}
     >
+      {posterUrl(e) && !compact && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={posterUrl(e)!} alt="" loading="lazy" className="-mx-5 sm:-mx-6 -mt-5 sm:-mt-6 mb-4 w-[calc(100%+2.5rem)] sm:w-[calc(100%+3rem)] max-w-none h-44 object-cover object-top rounded-t-3xl" />
+      )}
       <div className="flex items-center justify-between gap-2 text-xs">
         <span className={`font-bold px-2 py-0.5 rounded ${conf ? 'bg-gold-400 text-brand-950' : 'bg-brand-50 text-brand-800 border border-brand-100'}`}>
           {EVENT_KIND_SHORT[e.kind]}{conf && e.scope ? ` · ${e.scope === 'international' ? 'International' : 'National'}` : ''}
         </span>
-        <span className={`inline-flex items-center gap-1 ${conf ? 'text-gold-200/80' : 'text-slate-400'}`}><Megaphone className="w-3.5 h-3.5" aria-hidden="true" />Sponsored</span>
+        <span className={`inline-flex items-center gap-1 ${conf ? 'text-gold-200/80' : 'text-slate-400'}`}><Megaphone className="w-3.5 h-3.5" aria-hidden="true" />{e.addedByAdmin ? 'Featured' : 'Sponsored'}</span>
       </div>
       <h3 className={`font-serif text-lg font-bold mt-3 leading-snug line-clamp-2 ${conf ? 'text-white' : 'text-slate-900 group-hover:text-brand-800'}`}>{e.title}</h3>
       <p className={`text-sm mt-1 line-clamp-1 ${conf ? 'text-gold-100/90' : 'text-slate-600'}`}>{e.organizer}{e.department ? ` · ${e.department}` : ''}</p>

@@ -34,6 +34,20 @@ with schema.org Event data for search engines, and is in the sitemap while live.
    Bank transfers can be recorded under Transactions → Record an offline payment (choose the listing).
 4. **Live** until the event's end date, then it drops off the site automatically.
 
+## Admin: free listings, posters and highlights
+
+- **Add an event (free).** In Admin console → Events & conferences, the administrator fills in the same form and it
+  is published at once, without payment, marked "Featured" rather than "Sponsored". It also goes into the next
+  new-post email to candidates. **Edit** works on any listing.
+- **Posters.** Any listing can have a poster image (JPG, PNG or WebP, up to 3 MB; portrait such as 1080 × 1350 looks
+  best), uploaded by its organiser or the administrator. The file type is checked from its contents. Posters of
+  unpublished listings are visible only to their organiser and the administrator. A new poster from an organiser
+  on a published paid listing is checked again before it is shown.
+- **Highlight on home page.** The administrator can highlight any published listing. Highlighted events appear as
+  posters in a "Featured events" strip right below the top of the home page, in date order, until the event ends.
+  Events without an uploaded poster get a designed maroon-and-gold poster from their title, dates and place. A
+  **Highlighted** tab lists them.
+
 ## Rules
 
 - Status and payment fields are never taken from the browser. A paid listing cannot switch between a conference

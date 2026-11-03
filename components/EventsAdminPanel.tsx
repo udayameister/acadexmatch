@@ -2,11 +2,12 @@
 
 import React, { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Check, ExternalLink, Gift, Trash2, X } from 'lucide-react';
+import { Check, ExternalLink, Gift, Pencil, Plus, Star, Trash2, X } from 'lucide-react';
+import EventForm from '@/components/EventForm';
 import { StorageService } from '@/lib/storage';
 import { useStorageValue } from '@/lib/useAuth';
 import { hydrate } from '@/lib/clientSync';
-import { EVENT_KIND_LABEL, EVENT_MODE_LABEL, EVENT_STATUS_LABEL, eventPrices, formatEventDates, isEventLive, todayIstIso } from '@/lib/events';
+import { EVENT_KIND_LABEL, EVENT_MODE_LABEL, EVENT_STATUS_LABEL, eventPrices, formatEventDates, isEventLive, posterUrl, todayIstIso } from '@/lib/events';
 import type { AcademicEvent, PlanSettings, User } from '@/types';
 
 const btnPrimary = 'inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg bg-brand-900 hover:bg-brand-800 text-white text-sm font-semibold disabled:opacity-50';
@@ -19,7 +20,7 @@ async function post(url: string, body: unknown): Promise<{ ok: boolean; error?: 
   return r.ok ? { ok: true } : { ok: false, error: d.error || 'The server could not complete that.' };
 }
 
-type View = 'review' | 'unpaid' | 'live' | 'other';
+type View = 'review' | 'unpaid' | 'live' | 'highlighted' | 'other';
 
 /** Admin console: review FDP / workshop / seminar / conference advertisements and set their prices. */
 export default function EventsAdminPanel() {
@@ -32,6 +33,8 @@ export default function EventsAdminPanel() {
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [rejecting, setRejecting] = useState<string | null>(null);
   const [reason, setReason] = useState('');
+  const [editor, setEditor] = useState<{ event: AcademicEvent | null } | null>(null);
+  const me = useStorageValue<User | null>(() => StorageService.getCurrentUser(), null);
   const [p, setP] = useState({ ev: String(prices.eventPriceInr), conf: String(prices.conferencePriceInr) });
 
   const today = todayIstIso();
@@ -39,6 +42,7 @@ export default function EventsAdminPanel() {
     review: events.filter(e => e.status === 'under_review'),
     unpaid: events.filter(e => e.status === 'awaiting_payment'),
     live: events.filter(e => isEventLive(e, today)),
+    highlighted: events.filter(e => e.highlighted && isEventLive(e, today)),
     other: events.filter(e => e.status === 'rejected' || (e.status === 'published' && e.endDate < today)),
   }), [events, today]);
   const list = [...groups[view]].sort((a, b) => a.startDate.localeCompare(b.startDate));
@@ -69,8 +73,23 @@ export default function EventsAdminPanel() {
         </form>
       </section>
 
+      {editor ? (
+        <EventForm
+          key={editor.event?.id || 'new'}
+          event={editor.event}
+          defaults={{ kind: 'fdp', organizer: '', email: me?.email || '' }}
+          settings={settings}
+          adminPublish={!editor.event}
+          isAdmin
+          onSaved={() => { setEditor(null); setView(editor.event ? view : 'live'); flash(true, editor.event ? 'Listing saved.' : 'Event published.'); }}
+          onCancel={() => setEditor(null)}
+        />
+      ) : (
+        <button type="button" className={btnPrimary} onClick={() => setEditor({ event: null })}><Plus className="w-4 h-4" />Add an event (free)</button>
+      )}
+
       <div className="flex flex-wrap gap-1.5 text-sm" role="tablist" aria-label="Event listings">
-        {([['review', 'To review'], ['unpaid', 'Waiting for payment'], ['live', 'Live'], ['other', 'Rejected or ended']] as [View, string][]).map(([k, l]) => (
+        {([['review', 'To review'], ['unpaid', 'Waiting for payment'], ['live', 'Live'], ['highlighted', 'Highlighted'], ['other', 'Rejected or ended']] as [View, string][]).map(([k, l]) => (
           <button key={k} role="tab" aria-selected={view === k} onClick={() => setView(k)} className={`px-3.5 py-2 rounded-lg font-semibold ${view === k ? 'bg-brand-900 text-white' : 'bg-white border border-slate-200 text-slate-600'}`}>{l} ({groups[k].length})</button>
         ))}
       </div>
@@ -83,13 +102,21 @@ export default function EventsAdminPanel() {
           return (
             <li key={e.id} className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-3">
               <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
-                <div className="min-w-0">
+                <div className="min-w-0 flex gap-3">
+                  {posterUrl(e) && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={posterUrl(e)!} alt="" className="w-16 aspect-[4/5] object-cover rounded-lg border border-slate-200 shrink-0" />
+                  )}
+                  <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2 text-xs">
                     <span className="font-bold px-2 py-0.5 rounded bg-brand-50 text-brand-800 border border-brand-100">{EVENT_KIND_LABEL[e.kind]}</span>
+                    {e.highlighted && <span className="font-bold px-2 py-0.5 rounded bg-gold-400 text-brand-950 inline-flex items-center gap-1"><Star className="w-3 h-3" />Highlighted</span>}
+                    {e.addedByAdmin && <span className="text-slate-500">Added by admin</span>}
                     <span className="text-slate-500">{EVENT_STATUS_LABEL[e.status]}{e.feeWaived ? ' · fee waived' : e.paidAt ? ` · paid ₹${e.kind === 'conference' ? prices.conferencePriceInr : prices.eventPriceInr}` : ''}</span>
                   </div>
                   <h3 className="font-bold text-slate-900 mt-1 break-words">{e.title}</h3>
                   <p className="text-sm text-slate-600 break-words">{e.organizer}{e.department ? ` · ${e.department}` : ''}</p>
+                  </div>
                 </div>
                 <Link href={`/events/${e.id}`} target="_blank" className="text-xs inline-flex items-center gap-1 text-brand-800 hover:underline shrink-0">Preview <ExternalLink className="w-3 h-3" /></Link>
               </div>
@@ -112,6 +139,13 @@ export default function EventsAdminPanel() {
                 </form>
               ) : (
                 <div className="flex flex-wrap gap-2 justify-end">
+                  <button className={btnGhost} disabled={busy} onClick={() => { setEditor({ event: e }); window.scrollTo({ top: 0, behavior: 'smooth' }); }}><Pencil className="w-4 h-4" />Edit</button>
+                  {e.status === 'published' && (
+                    <button className={`${btnGhost} ${e.highlighted ? 'border-gold-400 bg-gold-50 text-gold-900' : ''}`} disabled={busy} aria-pressed={!!e.highlighted}
+                      onClick={() => run('/api/admin/events', { action: 'highlight', id: e.id, on: !e.highlighted }, e.highlighted ? 'Highlight removed.' : 'Highlighted: shown as a poster on the home page.')}>
+                      <Star className={`w-4 h-4 ${e.highlighted ? 'fill-gold-500 text-gold-600' : ''}`} />{e.highlighted ? 'Highlighted' : 'Highlight on home page'}
+                    </button>
+                  )}
                   <button className={`${btnGhost} text-crimson-700`} disabled={busy} onClick={() => { if (confirm(`Delete “${e.title}”? This cannot be undone.`)) run('/api/events', { action: 'delete', id: e.id }, 'Listing deleted.'); }}><Trash2 className="w-4 h-4" />Delete</button>
                   {e.status !== 'rejected' && <button className={btnGhost} disabled={busy} onClick={() => { setRejecting(e.id); setReason(''); }}><X className="w-4 h-4" />Reject</button>}
                   {e.status === 'awaiting_payment' && <button className={btnGhost} disabled={busy} onClick={() => run('/api/admin/events', { action: 'review', id: e.id, decision: 'waive' }, 'Published without payment.')}><Gift className="w-4 h-4" />Publish without payment</button>}

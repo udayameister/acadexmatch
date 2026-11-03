@@ -146,6 +146,12 @@ export interface AcademicEvent {
   paidAt?: string | null;
   /** Published without payment by the administrator. */
   feeWaived?: boolean;
+  /** Added by the administrator from the admin console (free). */
+  addedByAdmin?: boolean;
+  /** Stored poster image (JPG / PNG / WebP), served at /api/events/poster/<event id>. */
+  posterId?: string | null;
+  /** Highlighted by the administrator: shown as a poster at the top of the home page. */
+  highlighted?: boolean;
   publishedAt?: string | null;
 }
 

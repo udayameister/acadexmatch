@@ -6,7 +6,7 @@ import { useParams } from 'next/navigation';
 import { ArrowLeft, CalendarDays, Clock, ExternalLink, FileText, Mail, MapPin, Megaphone, Monitor, Phone, Ticket, Users, BookOpen } from 'lucide-react';
 import { StorageService } from '@/lib/storage';
 import { useCurrentUser, useStorageValue } from '@/lib/useAuth';
-import { EVENT_KIND_LABEL, EVENT_MODE_LABEL, EVENT_STATUS_LABEL, formatEventDates, isEventLive } from '@/lib/events';
+import { EVENT_KIND_LABEL, EVENT_MODE_LABEL, EVENT_STATUS_LABEL, formatEventDates, isEventLive, posterUrl } from '@/lib/events';
 import type { AcademicEvent } from '@/types';
 
 const fmt = (iso?: string | null) => (iso ? new Date(`${iso}T00:00:00`).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : null);
@@ -54,7 +54,7 @@ export default function EventPage() {
         <div className="flex flex-wrap items-center gap-2 text-xs">
           <span className={`font-bold px-2 py-0.5 rounded ${conf ? 'bg-gold-400 text-brand-950' : 'bg-brand-50 text-brand-800 border border-brand-100'}`}>{EVENT_KIND_LABEL[e.kind]}</span>
           {conf && e.scope && <span className="font-semibold text-gold-200">{e.scope === 'international' ? 'International' : 'National'} conference</span>}
-          <span className={`inline-flex items-center gap-1 ${conf ? 'text-gold-200/80' : 'text-slate-400'}`}><Megaphone className="w-3.5 h-3.5" aria-hidden="true" />Sponsored listing</span>
+          <span className={`inline-flex items-center gap-1 ${conf ? 'text-gold-200/80' : 'text-slate-400'}`}><Megaphone className="w-3.5 h-3.5" aria-hidden="true" />{e.addedByAdmin ? 'Featured event' : 'Sponsored listing'}</span>
         </div>
         <h1 className={`font-serif text-2xl sm:text-4xl font-bold mt-3 leading-tight ${conf ? 'text-white' : 'text-slate-900'}`}>{e.title}</h1>
         <p className={`mt-2 text-base ${conf ? 'text-gold-100' : 'text-slate-600'}`}>Organised by <strong>{e.organizer}</strong>{e.department ? `, ${e.department}` : ''}</p>
@@ -75,6 +75,13 @@ export default function EventPage() {
             </div>
           )}
         </section>
+        <div className="space-y-4">
+        {posterUrl(e) && (
+          <a href={posterUrl(e)!} target="_blank" rel="noopener noreferrer" className="block rounded-3xl overflow-hidden border border-slate-200 bg-white" aria-label="Open the poster full size">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={posterUrl(e)!} alt={`Poster: ${e.title}`} className="w-full h-auto" />
+          </a>
+        )}
         <aside className="p-6 rounded-3xl bg-white border border-slate-200 space-y-4 text-sm">
           <dl className="space-y-3">
             {facts.map(([icon, k, v]) => (
@@ -89,8 +96,9 @@ export default function EventPage() {
             <a href={`mailto:${e.contactEmail}`} className="flex items-center gap-2 text-brand-800 hover:underline break-all"><Mail className="w-4 h-4 shrink-0" />{e.contactEmail}</a>
             {e.contactPhone && <a href={`tel:${e.contactPhone.replace(/[^+0-9]/g, '')}`} className="flex items-center gap-2 text-brand-800 hover:underline"><Phone className="w-4 h-4 shrink-0" />{e.contactPhone}</a>}
           </div>
-          <p className="text-xs text-slate-500 pt-2 border-t border-slate-100">This is a paid advertisement. Details are provided by the organisers; please confirm with them before registering or paying any fee.</p>
+          <p className="text-xs text-slate-500 pt-2 border-t border-slate-100">{e.addedByAdmin ? 'Details are provided by the organisers;' : 'This is a paid advertisement. Details are provided by the organisers;'} please confirm with them before registering or paying any fee.</p>
         </aside>
+        </div>
       </div>
     </div>
   );

@@ -142,3 +142,8 @@ export const INDIAN_STATES = [
   'Andaman and Nicobar Islands', 'Chandigarh', 'Dadra and Nagar Haveli and Daman and Diu', 'Delhi', 'Jammu and Kashmir', 'Ladakh',
   'Lakshadweep', 'Puducherry', 'Online (no venue)', 'Outside India',
 ];
+
+/** Address of an event's poster image (changes when the poster is replaced, so browsers fetch the new one). */
+export function posterUrl(e: Pick<AcademicEvent, 'id' | 'posterId'>): string | null {
+  return e.posterId ? `/api/events/poster/${encodeURIComponent(e.id)}?v=${encodeURIComponent(e.posterId.split('/').pop() || '')}` : null;
+}
