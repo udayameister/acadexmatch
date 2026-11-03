@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { StorageService } from '@/lib/storage';
 import ScrapePipelinePanel from '@/components/ScrapePipelinePanel';
+import FacultyTickPanel from '@/components/FacultyTickPanel';
 import CustomersPanel from '@/components/CustomersPanel';
 import EmailsPanel from '@/components/EmailsPanel';
 import GrowthPanel from '@/components/GrowthPanel';
@@ -33,9 +34,10 @@ import {
   Megaphone,
   Handshake,
   Library,
+  Rss,
 } from 'lucide-react';
 
-type AdminTab = 'growth' | 'quality' | 'announcements' | 'partners' | 'users' | 'institutions' | 'customers' | 'vacancies' | 'scraping' | 'applications' | 'premium' | 'verification' | 'dpdp' | 'audit' | 'emails' | 'site' | 'directory';
+type AdminTab = 'growth' | 'quality' | 'announcements' | 'partners' | 'users' | 'institutions' | 'customers' | 'vacancies' | 'scraping' | 'facultytick' | 'applications' | 'premium' | 'verification' | 'dpdp' | 'audit' | 'emails' | 'site' | 'directory';
 
 export default function AdminCompliancePage() {
   const [institutes, setInstitutes] = useState<Institute[]>([]);
@@ -49,14 +51,20 @@ export default function AdminCompliancePage() {
   const [appCount, setAppCount] = useState(0);
   const [upgradeCount, setUpgradeCount] = useState(0);
   const [scrapePending, setScrapePending] = useState(0);
+  const [ftPending, setFtPending] = useState(0);
 
   useEffect(() => {
     const check = () => fetch('/api/scrape-pipeline', { cache: 'no-store', credentials: 'same-origin' })
       .then(r => (r.ok ? r.json() : null))
       .then(d => { if (d?.queue) setScrapePending(d.queue.filter((q: { status: string }) => q.status === 'pending').length); })
       .catch(() => undefined);
+    const checkFt = () => fetch('/api/admin/facultytick', { cache: 'no-store', credentials: 'same-origin' })
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => { if (d?.queue) setFtPending(d.queue.filter((q: { status: string }) => q.status === 'pending').length); })
+      .catch(() => undefined);
     check();
-    const t = setInterval(check, 60_000);
+    checkFt();
+    const t = setInterval(() => { check(); checkFt(); }, 60_000);
     return () => clearInterval(t);
   }, [activeTab]);
   const [auditFilter, setAuditFilter] = useState<string>('ALL');
@@ -169,6 +177,7 @@ export default function AdminCompliancePage() {
           ['customers', Award, 'Our customers'],
           ['vacancies', Briefcase, `Vacancies (${allJobCount})`],
           ['scraping', Globe, `Job scraping${scrapePending ? ` (${scrapePending} to approve)` : ''}`],
+          ['facultytick', Rss, `FacultyTick${ftPending ? ` (${ftPending} to approve)` : ''}`],
           ['applications', ClipboardList, `Applications (${appCount})`],
           ['premium', Crown, `Premium${upgradeCount ? ` (${upgradeCount} new)` : ''}`],
           ['quality', ShieldAlert, 'Quality checks'],
@@ -209,6 +218,7 @@ export default function AdminCompliancePage() {
       {activeTab === 'site' && <SitePanel />}
       {activeTab === 'directory' && <AisheDirectoryPanel />}
       {activeTab === 'scraping' && <ScrapePipelinePanel />}
+      {activeTab === 'facultytick' && <FacultyTickPanel />}
       {activeTab === 'customers' && <CustomersPanel />}
       {activeTab === 'emails' && <EmailsPanel />}
       {activeTab === 'premium' && <PremiumPanel />}

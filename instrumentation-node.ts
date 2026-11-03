@@ -1,4 +1,5 @@
 import { maybeRunDaily } from './lib/server/scrapeQueue';
+import { maybeRunFacultyTickDaily } from './lib/server/facultytickEngine';
 import { smsConfigured, smsProvider } from './lib/server/sms';
 import { configuredProviders } from './lib/server/oidc';
 import { emailConfigured } from './lib/server/mailer';
@@ -28,6 +29,7 @@ if (process.env.ACAD_DISABLE_SCHEDULER !== '1' && !g.__acadScheduler) {
   g.__acadScheduler = true;
   const tick = () => {
     maybeRunDaily().catch(err => console.error('[AcadeXMatch] Daily scrape error', err));
+    maybeRunFacultyTickDaily().catch(err => console.error('[AcadeXMatch] FacultyTick scrape error', err));
     sendRenewalReminders().catch(err => console.error('[AcadeXMatch] Renewal reminder error', err));
     reconcilePayments().catch(err => console.error('[AcadeXMatch] Payment check error', err));
     // Close expired vacancies first so alerts never include them.
