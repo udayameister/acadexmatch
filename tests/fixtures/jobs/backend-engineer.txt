@@ -1,0 +1,21 @@
+Job Title: Senior Backend Engineer
+Company: Example Software Labs (synthetic test posting)
+
+About the role
+You will design and build scalable APIs and data pipelines for our analytics platform.
+
+Requirements
+5+ years of experience in backend development.
+Strong in Python and Go, with production experience in PostgreSQL and Redis.
+Must have hands-on experience with Docker, Kubernetes and AWS.
+Bachelor's degree in Computer Science or equivalent.
+Experience designing REST APIs and microservices.
+
+Nice to have
+Experience with Kafka, Terraform and GraphQL.
+AWS Certified Solutions Architect is a plus.
+
+Responsibilities
+Design and implement microservices and REST APIs.
+Own CI/CD pipelines and observability for backend services.
+Mentor junior engineers and review code.

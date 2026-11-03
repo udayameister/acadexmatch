@@ -22,8 +22,7 @@ import {
   CheckCircle2, 
   Clock, 
   Mic,
-  Calculator,
-} from 'lucide-react';
+  Calculator, FileSearch } from 'lucide-react';
 
 export default function CandidateDashboardPage() {
   const [profile, setProfile] = useState<CandidateProfile | null>(null);
@@ -165,6 +164,9 @@ export default function CandidateDashboardPage() {
             <PremiumLock compact title="Import from CV" />
           )}
 
+          <Link href="/candidate/resume-checker" className="px-4 py-2.5 rounded-xl bg-brand-700 hover:bg-brand-800 text-white font-bold flex items-center gap-1.5 transition border border-brand-700">
+            <FileSearch className="w-4 h-4" /><span>Resume checker (ATS score)</span>
+          </Link>
           <Link href="/candidate/interview-prep" className="px-4 py-2.5 rounded-xl bg-white hover:bg-slate-50 text-slate-800 font-bold flex items-center gap-1.5 transition border border-slate-200">
             <Mic className="w-4 h-4 text-brand-700" /><span>Interview prep</span>
           </Link>

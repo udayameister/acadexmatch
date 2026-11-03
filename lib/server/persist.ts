@@ -218,6 +218,13 @@ export async function writeJson(name: string, value: unknown): Promise<void> {
   await (await pool()).query('INSERT INTO acx_kv (k, v) VALUES (?, ?) ON DUPLICATE KEY UPDATE v = VALUES(v)', [JSON_PREFIX + name, JSON.stringify(value)]);
 }
 
+/** Removes a JSON store (e.g. one user's private resume data when they delete it or their account). */
+export async function deleteJson(name: string): Promise<void> {
+  if (backend() === 'file') { await fs.unlink(path.join(DATA_DIR, `${name}.json`)).catch(() => undefined); return; }
+  await ensureSchema();
+  await (await pool()).query('DELETE FROM acx_kv WHERE k = ?', [JSON_PREFIX + name]);
+}
+
 // ------------------------------------------------------------------ blobs (documents, logos)
 
 /** Blob ids look like "documents/<userId>/<file>" or "customer-logos/<file>" (also their path under ./data). */

@@ -8,7 +8,7 @@ import { useCurrentUser, homePathForRole } from '@/lib/useAuth';
 import { UserRole } from '@/types';
 import { useProfilePhoto } from '@/lib/documents';
 import { PlanPill } from './Premium';
-import { Crown, KeyRound, ChevronDown, LogOut, Menu, X, LayoutDashboard, UserCircle, Bell, CalendarClock, Mic, Calculator, Megaphone } from 'lucide-react';
+import { Crown, KeyRound, ChevronDown, LogOut, Menu, X, LayoutDashboard, UserCircle, Bell, CalendarClock, Mic, Calculator, Megaphone, FileSearch } from 'lucide-react';
 
 interface NavLinkItem {
   href: string;
@@ -182,6 +182,11 @@ export default function Navbar() {
                   {user.role === 'candidate' && (
                     <Link href="/candidate/profile" className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50">
                       <UserCircle className="w-4 h-4 text-slate-400" /> Academic profile
+                    </Link>
+                  )}
+                  {user.role === 'candidate' && (
+                    <Link href="/candidate/resume-checker" className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50">
+                      <FileSearch className="w-4 h-4 text-slate-400" /> Resume checker &amp; builder
                     </Link>
                   )}
                   {user.role === 'candidate' && (

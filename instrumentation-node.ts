@@ -1,5 +1,6 @@
 import { maybeRunDaily } from './lib/server/scrapeQueue';
 import { maybeRunFacultyTickDaily } from './lib/server/facultytickEngine';
+import { pruneOldResumeData } from './lib/server/resumes';
 import { maybeSendDigest } from './lib/server/newPostDigest';
 import { smsConfigured, smsProvider } from './lib/server/sms';
 import { configuredProviders } from './lib/server/oidc';
@@ -50,4 +51,8 @@ if (process.env.ACAD_DISABLE_SCHEDULER !== '1' && !g.__acadScheduler) {
   setInterval(() => { processQueue().catch(err => console.error('[AcadeXMatch] Email queue error', err)); }, 60_000);
   setInterval(() => { queueHealth().catch(() => undefined); }, 60 * 60_000);
   setInterval(tick, 10 * 60_000); // then check every 10 minutes
+  // Resume checker retention: remove analyses older than the administrator's retention period, daily.
+  const prune = () => { pruneOldResumeData().catch(err => console.error('[AcadeXMatch] Resume retention error', err)); };
+  setTimeout(prune, 5 * 60_000);
+  setInterval(prune, 24 * 3600_000);
 }

@@ -48,7 +48,7 @@ export function readCsv(text: string): Rows {
 
 // ------------------------------------------------------------------ XLSX (zip of XML parts)
 
-function unzip(buf: Buffer): Map<string, () => Buffer> {
+export function unzip(buf: Buffer): Map<string, () => Buffer> {
   // End of central directory record: last 22..65557 bytes.
   let eocd = -1;
   for (let i = buf.length - 22; i >= Math.max(0, buf.length - 65557); i--) {

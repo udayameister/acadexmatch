@@ -1,0 +1,22 @@
+Arjun Mehta
+Pune, Maharashtra | arjun.mehta.dev@example.com | 9123456789 | github.com/arjun-example
+
+Summary
+I am a hard working software developer looking for a good opportunity in a reputed company.
+
+Experience
+Software Engineer | Demo Technologies Pvt Ltd | Jan 2021 - Present
+- Responsible for backend services in Java and Spring Boot
+- Worked on REST APIs for the payments module
+- Developed microservices deployed on AWS using Docker and Kubernetes, reducing deployment time by 40%
+- Helped team with code reviews
+
+Junior Developer, Sample Softwares, Bengaluru, 06/2019 - 12/2020
+- Fixed bugs in a React frontend
+- Wrote SQL queries in MySQL
+
+Education
+B.Tech in Information Technology, Example University, 2019, 7.9 CGPA
+
+Skills
+Java, Spring Boot, React, MySQL, Docker, Git, problem solving

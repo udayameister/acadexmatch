@@ -48,6 +48,7 @@ export default function Footer() {
       links: [
         { href: '/jobs', label: 'Browse vacancies' },
         { href: '/candidate/profile', label: 'Academic profile & API score' },
+        { href: '/candidate/resume-checker', label: 'Resume checker' },
         { href: '/candidate/resume-parser', label: 'Import from CV' },
         { href: '/candidate/applications', label: 'Track applications' },
       ],

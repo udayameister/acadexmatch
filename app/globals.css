@@ -86,6 +86,10 @@ html { scroll-behavior: smooth; font-size: 110%; }
   main { padding: 0 !important; }
   a { text-decoration: none; }
   @page { margin: 14mm; }
+  /* Resume builder: print only the resume itself. */
+  body:has(#resume-print) * { visibility: hidden; }
+  body:has(#resume-print) #resume-print, body:has(#resume-print) #resume-print * { visibility: visible; }
+  body:has(#resume-print) #resume-print { position: absolute; left: 0; top: 0; width: 100%; padding: 0 !important; border: 0 !important; }
 }
 
 /* Home-page hero preview */

@@ -1,0 +1,53 @@
+Dr. Kavitha Raman
+Assistant Professor, Department of Computer Science and Engineering
+Coimbatore, Tamil Nadu, India
+kavitha.raman@example.com | +91 98765 43210 | https://www.linkedin.com/in/kavitha-raman-example | https://scholar.google.com/citations?user=EXAMPLE
+
+PROFESSIONAL SUMMARY
+Assistant Professor with 9 years of teaching and research experience in machine learning and graph neural networks. Guided 25 UG projects and 6 PG theses. Published 14 research papers in Scopus and SCI indexed journals.
+
+TEACHING EXPERIENCE
+Assistant Professor, Example Institute of Technology, Coimbatore    June 2018 – Present
+• Taught Machine Learning, Data Structures and Python Programming to 600+ students
+• Designed outcome-based education (OBE) course files for NBA accreditation
+• Coordinated the department NAAC criterion 3 documentation
+• Mentored 40 students for internships and placements
+
+Assistant Professor, Sample College of Engineering, Salem    July 2015 – May 2018
+• Handled Operating Systems and Computer Networks laboratory sessions
+• Organised a two-day FDP on Deep Learning with 120 participants
+
+EDUCATION
+Ph.D. in Computer Science and Engineering, Example University, Chennai, 2022
+M.E. in Computer Science and Engineering, Sample Engineering College, 2015, CGPA 8.6
+B.E. in Computer Science and Engineering, Demo Institute of Technology, 2013, 78%
+
+RESEARCH INTERESTS
+Graph neural networks, deep learning, medical image analysis, explainable AI
+
+PUBLICATIONS
+1. K. Raman, S. Kumar, "Graph neural networks for brain connectivity classification", Journal of Example Neuroscience, Elsevier, vol. 12, pp. 1-14, 2024. doi:10.1016/j.example.2024.01.002 (SCI)
+2. K. Raman, "Explainable deep learning for MRI", IEEE Access, vol. 11, 2023 (Scopus)
+3. K. Raman, A. Devi, "Hybrid CNN models for medical image analysis", Proceedings of the International Conference on Computing, 2021
+
+PATENTS
+Published patent: "System for automated grading using NLP", Indian Patent Application 202341000000, 2023
+
+FUNDED PROJECTS
+Principal Investigator, "Explainable AI for early dementia detection", SERB, Rs. 18 lakh, 2023-2026
+
+CERTIFICATIONS
+NPTEL Deep Learning (IIT Ropar) – Elite
+UGC NET (Computer Science), 2016
+
+AWARDS
+Best Teacher Award, Example Institute of Technology, 2021
+
+PROFESSIONAL MEMBERSHIPS
+IEEE (Member), ISTE (Life Member), CSI
+
+SKILLS
+Python, PyTorch, TensorFlow, scikit-learn, LaTeX, MATLAB, Git, curriculum design, research methodology
+
+LANGUAGES
+English, Tamil, Hindi

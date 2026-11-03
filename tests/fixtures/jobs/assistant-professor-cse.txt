@@ -1,0 +1,19 @@
+Position: Assistant Professor - Computer Science and Engineering
+Institution: Example Institute of Technology (synthetic test posting)
+
+Eligibility
+Ph.D. in Computer Science and Engineering or related discipline is essential.
+First class Master's degree (M.E./M.Tech) in CSE.
+Candidates must have qualified UGC-NET / SET / SLET or hold a Ph.D. as per UGC Regulations 2018.
+Minimum 2 years of teaching or research experience.
+Publications in Scopus indexed journals are required.
+
+Desirable
+Experience with Machine Learning, Deep Learning and Python is preferred.
+Knowledge of Cloud Computing and Data Structures is desirable.
+
+Responsibilities
+Teach undergraduate and postgraduate courses in Data Structures, Machine Learning and Algorithms.
+Guide student projects and research scholars.
+Publish research in reputed journals and apply for funded research projects.
+Contribute to curriculum development and NBA accreditation activities.

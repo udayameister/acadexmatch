@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { StorageService } from '@/lib/storage';
 import ScrapePipelinePanel from '@/components/ScrapePipelinePanel';
 import FacultyTickPanel from '@/components/FacultyTickPanel';
+import ResumeAdminPanel from '@/components/ResumeAdminPanel';
 import EventsAdminPanel from '@/components/EventsAdminPanel';
 import NewPostEmailCard from '@/components/NewPostEmailCard';
 import { useStorageValue } from '@/lib/useAuth';
@@ -39,10 +40,9 @@ import {
   Handshake,
   Library,
   Rss,
-  CalendarDays,
-} from 'lucide-react';
+  CalendarDays, FileSearch } from 'lucide-react';
 
-type AdminTab = 'growth' | 'quality' | 'announcements' | 'partners' | 'users' | 'institutions' | 'customers' | 'vacancies' | 'scraping' | 'facultytick' | 'events' | 'applications' | 'premium' | 'verification' | 'dpdp' | 'audit' | 'emails' | 'site' | 'directory';
+type AdminTab = 'growth' | 'quality' | 'announcements' | 'partners' | 'users' | 'institutions' | 'customers' | 'vacancies' | 'scraping' | 'facultytick' | 'events' | 'resume' | 'applications' | 'premium' | 'verification' | 'dpdp' | 'audit' | 'emails' | 'site' | 'directory';
 
 export default function AdminCompliancePage() {
   const [institutes, setInstitutes] = useState<Institute[]>([]);
@@ -185,6 +185,7 @@ export default function AdminCompliancePage() {
           ['scraping', Globe, `Job scraping${scrapePending ? ` (${scrapePending} to approve)` : ''}`],
           ['facultytick', Rss, `FacultyTick${ftPending ? ` (${ftPending} to approve)` : ''}`],
           ['events', CalendarDays, `Events & conferences${eventsToReview ? ` (${eventsToReview} to review)` : ''}`],
+          ['resume', FileSearch, 'Resume checker'],
           ['applications', ClipboardList, `Applications (${appCount})`],
           ['premium', Crown, `Premium${upgradeCount ? ` (${upgradeCount} new)` : ''}`],
           ['quality', ShieldAlert, 'Quality checks'],
@@ -227,6 +228,7 @@ export default function AdminCompliancePage() {
       {activeTab === 'scraping' && <ScrapePipelinePanel />}
       {activeTab === 'facultytick' && <FacultyTickPanel />}
       {activeTab === 'events' && <EventsAdminPanel />}
+      {activeTab === 'resume' && <ResumeAdminPanel />}
       {activeTab === 'customers' && <CustomersPanel />}
       {activeTab === 'emails' && <div className="space-y-5"><NewPostEmailCard /><EmailsPanel /></div>}
       {activeTab === 'premium' && <PremiumPanel />}
