@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
     const r = await recordOfflinePayment({
       email: String(body.email || ''), product: body.product, amount: Number(body.amount), method: String(body.method || 'other'),
       reference: body.reference ? String(body.reference) : undefined, paidOn: body.paidOn ? String(body.paidOn) : undefined,
-      plan: body.plan, months: body.months ? Number(body.months) : undefined, jobId: body.jobId ? String(body.jobId) : undefined, note: body.note ? String(body.note) : undefined,
+      plan: body.plan, months: body.months ? Number(body.months) : undefined, jobId: body.jobId ? String(body.jobId) : undefined, eventId: body.eventId ? String(body.eventId) : undefined, note: body.note ? String(body.note) : undefined,
     });
     return NextResponse.json(r, { status: r.ok ? 200 : 400 });
   }

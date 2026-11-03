@@ -2,7 +2,7 @@
 
 // Private areas: never indexed, even if a link to them leaks (see also lib/site.ts and app/robots.ts).
 const NOINDEX = ['/admin/:path*', '/admin', '/candidate/:path*', '/institute/:path*', '/account', '/account/:path*', '/unsubscribe', '/invoice/:path*', '/offer/:path*',
-  '/scraper', '/login', '/register', '/forgot-password', '/reset-password', '/verify-email', '/api/:path*'];
+  '/scraper', '/events/post', '/login', '/register', '/forgot-password', '/reset-password', '/verify-email', '/api/:path*'];
 
 const nextConfig = {
   reactStrictMode: true,

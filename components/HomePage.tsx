@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import OurCustomers from '@/components/OurCustomers';
 import HeroMatchPreview from '@/components/HeroMatchPreview';
+import HomeEventSections from '@/components/HomeEventSections';
 import { StorageService, isDeadlinePassed } from '@/lib/storage';
 import { payLabel, orNS, deadlineLabel, NOT_SPECIFIED } from '@/lib/display';
 import { useCurrentUser, useStorageValue, homePathForRole } from '@/lib/useAuth';
@@ -306,6 +307,9 @@ export default function HomePage() {
           </div>
         </section>
       )}
+
+      {/* ───────────────────────── Advertised FDPs / workshops / seminars, and conferences ───────────────────────── */}
+      <HomeEventSections />
 
       {/* ───────────────────────── Features ───────────────────────── */}
       <section className="max-w-7xl mx-auto px-4 sm:px-8 pb-24">

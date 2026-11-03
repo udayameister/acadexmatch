@@ -8,7 +8,7 @@ import { useCurrentUser, homePathForRole } from '@/lib/useAuth';
 import { UserRole } from '@/types';
 import { useProfilePhoto } from '@/lib/documents';
 import { PlanPill } from './Premium';
-import { Crown, KeyRound, ChevronDown, LogOut, Menu, X, LayoutDashboard, UserCircle, Bell, CalendarClock, Mic, Calculator } from 'lucide-react';
+import { Crown, KeyRound, ChevronDown, LogOut, Menu, X, LayoutDashboard, UserCircle, Bell, CalendarClock, Mic, Calculator, Megaphone } from 'lucide-react';
 
 interface NavLinkItem {
   href: string;
@@ -19,6 +19,7 @@ const LINKS: Record<'public' | UserRole, NavLinkItem[]> = {
   public: [
     { href: '/jobs', label: 'Find Jobs' },
     { href: '/institutes', label: 'Institutions' },
+    { href: '/events', label: 'Events' },
     { href: '/#how-it-works', label: 'How it works' },
     { href: '/premium', label: 'Plans' },
     { href: '/#for-institutions', label: 'For Institutions' },
@@ -195,6 +196,9 @@ export default function Navbar() {
                   )}
                   <Link href="/account" className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50">
                     <KeyRound className="w-4 h-4 text-slate-400" /> My account
+                  </Link>
+                  <Link href="/events/post" className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50">
+                    <Megaphone className="w-4 h-4 text-slate-400" /> Advertise an FDP or conference
                   </Link>
                   {user.role === 'candidate' && (
                     <>

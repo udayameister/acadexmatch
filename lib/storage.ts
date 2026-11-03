@@ -1,4 +1,5 @@
 import {
+  AcademicEvent,
   Institute,
   Job,
   CandidateProfile,
@@ -53,6 +54,7 @@ export const STORAGE_KEYS = {
   ANNOUNCEMENTS: 'acad_announcements_v3',
   PARTNERS: 'acad_partners_v3',
   INTERVIEW_PREP: 'acad_interview_prep_v3',
+  EVENTS: 'acad_events_v3',
 };
 
 interface PrepStateRecord { id: string; userId: string; kind: 'notes' | 'ticks'; data: Record<string, unknown>; updatedAt: string }
@@ -672,6 +674,11 @@ export const StorageService = {
 
   isCurrentUserPremium(): boolean {
     return isPremiumUser(this.getCurrentUser());
+  },
+
+  /** Event advertisements the signed-in user may see (live ones, their own, or all for the administrator). */
+  getEvents(): AcademicEvent[] {
+    return getFromStorage<AcademicEvent[]>(STORAGE_KEYS.EVENTS, []);
   },
 
   getPlanSettings(): PlanSettings {

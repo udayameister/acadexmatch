@@ -11,6 +11,8 @@ const PRODUCT: Record<Payment['product'], string> = {
   institution_premium: 'Institution Premium',
   featured_listing: 'Featured vacancy',
   urgent_listing: 'Urgent hiring label',
+  event_listing: 'FDP / workshop / seminar listing',
+  conference_listing: 'Conference listing',
 };
 
 

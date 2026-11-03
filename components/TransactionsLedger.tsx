@@ -4,6 +4,7 @@ import React, { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { StorageService, premiumPlansOf, institutionPriceFor } from '@/lib/storage';
 import { useStorageValue } from '@/lib/useAuth';
+import { eventPrices, productForKind } from '@/lib/events';
 import { hydrate } from '@/lib/clientSync';
 import { productLabel, paymentState, PaymentState, PAYMENT_STATE_LABEL, PAYMENT_STATE_STYLE } from '@/lib/paymentLabel';
 import type { Job, Payment, PaymentProduct, PlanSettings, User } from '@/types';
@@ -23,6 +24,8 @@ const PRODUCT: Record<PaymentProduct, string> = {
   institution_premium: 'Institution Premium',
   featured_listing: 'Featured vacancy',
   urgent_listing: 'Urgent hiring label',
+  event_listing: 'FDP / workshop / seminar listing',
+  conference_listing: 'Conference listing',
 };
 
 const rs = (n: number) => `₹${(Math.round(n * 100) / 100).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
@@ -167,16 +170,19 @@ function OfflineForm({ onClose }: { onClose: () => void }) {
   const jobs = useStorageValue<Job[]>(() => StorageService.getJobs(), []);
   const settings = useStorageValue<PlanSettings>(() => StorageService.getPlanSettings(), StorageService.getPlanSettings());
   const plans = premiumPlansOf(settings).filter(p => p.enabled);
-  const [f, setF] = useState({ email: '', product: 'institution_premium' as PaymentProduct, plan: plans[0]?.key || '', months: '', jobId: '', amount: '', method: 'bank_transfer', reference: '', paidOn: new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }), note: '' });
+  const [f, setF] = useState({ email: '', product: 'institution_premium' as PaymentProduct, plan: plans[0]?.key || '', months: '', jobId: '', eventId: '', amount: '', method: 'bank_transfer', reference: '', paidOn: new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }), note: '' });
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const buyer = users.find(u => u.email.toLowerCase() === f.email.trim().toLowerCase());
+  const buyerEvents = StorageService.getEvents().filter(e => buyer && e.createdBy === buyer.id && !e.paidAt && productForKind(e.kind) === f.product);
   const buyerJobs = jobs.filter(j => buyer?.instituteId && j.instituteId === buyer.instituteId && j.status === 'published');
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setF({ ...f, [k]: e.target.value });
 
   const suggested = f.product === 'candidate_premium' ? plans.find(p => p.key === f.plan)?.priceInr
     : f.product === 'institution_premium' ? institutionPriceFor(settings, StorageService.getInstitutes().find(i => i.id === buyer?.instituteId)).amount
-      : f.product === 'featured_listing' ? settings.featuredPriceInr : settings.urgentPriceInr;
+      : f.product === 'event_listing' ? eventPrices(settings).eventPriceInr
+        : f.product === 'conference_listing' ? eventPrices(settings).conferencePriceInr
+          : f.product === 'featured_listing' ? settings.featuredPriceInr : settings.urgentPriceInr;
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -210,6 +216,14 @@ function OfflineForm({ onClose }: { onClose: () => void }) {
           {f.product === 'institution_premium' && (
             <label className="block text-xs font-semibold text-slate-700">Months
               <input type="number" min={1} max={60} value={f.months} onChange={set('months')} placeholder={String(settings.institutionDurationMonths)} className={`${field} mt-1`} />
+            </label>
+          )}
+          {(f.product === 'event_listing' || f.product === 'conference_listing') && (
+            <label className="block text-xs font-semibold text-slate-700">Listing *
+              <select required value={f.eventId} onChange={set('eventId')} className={`${field} mt-1`}>
+                <option value="">{buyer ? (buyerEvents.length ? 'Choose…' : 'No unpaid listings of this type') : 'Enter the buyer first'}</option>
+                {buyerEvents.map(e => <option key={e.id} value={e.id}>{e.title}</option>)}
+              </select>
             </label>
           )}
           {(f.product === 'featured_listing' || f.product === 'urgent_listing') && (
@@ -265,7 +279,7 @@ export default function TransactionsLedger({ online }: { online: boolean }) {
       .filter(p => product === 'all' || p.product === product)
       .filter(p => source === 'all' || (p.source || 'razorpay') === source)
       .filter(p => { const d = istDate(when(p)); return (!from || d >= from) && (!to || d <= to); })
-      .filter(p => !needle || [p.userName, p.userEmail, p.instituteName, p.invoiceNumber, p.razorpayOrderId, p.razorpayPaymentId, p.jobTitle, p.methodDetail].some(v => v?.toLowerCase().includes(needle)))
+      .filter(p => !needle || [p.userName, p.userEmail, p.instituteName, p.invoiceNumber, p.razorpayOrderId, p.razorpayPaymentId, p.jobTitle, p.eventTitle, p.methodDetail].some(v => v?.toLowerCase().includes(needle)))
       .sort((a, b) => when(b).localeCompare(when(a)));
   }, [payments, q, state, product, source, from, to]);
 
@@ -340,7 +354,7 @@ export default function TransactionsLedger({ online }: { online: boolean }) {
                 <tr key={p.id} className="hover:bg-ivory cursor-pointer" onClick={() => setOpen(p.id)}>
                   <td className="px-4 py-2.5 whitespace-nowrap text-slate-600">{istDate(when(p))}</td>
                   <td className="px-4 py-2.5"><div className="font-medium text-slate-900">{p.userName}</div><div className="text-xs text-slate-500">{p.userEmail}</div></td>
-                  <td className="px-4 py-2.5 text-slate-700">{PRODUCT[p.product]}<div className="text-xs text-slate-500 max-w-[16rem] truncate">{p.instituteName || p.jobTitle || ''}{p.testMode ? ' · test' : ''}</div></td>
+                  <td className="px-4 py-2.5 text-slate-700">{PRODUCT[p.product]}<div className="text-xs text-slate-500 max-w-[16rem] truncate">{p.eventTitle || p.instituteName || p.jobTitle || ''}{p.testMode ? ' · test' : ''}</div></td>
                   <td className="px-4 py-2.5 text-slate-600 text-xs">{p.methodDetail || (p.status === 'failed' ? <span className="text-crimson-700">{p.failureReason || 'Failed'}</span> : '—')}{p.source === 'offline' && <div className="text-xs text-slate-400">offline</div>}</td>
                   <td className="px-4 py-2.5 text-right whitespace-nowrap"><div className="font-semibold text-slate-900">{rs(p.amount)}</div>{p.refundedAmount ? <div className="text-xs text-gold-800">−{rs(p.refundedAmount)}</div> : null}</td>
                   <td className="px-4 py-2.5"><span className={`text-xs font-semibold px-2 py-0.5 rounded-full border whitespace-nowrap ${PAYMENT_STATE_STYLE[paymentState(p)]}`}>{PAYMENT_STATE_LABEL[paymentState(p)]}</span></td>

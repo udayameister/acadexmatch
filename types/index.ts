@@ -93,6 +93,58 @@ export interface PlanSettings {
   featuredDays?: number;
   urgentPriceInr?: number;
   urgentDays?: number;
+  /** Advertisement price (₹, incl. GST) of an FDP, workshop or seminar listing. */
+  eventPriceInr?: number;
+  /** Advertisement price (₹, incl. GST) of a conference listing. */
+  conferencePriceInr?: number;
+}
+
+/** Academic events advertised on AcadeXMatch. FDP, workshop and seminar share one price; conferences have their own. */
+export type EventKind = 'fdp' | 'workshop' | 'seminar' | 'conference';
+export type EventMode = 'in_person' | 'online' | 'hybrid';
+/**
+ * awaiting_payment: saved, not paid · under_review: paid (or fee waived), waiting for the administrator ·
+ * published: shown on the site until the event ends · rejected: not shown (with the reason).
+ */
+export type EventStatus = 'awaiting_payment' | 'under_review' | 'published' | 'rejected';
+
+export interface AcademicEvent {
+  id: string;
+  kind: EventKind;
+  title: string;
+  organizer: string;
+  department?: string | null;
+  instituteId?: string | null;
+  mode: EventMode;
+  venue?: string | null;
+  city?: string | null;
+  state: string;
+  /** YYYY-MM-DD */
+  startDate: string;
+  endDate: string;
+  registrationDeadline?: string | null;
+  registrationFee?: string | null;
+  description: string;
+  topics: string[];
+  audience?: string | null;
+  registrationLink?: string | null;
+  brochureLink?: string | null;
+  contactEmail: string;
+  contactPhone?: string | null;
+  /** Conference only. */
+  scope?: 'national' | 'international' | null;
+  paperDeadline?: string | null;
+  publication?: string | null;
+  status: EventStatus;
+  reviewNote?: string | null;
+  createdBy: string;
+  createdAt: string;
+  updatedAt?: string;
+  paymentId?: string | null;
+  paidAt?: string | null;
+  /** Published without payment by the administrator. */
+  feeWaived?: boolean;
+  publishedAt?: string | null;
 }
 
 /** AISHE institution category, read from the AISHE code prefix (C-, S-, U-, R-). */
@@ -100,7 +152,7 @@ export type InstitutionCategory = 'college' | 'standalone' | 'university' | 'rnd
 /** Institution Premium price (₹, incl. GST) for each AISHE category. */
 export type InstitutionCategoryPrices = Record<InstitutionCategory, number>;
 
-export type PaymentProduct = 'candidate_premium' | 'institution_premium' | 'featured_listing' | 'urgent_listing';
+export type PaymentProduct = 'candidate_premium' | 'institution_premium' | 'featured_listing' | 'urgent_listing' | 'event_listing' | 'conference_listing';
 
 /** A candidate Premium plan option (monthly, yearly or the discounted research-scholar plan). */
 export interface PremiumPlanOption {
@@ -131,6 +183,9 @@ export interface Payment {
   jobId?: string;
   jobTitle?: string;
   days?: number;
+  /** FDP / workshop / seminar / conference advertised by an event listing payment. */
+  eventId?: string;
+  eventTitle?: string;
   status: 'created' | 'paid' | 'failed';
   razorpayOrderId: string;
   razorpayPaymentId?: string;

@@ -59,6 +59,7 @@ export default function Footer() {
         { href: '/institute/post-job', label: 'Post a vacancy' },
         { href: '/institute/ats', label: 'Applicant pipeline' },
         { href: '/institutes', label: 'Institution directory' },
+        { href: '/events/post', label: 'Advertise an FDP or conference' },
       ],
     },
     {
@@ -69,6 +70,8 @@ export default function Footer() {
         { href: '/#how-it-works', label: 'How it works' },
         { href: '/#faq', label: 'FAQ' },
         { href: '/premium', label: 'Plans & Premium' },
+        { href: '/events', label: 'FDPs, workshops & seminars' },
+        { href: '/conferences', label: 'Conferences' },
         { href: '/salary-calculator', label: 'Salary calculator' },
         { href: '/terms', label: 'Terms of Service' },
         { href: '/privacy', label: 'Privacy Policy' },

@@ -4,8 +4,9 @@ import {
   StorageService, STORAGE_KEYS, DEFAULT_ADMIN, StoreContext, setStoreContextProvider, toPublicUser,
 } from '@/lib/storage';
 import { INITIAL_INSTITUTES, INITIAL_JOBS } from '@/lib/data';
-import type { Announcement, Application, CandidateProfile, InterviewSlotOffer, Job, JobAlert, Partner, TalentInvite, User, UserAccount } from '@/types';
+import type { AcademicEvent, Announcement, Application, CandidateProfile, InterviewSlotOffer, Job, JobAlert, Partner, TalentInvite, User, UserAccount } from '@/types';
 import { isPremiumUser } from '@/lib/storage';
+import { isEventLive } from '@/lib/events';
 import { openStore, deleteBlobPrefix, DATA_DIR as PERSIST_DATA_DIR, type Db } from './persist';
 import { digest } from './security'; // also installs the scrypt password hasher
 
@@ -49,7 +50,7 @@ function seed(db: Db): boolean {
   let changed = false;
   if (!Array.isArray(db[STORAGE_KEYS.INSTITUTES])) { db[STORAGE_KEYS.INSTITUTES] = INITIAL_INSTITUTES; changed = true; }
   if (!Array.isArray(db[STORAGE_KEYS.JOBS])) { db[STORAGE_KEYS.JOBS] = INITIAL_JOBS; changed = true; }
-  for (const k of [STORAGE_KEYS.APPLICATIONS, STORAGE_KEYS.DPDP_REQUESTS, STORAGE_KEYS.AUDIT_LOGS, STORAGE_KEYS.USERS, STORAGE_KEYS.UPGRADE_REQUESTS, STORAGE_KEYS.PAYMENTS, STORAGE_KEYS.JOB_ALERTS, STORAGE_KEYS.TRACKED_JOBS, STORAGE_KEYS.INTERVIEW_SLOTS, STORAGE_KEYS.TALENT_INVITES, STORAGE_KEYS.ANNOUNCEMENTS, STORAGE_KEYS.PARTNERS, STORAGE_KEYS.INTERVIEW_PREP, DOCUMENTS_KEY]) {
+  for (const k of [STORAGE_KEYS.APPLICATIONS, STORAGE_KEYS.DPDP_REQUESTS, STORAGE_KEYS.AUDIT_LOGS, STORAGE_KEYS.USERS, STORAGE_KEYS.UPGRADE_REQUESTS, STORAGE_KEYS.PAYMENTS, STORAGE_KEYS.JOB_ALERTS, STORAGE_KEYS.TRACKED_JOBS, STORAGE_KEYS.INTERVIEW_SLOTS, STORAGE_KEYS.TALENT_INVITES, STORAGE_KEYS.ANNOUNCEMENTS, STORAGE_KEYS.PARTNERS, STORAGE_KEYS.INTERVIEW_PREP, STORAGE_KEYS.EVENTS, DOCUMENTS_KEY]) {
     if (!Array.isArray(db[k])) { db[k] = []; changed = true; }
   }
   if (!db[STORAGE_KEYS.CANDIDATE_PROFILES] || typeof db[STORAGE_KEYS.CANDIDATE_PROFILES] !== 'object') { db[STORAGE_KEYS.CANDIDATE_PROFILES] = {}; changed = true; }
@@ -280,6 +281,11 @@ export function buildSnapshot(db: Db, userId: string | null): { me: User | null;
   const anns = (db[STORAGE_KEYS.ANNOUNCEMENTS] as Announcement[]) || [];
   const visibleAnns = isAdmin ? anns : anns.filter(a => a.active && (!a.expiresAt || a.expiresAt >= todayIso) && audienceOk(a));
   const partners = (db[STORAGE_KEYS.PARTNERS] as Partner[]) || [];
+  // Event advertisements: everyone sees approved ones until they end; posters see their own; the admin sees all.
+  const allEvents = (db[STORAGE_KEYS.EVENTS] as AcademicEvent[]) || [];
+  const visibleEvents = isAdmin ? allEvents : allEvents
+    .filter(e => isEventLive(e, todayIso) || (me && e.createdBy === me.id))
+    .map(e => (me && e.createdBy === me.id ? e : { ...e, createdBy: '', paymentId: null, reviewNote: null }));
 
   const own = <T extends { userId?: string }>(key: string): T[] => {
     const all = (db[key] as T[]) || [];
@@ -306,6 +312,7 @@ export function buildSnapshot(db: Db, userId: string | null): { me: User | null;
       [STORAGE_KEYS.ANNOUNCEMENTS]: visibleAnns,
       [STORAGE_KEYS.PARTNERS]: isAdmin ? partners : partners.filter(p => p.active),
       [STORAGE_KEYS.PLAN_SETTINGS]: db[STORAGE_KEYS.PLAN_SETTINGS] ?? null,
+      [STORAGE_KEYS.EVENTS]: visibleEvents,
     },
   };
 }
@@ -336,7 +343,7 @@ export function verifiedEmailRequired(db: Db): boolean {
   const v = (process.env.REQUIRE_VERIFIED_EMAIL || 'auto').toLowerCase();
   return v === 'on' || (v !== 'off' && emailProven(db));
 }
-const unverified = (me: UserAccount | undefined, db: Db) => !!me && me.role !== 'super_admin' && me.emailVerified === false && verifiedEmailRequired(db);
+export const unverified = (me: UserAccount | undefined, db: Db) => !!me && me.role !== 'super_admin' && me.emailVerified === false && verifiedEmailRequired(db);
 const VERIFY_FIRST = 'Please confirm your email address first — open the link we emailed you, or send a new one from My account.';
 const jobOfOwnInstitute: Guard = (me, args, db) => {
   if (me?.role === 'super_admin') return true;

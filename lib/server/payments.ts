@@ -3,7 +3,8 @@ import { STORAGE_KEYS, DEFAULT_PLAN_SETTINGS, DEFAULT_PROMOTION, StorageService,
 import { withDb, accountOf } from './db';
 import { emailLayout, sendMail, appUrl } from './mailer';
 import { productLabel } from '@/lib/paymentLabel';
-import type { Institute, Job, Payment, PaymentEvent, PaymentProduct, PaymentRefund, PlanSettings, PremiumPlanOption, UserAccount } from '@/types';
+import { eventPriceFor, productForKind, EVENT_KIND_SHORT } from '@/lib/events';
+import type { AcademicEvent, Institute, Job, Payment, PaymentEvent, PaymentProduct, PaymentRefund, PlanSettings, PremiumPlanOption, UserAccount } from '@/types';
 
 /*
  * Razorpay payments. Keys come from .env.local (RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET; optional
@@ -40,7 +41,7 @@ function addDays(fromIso: string, days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-export interface OrderOptions { plan?: PremiumPlanOption['key']; jobId?: string }
+export interface OrderOptions { plan?: PremiumPlanOption['key']; jobId?: string; eventId?: string }
 
 /** Creates a Razorpay order for the signed-in user. */
 export async function createOrder(userId: string, product: PaymentProduct, opts: OrderOptions = {}): Promise<{ ok: true; order: { id: string; amount: number; currency: string }; payment: Payment; keyId: string } | { ok: false; error: string; status: number }> {
@@ -66,6 +67,15 @@ export async function createOrder(userId: string, product: PaymentProduct, opts:
       const amount = Math.round((featured ? s.featuredPriceInr ?? DEFAULT_PROMOTION.featuredPriceInr : s.urgentPriceInr ?? DEFAULT_PROMOTION.urgentPriceInr) || 0);
       const days = (featured ? s.featuredDays : s.urgentDays) || (featured ? DEFAULT_PROMOTION.featuredDays : DEFAULT_PROMOTION.urgentDays);
       return { me, inst, amount, months: 0, days, jobId: job.id, jobTitle: job.title };
+    }
+    if (product === 'event_listing' || product === 'conference_listing') {
+      const ev = ((db[STORAGE_KEYS.EVENTS] as AcademicEvent[]) || []).find(e => e.id === opts.eventId);
+      if (!ev || ev.createdBy !== me.id) return { error: 'Listing not found.' };
+      if (ev.paidAt || ev.feeWaived) return { error: 'This listing is already paid for.' };
+      if (productForKind(ev.kind) !== product) return { error: 'Payment type does not match the listing.' };
+      if (ev.endDate < todayIso()) return { error: 'This event has already ended.' };
+      const inst = ev.instituteId ? (db[STORAGE_KEYS.INSTITUTES] as Institute[]).find(i => i.id === ev.instituteId) : undefined;
+      return { me, inst, amount: eventPriceFor(s, ev.kind), months: 0, eventId: ev.id, eventTitle: `${EVENT_KIND_SHORT[ev.kind]}: ${ev.title}` };
     }
     if (me.role !== 'institute_admin' || !me.instituteId) return { error: 'Only an institute administrator can pay for the institution plan.' };
     const inst = (db[STORAGE_KEYS.INSTITUTES] as Institute[]).find(i => i.id === me.instituteId);
@@ -100,6 +110,7 @@ export async function createOrder(userId: string, product: PaymentProduct, opts:
     amount: prep.amount, currency: 'INR', months: prep.months, status: 'created',
     plan: 'plan' in prep ? prep.plan : undefined,
     jobId: 'jobId' in prep ? prep.jobId : undefined, jobTitle: 'jobTitle' in prep ? prep.jobTitle : undefined, days: 'days' in prep ? prep.days : undefined,
+    eventId: 'eventId' in prep ? prep.eventId : undefined, eventTitle: 'eventTitle' in prep ? prep.eventTitle : undefined,
     razorpayOrderId: order.id, createdAt: new Date().toISOString(), source: 'razorpay', events: [evt('created', `Order ${order.id}`)],
     testMode: (process.env.RAZORPAY_KEY_ID || '').startsWith('rzp_test_'),
   };
@@ -217,6 +228,17 @@ function activate(db: Record<string, unknown>, c: { set: (k: string, v: unknown)
       p.activeUntil = until;
       c.set(STORAGE_KEYS.JOBS, jobs);
     }
+  } else if (p.product === 'event_listing' || p.product === 'conference_listing') {
+    const events = ((db[STORAGE_KEYS.EVENTS] as AcademicEvent[]) || []).slice();
+    const ev = events.find(e => e.id === p.eventId);
+    if (ev) {
+      ev.paidAt = new Date().toISOString();
+      ev.paymentId = p.id;
+      // Paid listings go to the administrator for review before they are shown.
+      if (ev.status !== 'published') { ev.status = 'under_review'; ev.reviewNote = null; }
+      p.activeUntil = ev.endDate;
+      c.set(STORAGE_KEYS.EVENTS, events);
+    }
   } else if (p.instituteId) {
     const insts = (db[STORAGE_KEYS.INSTITUTES] as Institute[]).slice();
     const inst = insts.find(x => x.id === p.instituteId);
@@ -253,6 +275,14 @@ function revoke(db: Record<string, unknown>, c: { set: (k: string, v: unknown) =
     job[field] = until <= today ? null : until;
     c.set(STORAGE_KEYS.JOBS, jobs);
     return until <= today ? done('Promotion ended', today) : done(`Promotion shortened to ${until}`, until);
+  }
+  if (p.product === 'event_listing' || p.product === 'conference_listing') {
+    const events = ((db[STORAGE_KEYS.EVENTS] as AcademicEvent[]) || []).slice();
+    const ev = events.find(e => e.id === p.eventId);
+    if (!ev || ev.status === 'rejected') return 'Nothing left to end';
+    Object.assign(ev, { status: 'rejected', reviewNote: 'Payment refunded', paidAt: null, paymentId: null });
+    c.set(STORAGE_KEYS.EVENTS, events);
+    return done('Listing taken down', today);
   }
   const insts = (db[STORAGE_KEYS.INSTITUTES] as Institute[]).slice();
   const inst = insts.find(x => x.id === p.instituteId);
@@ -373,7 +403,7 @@ export async function refundFromWebhook(r: { id: string; payment_id: string; amo
 /** Admin: records money received outside Razorpay (bank transfer, UPI to the account, cheque, cash), activates the plan and issues an invoice. */
 export async function recordOfflinePayment(input: {
   email: string; product: PaymentProduct; amount: number; method: string; reference?: string; paidOn?: string;
-  plan?: PremiumPlanOption['key']; months?: number; jobId?: string; note?: string;
+  plan?: PremiumPlanOption['key']; months?: number; jobId?: string; eventId?: string; note?: string;
 }): Promise<{ ok: boolean; error?: string; payment?: Payment }> {
   const res = await withDb(null, (db, c) => {
     const users = db[STORAGE_KEYS.USERS] as UserAccount[];
@@ -401,6 +431,12 @@ export async function recordOfflinePayment(input: {
       const inst = (db[STORAGE_KEYS.INSTITUTES] as Institute[]).find(i => i.id === u.instituteId);
       if (!inst) return { ok: false, error: 'That account is not linked to an institute.' };
       p.instituteId = inst.id; p.instituteName = inst.name; p.months = Math.max(1, Math.round(Number(input.months) || s.institutionDurationMonths));
+    } else if (input.product === 'event_listing' || input.product === 'conference_listing') {
+      const ev = ((db[STORAGE_KEYS.EVENTS] as AcademicEvent[]) || []).find(e => e.id === input.eventId);
+      if (!ev || ev.createdBy !== u.id) return { ok: false, error: 'Choose a listing posted by that account.' };
+      if (productForKind(ev.kind) !== input.product) return { ok: false, error: 'That listing is of the other type.' };
+      if (ev.paidAt) return { ok: false, error: 'That listing is already paid for.' };
+      p.eventId = ev.id; p.eventTitle = `${EVENT_KIND_SHORT[ev.kind]}: ${ev.title}`;
     } else {
       const job = (db[STORAGE_KEYS.JOBS] as Job[]).find(j => j.id === input.jobId);
       if (!job || job.instituteId !== u.instituteId) return { ok: false, error: 'Choose a vacancy of that account’s institute.' };

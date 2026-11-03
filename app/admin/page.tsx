@@ -4,6 +4,9 @@ import React, { useState, useEffect } from 'react';
 import { StorageService } from '@/lib/storage';
 import ScrapePipelinePanel from '@/components/ScrapePipelinePanel';
 import FacultyTickPanel from '@/components/FacultyTickPanel';
+import EventsAdminPanel from '@/components/EventsAdminPanel';
+import { useStorageValue } from '@/lib/useAuth';
+import type { AcademicEvent } from '@/types';
 import CustomersPanel from '@/components/CustomersPanel';
 import EmailsPanel from '@/components/EmailsPanel';
 import GrowthPanel from '@/components/GrowthPanel';
@@ -35,9 +38,10 @@ import {
   Handshake,
   Library,
   Rss,
+  CalendarDays,
 } from 'lucide-react';
 
-type AdminTab = 'growth' | 'quality' | 'announcements' | 'partners' | 'users' | 'institutions' | 'customers' | 'vacancies' | 'scraping' | 'facultytick' | 'applications' | 'premium' | 'verification' | 'dpdp' | 'audit' | 'emails' | 'site' | 'directory';
+type AdminTab = 'growth' | 'quality' | 'announcements' | 'partners' | 'users' | 'institutions' | 'customers' | 'vacancies' | 'scraping' | 'facultytick' | 'events' | 'applications' | 'premium' | 'verification' | 'dpdp' | 'audit' | 'emails' | 'site' | 'directory';
 
 export default function AdminCompliancePage() {
   const [institutes, setInstitutes] = useState<Institute[]>([]);
@@ -52,6 +56,7 @@ export default function AdminCompliancePage() {
   const [upgradeCount, setUpgradeCount] = useState(0);
   const [scrapePending, setScrapePending] = useState(0);
   const [ftPending, setFtPending] = useState(0);
+  const eventsToReview = useStorageValue<number>(() => StorageService.getEvents().filter((e: AcademicEvent) => e.status === 'under_review').length, 0);
 
   useEffect(() => {
     const check = () => fetch('/api/scrape-pipeline', { cache: 'no-store', credentials: 'same-origin' })
@@ -178,6 +183,7 @@ export default function AdminCompliancePage() {
           ['vacancies', Briefcase, `Vacancies (${allJobCount})`],
           ['scraping', Globe, `Job scraping${scrapePending ? ` (${scrapePending} to approve)` : ''}`],
           ['facultytick', Rss, `FacultyTick${ftPending ? ` (${ftPending} to approve)` : ''}`],
+          ['events', CalendarDays, `Events & conferences${eventsToReview ? ` (${eventsToReview} to review)` : ''}`],
           ['applications', ClipboardList, `Applications (${appCount})`],
           ['premium', Crown, `Premium${upgradeCount ? ` (${upgradeCount} new)` : ''}`],
           ['quality', ShieldAlert, 'Quality checks'],
@@ -219,6 +225,7 @@ export default function AdminCompliancePage() {
       {activeTab === 'directory' && <AisheDirectoryPanel />}
       {activeTab === 'scraping' && <ScrapePipelinePanel />}
       {activeTab === 'facultytick' && <FacultyTickPanel />}
+      {activeTab === 'events' && <EventsAdminPanel />}
       {activeTab === 'customers' && <CustomersPanel />}
       {activeTab === 'emails' && <EmailsPanel />}
       {activeTab === 'premium' && <PremiumPanel />}

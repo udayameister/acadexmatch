@@ -9,16 +9,17 @@ export const DEFAULT_DESCRIPTION =
   'Find Assistant Professor and faculty vacancies at Indian universities and colleges, with UGC/AICTE eligibility, 7th CPC pay and explainable match scores. Institutions hire faculty end to end on AcadeXMatch.';
 
 /** Pages anyone may see; they are server-rendered with public data. Everything else waits for sign-in data. */
-const PUBLIC_PREFIXES = ['/jobs', '/institutes', '/about', '/premium', '/salary-calculator', '/terms', '/privacy'];
+const PUBLIC_PREFIXES = ['/jobs', '/institutes', '/about', '/premium', '/salary-calculator', '/terms', '/privacy', '/events', '/conferences'];
 export function isPublicPath(pathname: string | null | undefined): boolean {
   const p = pathname || '/';
+  if (p === '/events/post' || p.startsWith('/events/post/')) return false;
   return p === '/' || PUBLIC_PREFIXES.some(x => p === x || p.startsWith(`${x}/`));
 }
 
 /** Routes that must never appear in search results (also sent as X-Robots-Tag, see next.config.mjs). */
 export const PRIVATE_PREFIXES = [
   '/admin', '/candidate', '/institute', '/account', '/invoice', '/offer', '/scraper',
-  '/login', '/register', '/forgot-password', '/reset-password', '/verify-email', '/api', '/unsubscribe',
+  '/login', '/register', '/forgot-password', '/reset-password', '/verify-email', '/api', '/unsubscribe', '/events/post',
 ];
 
 export function absoluteUrl(path: string): string {

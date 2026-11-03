@@ -110,6 +110,12 @@ export const HELP_ARTICLES: HelpArticle[] = [
     links: [{ label: 'Salary calculator', href: '/salary-calculator' }],
   },
   {
+    id: 'events', for: 'all', title: 'FDPs, workshops, seminars and conferences',
+    keywords: ['fdp', 'faculty development programme', 'faculty development program', 'workshop', 'seminar', 'conference', 'call for papers', 'advertise event', 'post event', 'post fdp', 'post conference', 'event listing', 'webinar'],
+    answer: 'Upcoming FDPs, workshops and seminars are on the Events page, and conferences have their own Conferences page. Both are also on the home page.\nOrganisers can advertise their event:\n• FDP, workshop or seminar: ₹1,000 per listing\n• Conference: ₹2,000 per listing\nFill in the details, pay online, and our team checks the listing. It stays on the site until the event ends.',
+    links: [{ label: 'Events', href: '/events' }, { label: 'Conferences', href: '/conferences' }, { label: 'Advertise an event', href: '/events/post' }],
+  },
+  {
     id: 'institutions-list', for: 'all', title: 'Institution profiles',
     keywords: ['institutions', 'colleges', 'universities', 'institution list', 'institute profile', 'which colleges'],
     answer: 'The Institutions page lists the institutions on AcadeXMatch, each with its profile and open vacancies.',

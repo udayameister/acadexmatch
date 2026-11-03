@@ -37,7 +37,7 @@ export function useOnlinePayment(): { configured: boolean; testMode: boolean; we
 }
 
 /** Pays through Razorpay checkout and activates the plan when the server has verified the payment. */
-export default function PayButton({ product, label, description, className = '', plan, jobId, onPaid }: { product: PaymentProduct; label: string; description: string; className?: string; plan?: string; jobId?: string; onPaid?: () => void }) {
+export default function PayButton({ product, label, description, className = '', plan, jobId, eventId, onPaid }: { product: PaymentProduct; label: string; description: string; className?: string; plan?: string; jobId?: string; eventId?: string; onPaid?: () => void }) {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
@@ -45,7 +45,7 @@ export default function PayButton({ product, label, description, className = '',
     setBusy(true);
     setMsg(null);
     try {
-      const r = await fetch('/api/payments/order', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ product, plan, jobId }) });
+      const r = await fetch('/api/payments/order', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ product, plan, jobId, eventId }) });
       const order = await r.json();
       if (!r.ok) throw new Error(order.error || 'Could not start the payment.');
       if (!(await loadCheckout()) || !window.Razorpay) throw new Error('Could not load Razorpay checkout. Check your internet connection and try again.');
@@ -61,7 +61,7 @@ export default function PayButton({ product, label, description, className = '',
           if (v.ok && d.ok) {
             await hydrate();
             onPaid?.();
-            setMsg({ ok: true, text: `Payment confirmed — active until ${d.payment?.activeUntil}. A receipt has been emailed to you.` });
+            setMsg({ ok: true, text: eventId ? 'Payment confirmed. Your listing is now with our team for a quick review; a receipt has been emailed to you.' : `Payment confirmed — active until ${d.payment?.activeUntil}. A receipt has been emailed to you.` });
           } else {
             setMsg({ ok: false, text: d.error || 'We could not confirm the payment yet. If money was deducted it will be confirmed automatically.' });
           }
