@@ -155,10 +155,9 @@ function niceCase(name: string, title: string): string {
   if (name !== name.toUpperCase()) return name;
   const seen = new Map<string, string>();
   // Use the title's spelling of a word only when the title is not itself in capitals (keeps acronyms like NITC).
-  const letters = title.replace(/[^A-Za-z]/g, '');
-  const shouty = letters.length > 0 && letters.replace(/[^A-Z]/g, '').length / letters.length > 0.6;
-  const words = shouty ? [...title.matchAll(/\(([^)]{2,15})\)/g)].map(m => m[1]) : title.split(/[\s,()]+/);
-  for (const w of words) if (w) seen.set(w.toLowerCase(), w);
+  // Take the title's spelling of a word unless it is in capitals there; abbreviations in brackets, e.g. (NITC), are kept.
+  const abbreviations = new Set([...title.matchAll(/\(([^)]{2,15})\)/g)].flatMap(m => m[1].split(/\s+/)));
+  for (const w of title.split(/[\s,()]+/)) if (w && (w !== w.toUpperCase() || abbreviations.has(w))) seen.set(w.toLowerCase(), w);
   return name.split(/(\s+)/).map((w, i) => {
     if (/^\s+$/.test(w)) return w;
     const core = w.replace(/^[("'‘]+|[)"'’,.:;]+$/g, '');
