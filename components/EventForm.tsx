@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { ImagePlus, Loader2, Trash2, X } from 'lucide-react';
 import { hydrate } from '@/lib/clientSync';
 import {
-  EVENT_KIND_LABEL, EVENT_KINDS, EVENT_MODE_LABEL, INDIAN_STATES, eventPriceFor, isConference, posterUrl, type EventInput,
+  EVENT_KIND_LABEL, EVENT_KINDS, EVENT_MODE_LABEL, INDIAN_STATES, eventPriceFor, isConference, listingIsFree, posterUrl, type EventInput,
 } from '@/lib/events';
 import type { AcademicEvent, EventKind, EventMode, PlanSettings } from '@/types';
 
@@ -116,7 +116,7 @@ export default function EventForm({ event, defaults, settings, adminPublish = fa
               <label key={k} className={`p-3 rounded-xl border text-sm cursor-pointer ${form.kind === k ? 'border-brand-700 bg-brand-50 ring-1 ring-brand-700' : 'border-slate-200 hover:border-slate-300'} ${locked ? 'opacity-40 cursor-not-allowed' : ''}`}>
                 <input type="radio" name="kind" value={k} checked={form.kind === k} disabled={locked} onChange={() => setForm({ ...form, kind: k })} className="sr-only" />
                 <span className="font-semibold text-slate-900 block">{k === 'fdp' ? 'FDP' : EVENT_KIND_LABEL[k]}</span>
-                <span className="text-xs text-slate-500">{adminPublish || isAdmin ? 'Free (admin)' : `₹${eventPriceFor(settings, k).toLocaleString('en-IN')}`}</span>
+                <span className="text-xs text-slate-500">{adminPublish || isAdmin ? 'Free (admin)' : listingIsFree(settings) ? 'Free' : `₹${eventPriceFor(settings, k).toLocaleString('en-IN')}`}</span>
               </label>
             );
           })}
@@ -186,12 +186,12 @@ export default function EventForm({ event, defaults, settings, adminPublish = fa
       {error && <p role="alert" className="p-3 rounded-xl bg-crimson-50 border border-crimson-100 text-sm text-crimson-700">{error}</p>}
       <div className="flex flex-col sm:flex-row sm:items-center gap-3">
         <button disabled={busy} className="inline-flex justify-center items-center gap-2 px-6 py-3 rounded-xl bg-brand-900 hover:bg-brand-800 text-white text-sm font-semibold disabled:opacity-60">
-          {busy && <Loader2 className="w-4 h-4 animate-spin" />}{event ? 'Save changes' : adminPublish ? 'Publish now (free)' : 'Save and continue to payment'}
+          {busy && <Loader2 className="w-4 h-4 animate-spin" />}{event ? 'Save changes' : adminPublish ? 'Publish now (free)' : listingIsFree(settings) && !isAdmin ? 'Save and send for review (free)' : 'Save and continue to payment'}
         </button>
         <p className="text-xs text-slate-500">
           {adminPublish ? 'Shown on the site straight away, without payment.'
             : event && paid && !isAdmin ? 'Changes to a paid listing are checked again before they are shown.'
-              : event ? '' : `You pay ₹${eventPriceFor(settings, form.kind).toLocaleString('en-IN')} on the next step.`}
+              : event ? '' : listingIsFree(settings) ? 'No payment during the launch offer. Our team checks the listing before it is shown.' : `You pay ₹${eventPriceFor(settings, form.kind).toLocaleString('en-IN')} on the next step.`}
         </p>
       </div>
     </form>

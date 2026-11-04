@@ -112,7 +112,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
   {
     id: 'events', for: 'all', title: 'FDPs, workshops, seminars and conferences',
     keywords: ['fdp', 'faculty development programme', 'faculty development program', 'workshop', 'seminar', 'conference', 'call for papers', 'advertise event', 'post event', 'post fdp', 'post conference', 'event listing', 'webinar'],
-    answer: 'Upcoming FDPs, workshops and seminars are on the Events page, and conferences have their own Conferences page. Both are also on the home page.\nOrganisers can advertise their event:\n• FDP, workshop or seminar: ₹1,000 per listing\n• Conference: ₹2,000 per listing\nFill in the details, pay online, and our team checks the listing. It stays on the site until the event ends.',
+    answer: 'Upcoming FDPs, workshops and seminars are on the Events page, and conferences have their own Conferences page. Both are also on the home page.\nOrganisers can advertise their event:\n• FDP, workshop or seminar: ₹1,000 per listing\n• Conference: ₹2,000 per listing\nFill in the details, pay online, and our team checks the listing. It stays on the site until the event ends.\nLaunch offer: listings are free for now (the Advertise page shows until when); our team still checks each one.',
     links: [{ label: 'Events', href: '/events' }, { label: 'Conferences', href: '/conferences' }, { label: 'Advertise an event', href: '/events/post' }],
   },
   {
@@ -230,7 +230,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
   {
     id: 'inst-subscription', for: ['institute'], title: 'Institution Premium subscription and payment',
     keywords: ['subscription', 'subscribe', 'payment', 'pay', 'renew', 'expired', 'activate', 'razorpay', 'invoice', 'receipt', 'gst', 'bill', 'institution premium'],
-    answer: 'Institution accounts are Premium only. The yearly price depends on your AISHE category: University ₹30,000, College ₹20,000, R&D ₹10,000, Standalone ₹5,000.\nYour institute administrator can pay online (Razorpay) from the dashboard and the tools open immediately, or send a subscription request. Invoices and receipts are on My account.',
+    answer: 'Launch offer: Institution Premium is free for one year for every institution that the AcadeXMatch team verifies and approves. After the offer, institution accounts are Premium only. The yearly price depends on your AISHE category: University ₹30,000, College ₹20,000, R&D ₹10,000, Standalone ₹5,000.\nYour institute administrator can pay online (Razorpay) from the dashboard and the tools open immediately, or send a subscription request. Invoices and receipts are on My account.',
     links: [{ label: 'Plans', href: '/premium' }, { label: 'My account', href: '/account' }],
   },
   {

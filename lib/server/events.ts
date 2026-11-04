@@ -1,7 +1,9 @@
-import { STORAGE_KEYS, StorageService } from '@/lib/storage';
+import { STORAGE_KEYS, StorageService, DEFAULT_PLAN_SETTINGS, eventsFreeActive } from '@/lib/storage';
 import { withDb, accountOf, unverified } from './db';
 import { cleanEventInput, isEventLive, todayIstIso, EVENT_KIND_SHORT } from '@/lib/events';
-import type { AcademicEvent, Institute } from '@/types';
+import type { AcademicEvent, Institute, PlanSettings } from '@/types';
+
+const settingsOf = (db: Record<string, unknown>): PlanSettings => ({ ...DEFAULT_PLAN_SETTINGS, ...((db[STORAGE_KEYS.PLAN_SETTINGS] as Partial<PlanSettings>) || {}) });
 
 /*
  * Event advertisements (FDP / workshop / seminar / conference). Anyone signed in can create one; it is shown on
@@ -27,17 +29,21 @@ export function saveEvent(userId: string, raw: unknown, id?: string, opts: { pub
     if (!clean.ok) return { ok: false, error: clean.error, status: 400 };
     const events = list(db);
     const now = new Date().toISOString();
+    // Launch offer: listings are free (no payment) but are still checked by the administrator.
+    const free = me.role !== 'super_admin' && eventsFreeActive(settingsOf(db));
     if (id) {
       const i = events.findIndex(e => e.id === id);
       const cur = events[i];
       if (!cur || (cur.createdBy !== me.id && me.role !== 'super_admin')) return { ok: false, error: 'Listing not found.', status: 404 };
-      const paid = !!cur.paidAt || !!cur.feeWaived;
+      const freeNow = free && !cur.paidAt && !cur.feeWaived;
+      const paid = !!cur.paidAt || !!cur.feeWaived || freeNow;
       // The price depends on the type; after paying, an FDP/workshop/seminar cannot become a conference.
       if (paid && (cur.kind === 'conference') !== (clean.value.kind === 'conference')) {
         return { ok: false, error: `This listing was paid for as ${cur.kind === 'conference' ? 'a conference' : 'an FDP, workshop or seminar'}; its type cannot be changed to ${clean.value.kind === 'conference' ? 'a conference' : 'another category'}.`, status: 400 };
       }
       const next: AcademicEvent = {
         ...cur, ...clean.value, updatedAt: now,
+        ...(freeNow ? { feeWaived: true, freeOffer: true } : {}),
         // Changes to a paid listing are checked again before they are shown (the administrator's own edits are not).
         status: me.role === 'super_admin' ? cur.status : paid ? 'under_review' : 'awaiting_payment',
         reviewNote: me.role === 'super_admin' ? cur.reviewNote : null,
@@ -51,11 +57,29 @@ export function saveEvent(userId: string, raw: unknown, id?: string, opts: { pub
     const inst = me.instituteId ? ((db[STORAGE_KEYS.INSTITUTES] as Institute[]) || []).find(x => x.id === me.instituteId) : undefined;
     const ev: AcademicEvent = {
       id: newId(), ...clean.value, instituteId: inst?.id || null,
-      status: 'awaiting_payment', createdBy: me.id, createdAt: now, updatedAt: now,
+      status: free ? 'under_review' : 'awaiting_payment', createdBy: me.id, createdAt: now, updatedAt: now,
+      ...(free ? { feeWaived: true, freeOffer: true } : {}),
       ...(opts.publish && me.role === 'super_admin' ? { status: 'published' as const, feeWaived: true, addedByAdmin: true, publishedAt: now } : {}),
     };
     c.set(STORAGE_KEYS.EVENTS, [ev, ...events]);
     return { ok: true, event: ev };
+  });
+}
+
+/** Launch offer: send an unpaid listing for review without payment. */
+export function claimFreeListing(userId: string, id: string): Promise<Result> {
+  return withDb(userId, (db, c) => {
+    const me = accountOf(db, userId);
+    const events = list(db);
+    const i = events.findIndex(e => e.id === id);
+    const cur = events[i];
+    if (!me || !cur || cur.createdBy !== me.id) return { ok: false, error: 'Listing not found.', status: 404 };
+    if (cur.status !== 'awaiting_payment') return { ok: false, error: 'This listing is not waiting for payment.', status: 400 };
+    if (!eventsFreeActive(settingsOf(db))) return { ok: false, error: 'The free listing offer has ended. Please pay to send it for review.', status: 400 };
+    const next: AcademicEvent = { ...cur, status: 'under_review', feeWaived: true, freeOffer: true, updatedAt: new Date().toISOString() };
+    events[i] = next;
+    c.set(STORAGE_KEYS.EVENTS, events);
+    return { ok: true, event: next };
   });
 }
 
@@ -68,7 +92,7 @@ export function deleteEvent(userId: string, id: string): Promise<{ ok: boolean; 
     if (!me || !ev) return { ok: false, error: 'Listing not found.' };
     const isAdmin = me.role === 'super_admin';
     if (!isAdmin && ev.createdBy !== me.id) return { ok: false, error: 'Listing not found.' };
-    if (!isAdmin && (ev.paidAt || ev.feeWaived)) return { ok: false, error: 'A paid listing cannot be deleted here. Email info@acadexmatch.com if the event is cancelled.' };
+    if (!isAdmin && (ev.paidAt || (ev.feeWaived && !ev.freeOffer))) return { ok: false, error: 'A paid listing cannot be deleted here. Email info@acadexmatch.com if the event is cancelled.' };
     c.set(STORAGE_KEYS.EVENTS, events.filter(e => e.id !== id));
     if (isAdmin) StorageService.addAuditLog(`Deleted event listing "${ev.title}"`, ev.id, 'JOB_MODERATION');
     return { ok: true };

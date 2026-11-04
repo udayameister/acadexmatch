@@ -6,7 +6,7 @@ import { ArrowRight, Megaphone } from 'lucide-react';
 import EventCard from '@/components/EventCard';
 import { StorageService } from '@/lib/storage';
 import { useStorageValue } from '@/lib/useAuth';
-import { eventPrices, isEventLive, sortEvents } from '@/lib/events';
+import { isEventLive, listingPriceText, sortEvents } from '@/lib/events';
 import type { AcademicEvent, PlanSettings } from '@/types';
 
 /**
@@ -19,8 +19,8 @@ export default function HomeEventSections() {
   const live = useMemo(() => sortEvents(all.filter(e => isEventLive(e))), [all]);
   const programmes = live.filter(e => e.kind !== 'conference');
   const conferences = live.filter(e => e.kind === 'conference');
-  const prices = eventPrices(settings);
-  const inr = (n: number) => `₹${n.toLocaleString('en-IN')}`;
+  const fdpPrice = listingPriceText(settings, 'fdp');
+  const confPrice = listingPriceText(settings, 'conference');
 
   return (
     <>
@@ -33,7 +33,7 @@ export default function HomeEventSections() {
             </div>
             <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm">
               <Link href="/events" className="inline-flex items-center gap-1.5 font-semibold text-brand-700 hover:text-brand-900">View all {programmes.length} <ArrowRight className="w-4 h-4" /></Link>
-              <Link href="/events/post?type=fdp" className="inline-flex items-center gap-1.5 font-semibold text-gold-800 hover:text-gold-900"><Megaphone className="w-4 h-4" />Advertise yours · {inr(prices.eventPriceInr)}</Link>
+              <Link href="/events/post?type=fdp" className="inline-flex items-center gap-1.5 font-semibold text-gold-800 hover:text-gold-900"><Megaphone className="w-4 h-4" />Advertise yours · {fdpPrice}</Link>
             </div>
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 mt-8">
@@ -52,7 +52,7 @@ export default function HomeEventSections() {
               </div>
               <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm">
                 <Link href="/conferences" className="inline-flex items-center gap-1.5 font-semibold text-gold-200 hover:text-white">View all {conferences.length} <ArrowRight className="w-4 h-4" /></Link>
-                <Link href="/events/post?type=conference" className="inline-flex items-center gap-1.5 font-semibold text-gold-300 hover:text-white"><Megaphone className="w-4 h-4" />Advertise your conference · {inr(prices.conferencePriceInr)}</Link>
+                <Link href="/events/post?type=conference" className="inline-flex items-center gap-1.5 font-semibold text-gold-300 hover:text-white"><Megaphone className="w-4 h-4" />Advertise your conference · {confPrice}</Link>
               </div>
             </div>
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 mt-8">
@@ -73,12 +73,12 @@ export default function HomeEventSections() {
             <div className="grid sm:grid-cols-2 gap-3 lg:min-w-[30rem]">
               <Link href="/events/post?type=fdp" className="p-4 rounded-2xl bg-white border border-slate-200 hover:border-brand-300 hover:shadow-md transition">
                 <div className="text-sm font-semibold text-slate-700">FDP, workshop or seminar</div>
-                <div className="text-2xl font-bold text-brand-900 mt-1">{inr(prices.eventPriceInr)}</div>
+                <div className="text-2xl font-bold text-brand-900 mt-1">{fdpPrice}</div>
                 <div className="text-xs font-semibold text-brand-700 mt-2 inline-flex items-center gap-1">Post now <ArrowRight className="w-3.5 h-3.5" /></div>
               </Link>
               <Link href="/events/post?type=conference" className="p-4 rounded-2xl bg-brand-950 text-white border border-brand-900 hover:shadow-md transition">
                 <div className="text-sm font-semibold text-gold-200">Conference</div>
-                <div className="text-2xl font-bold text-gold-300 mt-1">{inr(prices.conferencePriceInr)}</div>
+                <div className="text-2xl font-bold text-gold-300 mt-1">{confPrice}</div>
                 <div className="text-xs font-semibold text-gold-200 mt-2 inline-flex items-center gap-1">Post now <ArrowRight className="w-3.5 h-3.5" /></div>
               </Link>
             </div>

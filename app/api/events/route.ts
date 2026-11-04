@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { badOrigin, currentUserId } from '@/lib/server/auth';
 import { allow, clientIp } from '@/lib/server/security';
-import { deleteEvent, saveEvent } from '@/lib/server/events';
+import { claimFreeListing, deleteEvent, saveEvent } from '@/lib/server/events';
 import { recordApproved } from '@/lib/server/newPostDigest';
 
 export const runtime = 'nodejs';
@@ -19,6 +19,10 @@ export async function POST(req: NextRequest) {
     const r = await saveEvent(userId, body.event, typeof body.id === 'string' ? body.id : undefined, { publish: (body as { publish?: boolean }).publish === true });
     // A free event the administrator adds is live at once: include it in the next email to candidates.
     if (r.ok && !body.id && r.event.addedByAdmin && r.event.status === 'published') await recordApproved([{ type: 'event', id: r.event.id }]).catch(() => undefined);
+    return r.ok ? NextResponse.json({ ok: true, event: r.event }) : NextResponse.json({ error: r.error }, { status: r.status });
+  }
+  if (body?.action === 'claimFree' && typeof body.id === 'string') {
+    const r = await claimFreeListing(userId, body.id);
     return r.ok ? NextResponse.json({ ok: true, event: r.event }) : NextResponse.json({ error: r.error }, { status: r.status });
   }
   if (body?.action === 'delete' && typeof body.id === 'string') {

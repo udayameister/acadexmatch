@@ -99,6 +99,10 @@ export interface PlanSettings {
   eventPriceInr?: number;
   /** Advertisement price (₹, incl. GST) of a conference listing. */
   conferencePriceInr?: number;
+  /** Launch offer: verified institutions use every institution tool free until this date (YYYY-MM-DD, IST); '' = off. */
+  institutionFreeUntil?: string;
+  /** Launch offer: FDP, workshop, seminar and conference listings are free until this date (YYYY-MM-DD, IST); '' = off. */
+  eventsFreeUntil?: string;
 }
 
 /** Academic events advertised on AcadeXMatch. FDP, workshop and seminar share one price; conferences have their own. */
@@ -146,6 +150,8 @@ export interface AcademicEvent {
   paidAt?: string | null;
   /** Published without payment by the administrator. */
   feeWaived?: boolean;
+  /** Listed free under the launch offer (no payment taken). */
+  freeOffer?: boolean;
   /** Added by the administrator from the admin console (free). */
   addedByAdmin?: boolean;
   /** Stored poster image (JPG / PNG / WebP), served at /api/events/poster/<event id>. */

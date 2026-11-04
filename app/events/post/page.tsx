@@ -3,10 +3,10 @@
 import React, { Suspense, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { CalendarDays, CheckCircle2, Eye, Loader2, Megaphone, Pencil, Plus, Trash2 } from 'lucide-react';
+import { CalendarDays, CheckCircle2, Eye, Gift, Loader2, Megaphone, Pencil, Plus, Trash2 } from 'lucide-react';
 import PayButton, { useOnlinePayment } from '@/components/PayButton';
 import { hydrate } from '@/lib/clientSync';
-import { StorageService } from '@/lib/storage';
+import { StorageService, eventsFreeActive } from '@/lib/storage';
 import { useCurrentUser, useStorageValue } from '@/lib/useAuth';
 import { CONTACT_EMAIL } from '@/lib/contact';
 import EventForm from '@/components/EventForm';
@@ -34,6 +34,8 @@ function PostEventPage() {
   const online = useOnlinePayment();
   const mine = useMemo(() => (user ? events.filter(e => e.createdBy === user.id).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')) : []), [events, user]);
   const prices = eventPrices(settings);
+  const free = eventsFreeActive(settings);
+  const freeUntil = settings.eventsFreeUntil ? new Date(`${settings.eventsFreeUntil}T00:00:00`).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
   const instName = user?.instituteId ? StorageService.getInstitutes().find(i => i.id === user.instituteId)?.name || '' : '';
   const startKind = (EVENT_KINDS as string[]).includes(params.get('type') || '') ? (params.get('type') as EventKind) : 'fdp';
 
@@ -51,6 +53,12 @@ function PostEventPage() {
 
   if (!ready) return <div className="py-20 flex justify-center"><Loader2 className="w-6 h-6 animate-spin text-brand-700" aria-label="Loading" /></div>;
 
+  const claimFree = async (e: AcademicEvent) => {
+    const r = await fetch('/api/events', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'claimFree', id: e.id }) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) alert(d.error || 'Could not send the listing for review.');
+    await hydrate();
+  };
   const remove = async (e: AcademicEvent) => {
     if (!confirm(`Delete “${e.title}”?`)) return;
     const r = await fetch('/api/events', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'delete', id: e.id }) });
@@ -65,19 +73,24 @@ function PostEventPage() {
         <p className="text-sm font-semibold text-brand-700 inline-flex items-center gap-3"><span className="gold-rule" />Advertise on AcadeXMatch</p>
         <h1 className="text-3xl sm:text-4xl font-bold text-brand-800 tracking-[-0.02em]">Advertise your FDP, workshop, seminar or conference</h1>
         <p className="text-slate-600 max-w-3xl">Reach college and university teachers, PhD scholars and researchers across India. Your listing appears on the AcadeXMatch home page and its events page until the event ends.</p>
+        {free && (
+          <p className="max-w-3xl p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-sm flex gap-2" role="status">
+            <Gift className="w-5 h-5 shrink-0" /><span><strong>Launch offer: listing is free until {freeUntil}.</strong> No payment needed; our team checks each listing before it is shown.</span>
+          </p>
+        )}
         <div className="grid sm:grid-cols-2 gap-3 max-w-3xl pt-1">
           <div className="p-4 rounded-2xl bg-white border border-slate-200">
             <div className="text-sm font-semibold text-slate-700">FDP, workshop or seminar</div>
-            <div className="text-2xl font-bold text-brand-900 mt-1">₹{prices.eventPriceInr.toLocaleString('en-IN')} <span className="text-sm font-medium text-slate-500">per listing</span></div>
+            <div className="text-2xl font-bold text-brand-900 mt-1">{free ? <>Free <s className="text-base font-medium text-slate-400">₹{prices.eventPriceInr.toLocaleString('en-IN')}</s></> : <>₹{prices.eventPriceInr.toLocaleString('en-IN')} <span className="text-sm font-medium text-slate-500">per listing</span></>}</div>
           </div>
           <div className="p-4 rounded-2xl bg-brand-950 text-white border border-brand-900">
             <div className="text-sm font-semibold text-gold-200">Conference <span className="font-normal text-gold-100/80">(own section)</span></div>
-            <div className="text-2xl font-bold text-gold-300 mt-1">₹{prices.conferencePriceInr.toLocaleString('en-IN')} <span className="text-sm font-medium text-white/70">per listing</span></div>
+            <div className="text-2xl font-bold text-gold-300 mt-1">{free ? <>Free <s className="text-base font-medium text-white/50">₹{prices.conferencePriceInr.toLocaleString('en-IN')}</s></> : <>₹{prices.conferencePriceInr.toLocaleString('en-IN')} <span className="text-sm font-medium text-white/70">per listing</span></>}</div>
           </div>
         </div>
         <ol className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-slate-600 pt-1">
           <li><strong className="text-slate-900">1.</strong> Fill in the details</li>
-          <li><strong className="text-slate-900">2.</strong> Pay online (UPI, card, net banking)</li>
+          <li><strong className="text-slate-900">2.</strong> {free ? 'No payment during the launch offer' : 'Pay online (UPI, card, net banking)'}</li>
           <li><strong className="text-slate-900">3.</strong> Our team checks the listing</li>
           <li><strong className="text-slate-900">4.</strong> It is shown until the event ends</li>
         </ol>
@@ -95,6 +108,7 @@ function PostEventPage() {
         <>
           {justSaved && (() => {
             const e = mine.find(x => x.id === justSaved);
+            if (e?.status === 'under_review' && e.freeOffer) return <p className="p-4 rounded-3xl bg-emerald-50 border border-emerald-200 text-sm text-emerald-900 flex gap-2"><CheckCircle2 className="w-5 h-5 shrink-0" />Saved and sent for review, free of charge. We will publish “{e.title}” after a quick check.</p>;
             if (!e || e.status !== 'awaiting_payment') return null;
             return (
               <div className="p-5 rounded-3xl bg-emerald-50 border border-emerald-200 space-y-3">
@@ -132,13 +146,15 @@ function PostEventPage() {
                       <div className="font-semibold text-slate-900 break-words">{e.title}</div>
                       <div className="text-xs text-slate-500 inline-flex items-center gap-1"><CalendarDays className="w-3.5 h-3.5" />{formatEventDates(e)} · {e.organizer}</div>
                       {e.status === 'rejected' && e.reviewNote && <p className="text-xs text-crimson-700">Reason: {e.reviewNote}. Edit the listing to send it for review again.</p>}
-                      {e.status === 'under_review' && <p className="text-xs text-slate-500">Paid. Our team will publish it after a quick check.</p>}
+                      {e.status === 'under_review' && <p className="text-xs text-slate-500">{e.freeOffer ? 'Free launch-offer listing.' : 'Paid.'} Our team will publish it after a quick check.</p>}
                     </div>
                     <div className="flex flex-wrap gap-2 md:justify-end shrink-0 items-center">
                       <Link href={`/events/${e.id}`} className="inline-flex items-center gap-1 px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-700 hover:bg-slate-50"><Eye className="w-4 h-4" />View</Link>
                       <button type="button" onClick={() => { setForm({ event: e }); setJustSaved(null); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="inline-flex items-center gap-1 px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-700 hover:bg-slate-50"><Pencil className="w-4 h-4" />Edit</button>
-                      {!e.paidAt && !e.feeWaived && <button type="button" onClick={() => remove(e)} className="inline-flex items-center gap-1 px-3 py-2 rounded-lg border border-slate-200 text-sm text-crimson-700 hover:bg-crimson-50"><Trash2 className="w-4 h-4" />Delete</button>}
-                      {e.status === 'awaiting_payment' && <div className="w-full md:w-60"><PayFor e={e} settings={settings} online={online} /></div>}
+                      {!e.paidAt && (!e.feeWaived || e.freeOffer) && <button type="button" onClick={() => remove(e)} className="inline-flex items-center gap-1 px-3 py-2 rounded-lg border border-slate-200 text-sm text-crimson-700 hover:bg-crimson-50"><Trash2 className="w-4 h-4" />Delete</button>}
+                      {e.status === 'awaiting_payment' && (free
+                        ? <button type="button" onClick={() => claimFree(e)} className="inline-flex items-center gap-1 px-3 py-2 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-semibold"><Gift className="w-4 h-4" />Send for review free</button>
+                        : <div className="w-full md:w-60"><PayFor e={e} settings={settings} online={online} /></div>)}
                     </div>
                   </li>
                 ))}

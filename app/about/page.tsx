@@ -1,6 +1,10 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { FounderProfile } from '@/components/Founder';
+import AdvisoryBoard from '@/components/AdvisoryBoard';
+
+// The advisory board is managed by the administrator, so this page is rendered on each request.
+export const dynamic = 'force-dynamic';
 import { CONTACT_EMAIL, CONTACT_MAILTO } from '@/lib/contact';
 import { ShieldCheck, Scale, Sparkles, ArrowRight, Mail } from 'lucide-react';
 
@@ -31,6 +35,8 @@ export default function AboutPage() {
       <div className="max-w-6xl mx-auto px-4 sm:px-8 py-16">
         <FounderProfile />
       </div>
+
+      <AdvisoryBoard />
 
       <section className="max-w-6xl mx-auto px-4 sm:px-8 pb-16">
         <h2 className="font-serif text-2xl sm:text-3xl font-bold text-slate-900">What we stand for</h2>

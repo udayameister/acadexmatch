@@ -1,14 +1,22 @@
 'use client';
 
 import React from 'react';
-import { INSTITUTION_CATEGORIES, categoryPricesOf, formatInr, periodLabel } from '@/lib/storage';
+import { INSTITUTION_CATEGORIES, categoryPricesOf, formatInr, periodLabel, institutionFreeActive } from '@/lib/storage';
 import type { InstitutionCategory, PlanSettings } from '@/types';
 
 /** Institution Premium prices by AISHE category. `dark` for the maroon Premium-page panel. */
 export function InstitutionPriceTable({ settings, highlight, dark = false }: { settings: PlanSettings; highlight?: InstitutionCategory | null; dark?: boolean }) {
   const prices = categoryPricesOf(settings);
   const period = periodLabel(settings.institutionDurationMonths || 12);
+  const free = institutionFreeActive(settings);
+  const until = free && settings.institutionFreeUntil ? new Date(`${settings.institutionFreeUntil}T00:00:00`).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
   return (
+    <div className="space-y-2">
+    {free && (
+      <p className={`text-sm rounded-xl px-3.5 py-2.5 border ${dark ? 'bg-emerald-400/10 border-emerald-300/40 text-emerald-100' : 'bg-emerald-50 border-emerald-200 text-emerald-900'}`} role="status">
+        <strong>Launch offer:</strong> Institution Premium is free until {until} for every institution verified by AcadeXMatch. The prices below apply after that.
+      </p>
+    )}
     <div className={`rounded-xl border overflow-hidden ${dark ? 'border-gold-400/30' : 'border-slate-200 bg-white'}`}>
       <table className="w-full text-sm">
         <thead>
@@ -31,6 +39,7 @@ export function InstitutionPriceTable({ settings, highlight, dark = false }: { s
           })}
         </tbody>
       </table>
+    </div>
     </div>
   );
 }

@@ -5,6 +5,8 @@ import { StorageService } from '@/lib/storage';
 import ScrapePipelinePanel from '@/components/ScrapePipelinePanel';
 import FacultyTickPanel from '@/components/FacultyTickPanel';
 import ResumeAdminPanel from '@/components/ResumeAdminPanel';
+import LaunchOffersCard from '@/components/LaunchOffersCard';
+import AdvisoryBoardPanel from '@/components/AdvisoryBoardPanel';
 import EventsAdminPanel from '@/components/EventsAdminPanel';
 import NewPostEmailCard from '@/components/NewPostEmailCard';
 import { useStorageValue } from '@/lib/useAuth';
@@ -40,9 +42,9 @@ import {
   Handshake,
   Library,
   Rss,
-  CalendarDays, FileSearch } from 'lucide-react';
+  CalendarDays, FileSearch, UsersRound } from 'lucide-react';
 
-type AdminTab = 'growth' | 'quality' | 'announcements' | 'partners' | 'users' | 'institutions' | 'customers' | 'vacancies' | 'scraping' | 'facultytick' | 'events' | 'resume' | 'applications' | 'premium' | 'verification' | 'dpdp' | 'audit' | 'emails' | 'site' | 'directory';
+type AdminTab = 'growth' | 'quality' | 'announcements' | 'partners' | 'advisory' | 'users' | 'institutions' | 'customers' | 'vacancies' | 'scraping' | 'facultytick' | 'events' | 'resume' | 'applications' | 'premium' | 'verification' | 'dpdp' | 'audit' | 'emails' | 'site' | 'directory';
 
 export default function AdminCompliancePage() {
   const [institutes, setInstitutes] = useState<Institute[]>([]);
@@ -195,6 +197,7 @@ export default function AdminCompliancePage() {
           ['audit', Activity, `Audit log (${auditLogs.length})`],
           ['announcements', Megaphone, 'Announcements'],
           ['partners', Handshake, 'Partners'],
+          ['advisory', UsersRound, 'Advisory board'],
           ['emails', Mail, 'Emails'],
           ['site', Settings2, 'Site & visits'],
         ] as [AdminTab, typeof Users, string][]).map(([key, Icon, label]) => (
@@ -219,6 +222,7 @@ export default function AdminCompliancePage() {
       {activeTab === 'quality' && <QualityPanel />}
       {activeTab === 'announcements' && <AnnouncementsPanel />}
       {activeTab === 'partners' && <PartnersPanel />}
+      {activeTab === 'advisory' && <AdvisoryBoardPanel />}
       {activeTab === 'users' && <UsersPanel />}
       {activeTab === 'institutions' && <InstitutionsPanel />}
       {activeTab === 'vacancies' && <VacanciesPanel />}
@@ -231,7 +235,7 @@ export default function AdminCompliancePage() {
       {activeTab === 'resume' && <ResumeAdminPanel />}
       {activeTab === 'customers' && <CustomersPanel />}
       {activeTab === 'emails' && <div className="space-y-5"><NewPostEmailCard /><EmailsPanel /></div>}
-      {activeTab === 'premium' && <PremiumPanel />}
+      {activeTab === 'premium' && <div className="space-y-6"><LaunchOffersCard /><PremiumPanel /></div>}
 
       {/* TAB 1: AISHE & NAAC Verification Queue */}
       {activeTab === 'verification' && (

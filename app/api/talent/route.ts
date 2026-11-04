@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { STORAGE_KEYS, isPremiumUser, isInstituteSubscribed } from '@/lib/storage';
+import { STORAGE_KEYS, isPremiumUser, hasInstitutionAccess, DEFAULT_PLAN_SETTINGS } from '@/lib/storage';
+import type { PlanSettings } from '@/types';
 import { withDb, accountOf } from '@/lib/server/db';
 import { currentUserId } from '@/lib/server/auth';
 import { computeExperienceYears } from '@/lib/scoring';
@@ -28,7 +29,8 @@ export async function GET(req: NextRequest) {
     if (!me || !(isStaff || me.role === 'super_admin')) return { error: 'Institution staff only.', status: 403 };
     if (isStaff) {
       const inst = ((db[STORAGE_KEYS.INSTITUTES] as Institute[]) || []).find(i => i.id === me.instituteId);
-      if (!isInstituteSubscribed(inst)) return { error: 'Talent search needs an active Institution Premium subscription.', status: 403 };
+      const settings = { ...DEFAULT_PLAN_SETTINGS, ...((db[STORAGE_KEYS.PLAN_SETTINGS] as Partial<PlanSettings>) || {}) };
+      if (!hasInstitutionAccess(inst, settings)) return { error: 'Talent search needs a verified institution with Institution Premium (free during the launch offer).', status: 403 };
     }
     const users = new Map(((db[STORAGE_KEYS.USERS] as UserAccount[]) || []).map(u => [u.id, u]));
     const profiles = (db[STORAGE_KEYS.CANDIDATE_PROFILES] as Record<string, CandidateProfile>) || {};

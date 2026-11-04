@@ -6,7 +6,7 @@ import { Megaphone, Plus } from 'lucide-react';
 import EventCard from '@/components/EventCard';
 import { StorageService } from '@/lib/storage';
 import { useStorageValue } from '@/lib/useAuth';
-import { EVENT_KIND_SHORT, PROGRAMME_KINDS, eventPrices, isEventLive, sortEvents } from '@/lib/events';
+import { EVENT_KIND_SHORT, PROGRAMME_KINDS, isEventLive, listingIsFree, listingPriceText, sortEvents } from '@/lib/events';
 import type { AcademicEvent, EventKind, PlanSettings } from '@/types';
 
 /** Public list of advertised events: FDPs/workshops/seminars, or conferences. */
@@ -20,7 +20,8 @@ export default function EventsBrowser({ section }: { section: 'programmes' | 'co
   const live = useMemo(() => sortEvents(all.filter(e => isEventLive(e) && (conf ? e.kind === 'conference' : e.kind !== 'conference'))), [all, conf]);
   const states = useMemo(() => [...new Set(live.map(e => (e.mode === 'online' ? 'Online' : e.state)).filter(Boolean))].sort(), [live]);
   const shown = live.filter(e => (kind === 'all' || e.kind === kind) && (!state || (state === 'Online' ? e.mode === 'online' : e.state === state)));
-  const price = conf ? eventPrices(settings).conferencePriceInr : eventPrices(settings).eventPriceInr;
+  const price = listingPriceText(settings, conf ? 'conference' : 'fdp');
+  const free = listingIsFree(settings);
 
   return (
     <div className="w-full">
@@ -38,7 +39,7 @@ export default function EventsBrowser({ section }: { section: 'programmes' | 'co
           </div>
           <div className="p-5 rounded-2xl bg-white border border-gold-300 shadow-sm max-w-sm">
             <div className="flex items-center gap-2 text-sm font-bold text-slate-900"><Megaphone className="w-4 h-4 text-gold-600" aria-hidden="true" />Organising {conf ? 'a conference' : 'an FDP, workshop or seminar'}?</div>
-            <p className="text-sm text-slate-600 mt-1">Advertise it here and on the AcadeXMatch home page until the event ends, for <strong className="text-slate-900">₹{price.toLocaleString('en-IN')}</strong>.</p>
+            <p className="text-sm text-slate-600 mt-1">Advertise it here and on the AcadeXMatch home page until the event ends, {free ? <><strong className="text-slate-900">free</strong> during our launch offer</> : <>for <strong className="text-slate-900">{price}</strong></>}.</p>
             <Link href={`/events/post?type=${conf ? 'conference' : 'fdp'}`} className="mt-3 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-brand-900 hover:bg-brand-800 text-white text-sm font-semibold"><Plus className="w-4 h-4" aria-hidden="true" />Advertise your {conf ? 'conference' : 'event'}</Link>
           </div>
         </div>

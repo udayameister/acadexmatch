@@ -6,6 +6,17 @@ import type { AcademicEvent, EventKind, EventMode, PaymentProduct, PlanSettings 
 
 export const DEFAULT_EVENT_PRICES = { eventPriceInr: 1000, conferencePriceInr: 2000 };
 
+/** Launch offer running: listings are free (same rule as eventsFreeActive in lib/storage). */
+export function listingIsFree(s: Partial<PlanSettings> | null | undefined): boolean {
+  const d = s?.eventsFreeUntil;
+  return typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d) && d >= new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+}
+
+/** "Free" during the launch offer, otherwise "₹1,000". */
+export function listingPriceText(s: Partial<PlanSettings> | null | undefined, kind: EventKind): string {
+  return listingIsFree(s) ? 'Free' : `₹${eventPriceFor(s, kind).toLocaleString('en-IN')}`;
+}
+
 export const EVENT_KIND_LABEL: Record<EventKind, string> = {
   fdp: 'Faculty Development Programme (FDP)',
   workshop: 'Workshop',

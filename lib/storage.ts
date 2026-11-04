@@ -359,6 +359,9 @@ export function institutionPriceFor(s: PlanSettings, inst: { aisheCode?: string 
 
 export const DEFAULT_PROMOTION = { featuredPriceInr: 1999, featuredDays: 30, urgentPriceInr: 499, urgentDays: 14 };
 
+export const LAUNCH_INSTITUTION_FREE_UNTIL = '2027-11-03';
+export const LAUNCH_EVENTS_FREE_UNTIL = '2027-05-03';
+
 export const DEFAULT_PLAN_SETTINGS: PlanSettings = {
   premiumPriceLabel: '₹999 per year',
   premiumDurationMonths: 12,
@@ -375,6 +378,9 @@ export const DEFAULT_PLAN_SETTINGS: PlanSettings = {
   invoiceBusinessName: 'AcadeXMatch',
   invoiceAddress: '',
   invoiceGstin: '',
+  // Launch offers (from 4 Nov 2026): institutions free for one year, event listings free for six months.
+  institutionFreeUntil: LAUNCH_INSTITUTION_FREE_UNTIL,
+  eventsFreeUntil: LAUNCH_EVENTS_FREE_UNTIL,
 };
 
 
@@ -386,6 +392,31 @@ export function isJobFeatured(job: Pick<Job, 'featuredUntil'>): boolean {
 /** Paid "Urgent hiring" label still running. */
 export function isJobUrgent(job: Pick<Job, 'urgentUntil'>): boolean {
   return !!job.urgentUntil && job.urgentUntil >= todayIstIso();
+}
+
+const validDate = (d: unknown): d is string => typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d);
+
+/** The free-for-institutions launch offer is running (the administrator sets or ends it). */
+export function institutionFreeActive(s: Partial<PlanSettings> | null | undefined, on = todayIstIso()): boolean {
+  const d = s?.institutionFreeUntil;
+  return validDate(d) && d >= on;
+}
+
+/** Event listings are free right now (the administrator sets or ends it). */
+export function eventsFreeActive(s: Partial<PlanSettings> | null | undefined, on = todayIstIso()): boolean {
+  const d = s?.eventsFreeUntil;
+  return validDate(d) && d >= on;
+}
+
+/**
+ * Can this institute use the institution tools (post vacancies, applicant pipeline, talent search…)?
+ * A paid, active subscription always counts. During the free launch offer the institute must also be
+ * verified and approved by the AcadeXMatch administrator.
+ */
+export function hasInstitutionAccess(inst: Pick<Institute, 'subscription' | 'verificationStatus'> | null | undefined, s: Partial<PlanSettings> | null | undefined): boolean {
+  if (!inst) return false;
+  if (isInstituteSubscribed(inst)) return true;
+  return inst.verificationStatus === 'verified' && institutionFreeActive(s);
 }
 
 /** True when an institute has an active, unexpired Institution Premium subscription. */
@@ -1079,8 +1110,10 @@ export const StorageService = {
 
   addJob(job: Job): void {
     const actor = this.getCurrentUser();
-    if (actor && actor.role !== 'super_admin' && !isInstituteSubscribed(this.getInstituteById(job.instituteId))) {
-      throw new Error('An active Institution Premium subscription is required to post vacancies.');
+    if (actor && actor.role !== 'super_admin' && !hasInstitutionAccess(this.getInstituteById(job.instituteId), this.getPlanSettings())) {
+      throw new Error(institutionFreeActive(this.getPlanSettings())
+        ? 'Your institution must be verified and approved by AcadeXMatch before you can post vacancies.'
+        : 'An active Institution Premium subscription is required to post vacancies.');
     }
     if (job.externalApplyUrl) job = { ...job, externalApplyUrl: normalizeUrl(job.externalApplyUrl) };
     setToStorage(STORAGE_KEYS.JOBS, [job, ...this.getJobs()]);
@@ -1519,7 +1552,7 @@ export const StorageService = {
     const user = this.getCurrentUser();
     if (!user || !(user.role === 'institute_admin' || user.role === 'recruiter') || !user.instituteId) return { success: false, error: 'Only institution staff can send invitations.' };
     const inst = this.getInstituteById(user.instituteId);
-    if (!inst || !isInstituteSubscribed(inst)) return { success: false, error: 'An active Institution Premium subscription is required.' };
+    if (!inst || !hasInstitutionAccess(inst, this.getPlanSettings())) return { success: false, error: institutionFreeActive(this.getPlanSettings()) ? 'Your institution must be verified and approved by AcadeXMatch first.' : 'An active Institution Premium subscription is required.' };
     const job = this.getJobById(jobId);
     if (!job || job.instituteId !== inst.id || job.status !== 'published') return { success: false, error: 'Choose one of your published vacancies.' };
     const account = this.getAccounts().find(a => a.id === candidateId);
