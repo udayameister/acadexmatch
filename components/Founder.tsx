@@ -107,13 +107,6 @@ export function FounderProfile() {
             <blockquote className="text-slate-700 leading-relaxed">“{FOUNDER.note}”</blockquote>
             <figcaption className="mt-3 text-sm font-semibold text-brand-800">— {FOUNDER.name}</figcaption>
           </figure>
-          <div className="mt-6 flex flex-wrap gap-3">
-            {FOUNDER.links.map(l => (
-              <a key={l.label} href={l.href} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white border border-slate-200 text-sm font-semibold text-slate-700 hover:border-brand-300 hover:text-brand-800">
-                <l.icon className="w-4 h-4" /> {l.label}
-              </a>
-            ))}
-          </div>
         </div>
       </section>
 
