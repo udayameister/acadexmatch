@@ -37,7 +37,7 @@ export function useOnlinePayment(): { configured: boolean; testMode: boolean; we
 }
 
 /** Pays through Razorpay checkout and activates the plan when the server has verified the payment. */
-export default function PayButton({ product, label, description, className = '', plan, jobId, eventId, onPaid }: { product: PaymentProduct; label: string; description: string; className?: string; plan?: string; jobId?: string; eventId?: string; onPaid?: () => void }) {
+export default function PayButton({ product, label, description, className = '', plan, jobId, eventId, amount, disabled, onPaid }: { product: PaymentProduct; label: string; description: string; className?: string; plan?: string; jobId?: string; eventId?: string; amount?: number; disabled?: boolean; onPaid?: () => void }) {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
@@ -45,7 +45,7 @@ export default function PayButton({ product, label, description, className = '',
     setBusy(true);
     setMsg(null);
     try {
-      const r = await fetch('/api/payments/order', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ product, plan, jobId, eventId }) });
+      const r = await fetch('/api/payments/order', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ product, plan, jobId, eventId, amount }) });
       const order = await r.json();
       if (!r.ok) throw new Error(order.error || 'Could not start the payment.');
       if (!(await loadCheckout()) || !window.Razorpay) throw new Error('Could not load Razorpay checkout. Check your internet connection and try again.');
@@ -61,7 +61,7 @@ export default function PayButton({ product, label, description, className = '',
           if (v.ok && d.ok) {
             await hydrate();
             onPaid?.();
-            setMsg({ ok: true, text: eventId ? 'Payment confirmed. Your listing is now with our team for a quick review; a receipt has been emailed to you.' : `Payment confirmed — active until ${d.payment?.activeUntil}. A receipt has been emailed to you.` });
+            setMsg({ ok: true, text: product === 'donation' ? `Thank you! Your contribution of ₹${(order.amount / 100).toLocaleString('en-IN')} was received. A receipt has been emailed to you.` : eventId ? 'Payment confirmed. Your listing is now with our team for a quick review; a receipt has been emailed to you.' : `Payment confirmed — active until ${d.payment?.activeUntil}. A receipt has been emailed to you.` });
           } else {
             setMsg({ ok: false, text: d.error || 'We could not confirm the payment yet. If money was deducted it will be confirmed automatically.' });
           }
@@ -85,7 +85,7 @@ export default function PayButton({ product, label, description, className = '',
 
   return (
     <div className="space-y-2">
-      <button type="button" onClick={pay} disabled={busy} className={`w-full inline-flex justify-center items-center gap-2 px-5 py-3 rounded-xl bg-brand-900 hover:bg-brand-800 text-white font-semibold text-sm shadow-sm disabled:opacity-60 ${className}`}>
+      <button type="button" onClick={pay} disabled={busy || disabled} className={`w-full inline-flex justify-center items-center gap-2 px-5 py-3 rounded-xl bg-brand-900 hover:bg-brand-800 text-white font-semibold text-sm shadow-sm disabled:opacity-60 ${className}`}>
         {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4" />} {label}
       </button>
       {msg && <p className={`text-sm flex items-start gap-1.5 ${msg.ok ? 'text-emerald-800' : 'text-crimson-700'}`} role="status">{msg.ok && <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0" />}{msg.text}</p>}

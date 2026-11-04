@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import OurCustomers from '@/components/OurCustomers';
 import HeroMatchPreview from '@/components/HeroMatchPreview';
 import HomeEventSections from '@/components/HomeEventSections';
+import DonationSection from '@/components/DonationSection';
 import HomeEventPosters from '@/components/HomeEventPosters';
 import { StorageService, isDeadlinePassed } from '@/lib/storage';
 import { payLabel, orNS, deadlineLabel, NOT_SPECIFIED } from '@/lib/display';
@@ -394,6 +395,9 @@ export default function HomePage() {
           ))}
         </div>
       </section>
+
+      {/* ───────────────────────── Voluntary contribution ───────────────────────── */}
+      <DonationSection />
 
       {/* ───────────────────────── Final CTA ───────────────────────── */}
       {!user && (

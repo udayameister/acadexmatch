@@ -5,6 +5,7 @@ import { emailLayout, sendMail, appUrl } from './mailer';
 import { productLabel } from '@/lib/paymentLabel';
 import { eventPriceFor, productForKind, EVENT_KIND_SHORT } from '@/lib/events';
 import type { AcademicEvent, Institute, Job, Payment, PaymentEvent, PaymentProduct, PaymentRefund, PlanSettings, PremiumPlanOption, UserAccount } from '@/types';
+import { DONATION_MIN_INR, DONATION_MAX_INR } from '@/types';
 
 /*
  * Razorpay payments. Keys come from .env.local (RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET; optional
@@ -41,7 +42,7 @@ function addDays(fromIso: string, days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-export interface OrderOptions { plan?: PremiumPlanOption['key']; jobId?: string; eventId?: string }
+export interface OrderOptions { plan?: PremiumPlanOption['key']; jobId?: string; eventId?: string; amount?: number }
 
 /** Creates a Razorpay order for the signed-in user. */
 export async function createOrder(userId: string, product: PaymentProduct, opts: OrderOptions = {}): Promise<{ ok: true; order: { id: string; amount: number; currency: string }; payment: Payment; keyId: string } | { ok: false; error: string; status: number }> {
@@ -50,6 +51,13 @@ export async function createOrder(userId: string, product: PaymentProduct, opts:
     const me = accountOf(db, userId);
     if (!me) return { error: 'Please sign in.' };
     const s = settingsOf(db);
+    if (product === 'donation') {
+      // Any signed-in user may contribute any whole amount between the limits; the amount is checked here, not trusted from the browser.
+      const amount = Number(opts.amount);
+      if (!Number.isInteger(amount) || amount < DONATION_MIN_INR || amount > DONATION_MAX_INR) return { error: `Choose an amount between ₹${DONATION_MIN_INR} and ₹${DONATION_MAX_INR.toLocaleString('en-IN')}.` };
+      const inst = me.instituteId ? (db[STORAGE_KEYS.INSTITUTES] as Institute[]).find(i => i.id === me.instituteId) : undefined;
+      return { me, inst, amount, months: 0 };
+    }
     if (product === 'candidate_premium') {
       if (me.role !== 'candidate') return { error: 'Premium is for candidate accounts.' };
       const plans = premiumPlansOf(s);
@@ -82,7 +90,7 @@ export async function createOrder(userId: string, product: PaymentProduct, opts:
     if (!inst) return { error: 'Your account is not linked to an institute.' };
     return { me, inst, amount: institutionPriceFor(s, inst).amount, months: s.institutionDurationMonths };
   });
-  if ('error' in prep) return { ok: false, error: prep.error!, status: 403 };
+  if ('error' in prep) return { ok: false, error: prep.error!, status: product === 'donation' ? 400 : 403 };
   if (!prep.amount || prep.amount < 1) return { ok: false, error: 'The price has not been set. Please contact the administrator.', status: 400 };
 
   const receipt = `acx_${Date.now().toString(36)}`;
@@ -203,7 +211,10 @@ function nextInvoiceNumber(payments: Payment[]): string {
 /** Turns on what the payment bought and sets p.activeUntil. */
 function activate(db: Record<string, unknown>, c: { set: (k: string, v: unknown) => void }, p: Payment): void {
   const s = settingsOf(db);
-  if (p.product === 'candidate_premium') {
+  if (p.product === 'donation') {
+    // A contribution buys nothing: never touch plans or subscriptions.
+    p.activeUntil = undefined;
+  } else if (p.product === 'candidate_premium') {
     const users = (db[STORAGE_KEYS.USERS] as UserAccount[]).slice();
     const u = users.find(x => x.id === p.userId);
     if (u) {
@@ -257,6 +268,7 @@ function activate(db: Record<string, unknown>, c: { set: (k: string, v: unknown)
 function revoke(db: Record<string, unknown>, c: { set: (k: string, v: unknown) => void }, p: Payment): string {
   const done = (note: string, until?: string) => { if (until) p.activeUntil = until; return note; };
   const today = todayIso();
+  if (p.product === 'donation') return 'Contribution refunded';
   if (p.product === 'candidate_premium') {
     const users = (db[STORAGE_KEYS.USERS] as UserAccount[]).slice();
     const u = users.find(x => x.id === p.userId);
@@ -320,7 +332,7 @@ export async function completePayment(orderId: string, paymentId: string, known?
     payments[i] = p;
     c.set(STORAGE_KEYS.PAYMENTS, payments);
     c.userId = p.userId;
-    StorageService.addAuditLog(`Payment ${paymentId} received: ₹${p.amount} for ${productLabel(p)}, active until ${p.activeUntil}`, p.id, 'AUTHENTICATION');
+    StorageService.addAuditLog(`Payment ${paymentId} received: ₹${p.amount} for ${productLabel(p)}${p.activeUntil ? `, active until ${p.activeUntil}` : ''}`, p.id, 'AUTHENTICATION');
     return { ok: true, payment: p };
   });
   if (res.ok && res.payment && !res.already) sendReceipt(res.payment).catch(() => undefined);
@@ -431,6 +443,10 @@ export async function recordOfflinePayment(input: {
       const inst = (db[STORAGE_KEYS.INSTITUTES] as Institute[]).find(i => i.id === u.instituteId);
       if (!inst) return { ok: false, error: 'That account is not linked to an institute.' };
       p.instituteId = inst.id; p.instituteName = inst.name; p.months = Math.max(1, Math.round(Number(input.months) || s.institutionDurationMonths));
+    } else if (input.product === 'donation') {
+      if (amount < 1) return { ok: false, error: 'Enter the amount received.' };
+      const inst = u.instituteId ? (db[STORAGE_KEYS.INSTITUTES] as Institute[]).find(i => i.id === u.instituteId) : undefined;
+      p.instituteId = inst?.id; p.instituteName = inst?.name;
     } else if (input.product === 'event_listing' || input.product === 'conference_listing') {
       const ev = ((db[STORAGE_KEYS.EVENTS] as AcademicEvent[]) || []).find(e => e.id === input.eventId);
       if (!ev || ev.createdBy !== u.id) return { ok: false, error: 'Choose a listing posted by that account.' };
@@ -489,15 +505,17 @@ export async function reconcilePayments(): Promise<{ checked: number; paid: numb
 async function sendReceipt(p: Payment) {
   const what = productLabel(p);
   const { html, text } = emailLayout({
-    heading: 'Payment received — thank you!',
+    heading: p.product === 'donation' ? 'Thank you for supporting AcadeXMatch!' : 'Payment received — thank you!',
     paragraphs: [
       `Hello ${p.userName},`,
-      `We received your payment of ₹${p.amount.toLocaleString('en-IN')} for ${what}. It is active until ${p.activeUntil}.`,
+      p.product === 'donation'
+        ? `We received your contribution of ₹${p.amount.toLocaleString('en-IN')}. It helps us keep AcadeXMatch free and useful for teachers, researchers and institutions across India.`
+        : `We received your payment of ₹${p.amount.toLocaleString('en-IN')} for ${what}. It is active until ${p.activeUntil}.`,
       p.source === 'offline' ? `Invoice ${p.invoiceNumber} · ${p.methodDetail || 'Paid offline'}` : `Invoice ${p.invoiceNumber} · ${p.methodDetail ? `${p.methodDetail} · ` : ''}Razorpay payment ${p.razorpayPaymentId}`,
     ],
-    button: { label: 'View invoice', url: `${appUrl()}/invoice/${p.id}` },
+    button: { label: p.product === 'donation' ? 'View receipt' : 'View invoice', url: `${appUrl()}/invoice/${p.id}` },
   });
-  await sendMail({ to: p.userEmail, subject: `Receipt ${p.invoiceNumber} — ${what}`, text, html, kind: 'receipt' });
+  await sendMail({ to: p.userEmail, subject: p.product === 'donation' ? `Thank you — receipt ${p.invoiceNumber}` : `Receipt ${p.invoiceNumber} — ${what}`, text, html, kind: 'receipt' });
 }
 
 async function sendRefundEmail(p: Payment, r: PaymentRefund) {

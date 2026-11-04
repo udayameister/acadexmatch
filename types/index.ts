@@ -166,7 +166,11 @@ export type InstitutionCategory = 'college' | 'standalone' | 'university' | 'rnd
 /** Institution Premium price (₹, incl. GST) for each AISHE category. */
 export type InstitutionCategoryPrices = Record<InstitutionCategory, number>;
 
-export type PaymentProduct = 'candidate_premium' | 'institution_premium' | 'featured_listing' | 'urgent_listing' | 'event_listing' | 'conference_listing';
+export type PaymentProduct = 'candidate_premium' | 'institution_premium' | 'featured_listing' | 'urgent_listing' | 'event_listing' | 'conference_listing' | 'donation';
+
+/** Voluntary contribution limits (₹). */
+export const DONATION_MIN_INR = 100;
+export const DONATION_MAX_INR = 10000;
 
 /** A candidate Premium plan option (monthly, yearly or the discounted research-scholar plan). */
 export interface PremiumPlanOption {

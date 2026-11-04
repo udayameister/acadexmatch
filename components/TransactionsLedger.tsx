@@ -26,6 +26,7 @@ const PRODUCT: Record<PaymentProduct, string> = {
   urgent_listing: 'Urgent hiring label',
   event_listing: 'FDP / workshop / seminar listing',
   conference_listing: 'Conference listing',
+  donation: 'Contribution',
 };
 
 const rs = (n: number) => `₹${(Math.round(n * 100) / 100).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
@@ -182,7 +183,7 @@ function OfflineForm({ onClose }: { onClose: () => void }) {
     : f.product === 'institution_premium' ? institutionPriceFor(settings, StorageService.getInstitutes().find(i => i.id === buyer?.instituteId)).amount
       : f.product === 'event_listing' ? eventPrices(settings).eventPriceInr
         : f.product === 'conference_listing' ? eventPrices(settings).conferencePriceInr
-          : f.product === 'featured_listing' ? settings.featuredPriceInr : settings.urgentPriceInr;
+          : f.product === 'featured_listing' ? settings.featuredPriceInr : f.product === 'donation' ? undefined : settings.urgentPriceInr;
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();

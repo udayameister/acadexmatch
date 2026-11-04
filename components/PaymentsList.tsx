@@ -13,6 +13,7 @@ const PRODUCT: Record<Payment['product'], string> = {
   urgent_listing: 'Urgent hiring label',
   event_listing: 'FDP / workshop / seminar listing',
   conference_listing: 'Conference listing',
+  donation: 'Contribution',
 };
 
 

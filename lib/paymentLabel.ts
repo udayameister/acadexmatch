@@ -2,6 +2,7 @@ import type { Payment } from '@/types';
 
 /** Human-readable description of what a payment bought (receipts, invoices, audit log). */
 export function productLabel(p: Pick<Payment, 'product' | 'instituteName' | 'months' | 'plan' | 'jobTitle' | 'days'> & Partial<Pick<Payment, 'eventTitle'>>): string {
+  if (p.product === 'donation') return 'Voluntary contribution to AcadeXMatch';
   if (p.product === 'event_listing' || p.product === 'conference_listing') return `${p.product === 'conference_listing' ? 'Conference' : 'FDP / workshop / seminar'} advertisement — ${p.eventTitle || 'event listing'}`;
   if (p.product === 'candidate_premium') return `AcadeXMatch Premium${p.plan === 'scholar' ? ' (research scholar)' : p.plan === 'monthly' ? ' (monthly)' : ''} — ${p.months} month${p.months === 1 ? '' : 's'}`;
   if (p.product === 'institution_premium') return `Institution Premium — ${p.instituteName} — ${p.months} months`;
