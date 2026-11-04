@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { TrackJobPanel } from '@/components/TrackJobButton';
+import { JobViewsPanel, useRecordJobView } from '@/components/JobViews';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import InstituteLogo from '@/components/InstituteLogo';
@@ -50,6 +51,7 @@ export default function JobDetailPage() {
   const [appliedSuccess, setAppliedSuccess] = useState(false);
   const [applyError, setApplyError] = useState<string | null>(null);
   const { user } = useCurrentUser();
+  useRecordJobView(job?.id);
 
   useEffect(() => {
     if (!jobId) return;
@@ -357,6 +359,7 @@ export default function JobDetailPage() {
 
         {/* Right Column: Application Form */}
         <div className="lg:col-span-4 space-y-6">
+          {job && <JobViewsPanel jobId={job.id} />}
           
           <div className="sticky top-24 rounded-3xl bg-white border border-slate-200 p-6 sm:p-7 space-y-5 shadow-md">
             

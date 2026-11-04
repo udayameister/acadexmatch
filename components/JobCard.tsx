@@ -1,5 +1,6 @@
 'use client';
 
+import { JobViewsBadge } from '@/components/JobViews';
 import { PromotionBadges } from '@/components/Promotions';
 import { isJobFeatured } from '@/lib/storage';
 import React from 'react';
@@ -54,6 +55,7 @@ export default function JobCard({ job, candidateProfile, onOpenMatchModal, featu
             </span>
           )}
           <PromotionBadges job={job} />
+          <JobViewsBadge jobId={job.id} />
           {job.isPremium && <PremiumBadge />}
           {job.requiredQualifications.netSletMandatory && (
             <span className="text-xs font-semibold bg-brand-50 text-brand-800 px-2.5 py-1 rounded-lg border border-brand-200">

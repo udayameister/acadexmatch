@@ -8,6 +8,7 @@ import { StorageService, isDeadlinePassed, isPremiumUser, isInstituteSubscribed,
 import { PlanPill } from '@/components/Premium';
 import { useStorageValue, useCurrentUser } from '@/lib/useAuth';
 import { useVisitStats } from '@/components/VisitCounter';
+import { useJobViews } from '@/components/JobViews';
 import { CandidateAvatar, DocumentList } from '@/components/CandidateDocuments';
 import { useDocuments, deleteDocument, readLegacyBrowserDocuments, uploadDocumentFor } from '@/lib/documents';
 import { hydrate, hasLegacyBrowserData, importLegacyBrowserData } from '@/lib/clientSync';
@@ -623,12 +624,17 @@ export function VacanciesPanel() {
   const institutes = useStorageValue<Institute[]>(() => StorageService.getInstitutes(), []);
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | Job['status']>('all');
+  const [sortByViews, setSortByViews] = useState(false);
+  const { counts: views } = useJobViews();
   const [editing, setEditing] = useState<Job | 'new' | null>(null);
   const [flash, setFlash] = useFlash();
 
-  const visible = useMemo(() => jobs.filter(j =>
-    (statusFilter === 'all' || j.status === statusFilter) &&
-    `${j.title} ${j.instituteName} ${j.department} ${j.advertisementNumber}`.toLowerCase().includes(query.toLowerCase())), [jobs, query, statusFilter]);
+  const visible = useMemo(() => {
+    const list = jobs.filter(j =>
+      (statusFilter === 'all' || j.status === statusFilter) &&
+      `${j.title} ${j.instituteName} ${j.department} ${j.advertisementNumber}`.toLowerCase().includes(query.toLowerCase()));
+    return sortByViews ? [...list].sort((a, b) => (views?.[b.id]?.total || 0) - (views?.[a.id]?.total || 0)) : list;
+  }, [jobs, query, statusFilter, sortByViews, views]);
 
   const sel = useSelection(visible.map(j => j.id));
   const bulkDelete = () => {
@@ -668,6 +674,7 @@ export function VacanciesPanel() {
           <option value="under_review">Under review</option>
           <option value="closed">Closed</option>
         </select>
+        <label className="flex items-center gap-1.5 text-xs text-slate-700 whitespace-nowrap"><input type="checkbox" className="w-4 h-4 accent-brand-700" checked={sortByViews} onChange={e => setSortByViews(e.target.checked)} /> Most viewed first</label>
         <button className={btnPrimary} onClick={() => setEditing('new')} disabled={institutes.length === 0}><Plus className="w-4 h-4" /> Add vacancy</button>
       </Toolbar>
       {expired.length > 0 && (
@@ -687,7 +694,7 @@ export function VacanciesPanel() {
         <button className={bulkDanger} onClick={bulkDelete}><Trash2 className="w-3.5 h-3.5" /> Delete</button>
       </BulkBar>
 
-      <TableShell sel={sel} head={['Vacancy', 'Institute', 'Deadline', 'Applicants', 'Status', '']} empty={visible.length === 0}>
+      <TableShell sel={sel} head={['Vacancy', 'Institute', 'Deadline', 'Views (7 days)', 'Applicants', 'Status', '']} empty={visible.length === 0}>
         {visible.map(j => (
           <tr key={j.id} className={sel.has(j.id) ? 'bg-brand-50/60' : 'hover:bg-ivory'}>
             <RowCheck sel={sel} id={j.id} label={j.title} />
@@ -697,6 +704,9 @@ export function VacanciesPanel() {
             </td>
             <td className="px-4 py-3 text-slate-600 whitespace-nowrap">{j.instituteShortName}</td>
             <td className={`px-4 py-3 whitespace-nowrap ${isDeadlinePassed(j) ? 'text-crimson-700' : 'text-slate-600'}`}>{j.applicationDeadline}</td>
+            <td className="px-4 py-3 text-slate-600 whitespace-nowrap tabular-nums" title={views?.[j.id]?.last ? `Last view ${new Date(views[j.id].last!).toLocaleString('en-IN')}` : 'No views yet'}>
+              {views ? <>{(views[j.id]?.total || 0).toLocaleString('en-IN')} <span className="text-slate-400">({views[j.id]?.last7 || 0})</span></> : '…'}
+            </td>
             <td className="px-4 py-3 text-slate-600">{j.applicantCount || 0}</td>
             <td className="px-4 py-3">
               {j.status === 'closed' && j.autoClosedAt && <div className="text-[12px] text-slate-500 mb-1">Auto-closed {j.autoClosedAt.slice(0, 10)}</div>}
