@@ -1,6 +1,7 @@
 import { maybeRunDaily } from './lib/server/scrapeQueue';
 import { maybeRunFacultyTickDaily } from './lib/server/facultytickEngine';
 import { pruneOldResumeData } from './lib/server/resumes';
+import { runFinder, sendDue } from './lib/server/outreach';
 import { maybeSendDigest } from './lib/server/newPostDigest';
 import { smsConfigured, smsProvider } from './lib/server/sms';
 import { configuredProviders } from './lib/server/oidc';
@@ -33,6 +34,9 @@ if (process.env.ACAD_DISABLE_SCHEDULER !== '1' && !g.__acadScheduler) {
     maybeRunDaily().catch(err => console.error('[AcadeXMatch] Daily scrape error', err));
     maybeRunFacultyTickDaily().catch(err => console.error('[AcadeXMatch] FacultyTick scrape error', err));
     maybeSendDigest().catch(err => console.error('[AcadeXMatch] New-post email error', err));
+    // College outreach: continue the contact finder after a restart, and send the running campaign within its daily limit.
+    runFinder().catch(err => console.error('[AcadeXMatch] Outreach finder error', err));
+    sendDue().catch(err => console.error('[AcadeXMatch] Outreach sending error', err));
     sendRenewalReminders().catch(err => console.error('[AcadeXMatch] Renewal reminder error', err));
     reconcilePayments().catch(err => console.error('[AcadeXMatch] Payment check error', err));
     // Close expired vacancies first so alerts never include them.

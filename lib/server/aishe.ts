@@ -201,6 +201,11 @@ export async function importAishe(records: AisheRecord[]): Promise<{ added: numb
   return { added, updated, unchanged, total };
 }
 
+/** Every directory record (for the outreach contact finder). */
+export async function allAisheRecords(): Promise<AisheRecord[]> {
+  return [...(await loadAll()).values()].map(i => i.rec);
+}
+
 export async function getAishe(code: string): Promise<AisheRecord | null> {
   const c = normaliseAisheCode(code);
   return c ? (await loadAll()).get(c)?.rec ?? null : null;

@@ -7,6 +7,7 @@ import FacultyTickPanel from '@/components/FacultyTickPanel';
 import ResumeAdminPanel from '@/components/ResumeAdminPanel';
 import LaunchOffersCard from '@/components/LaunchOffersCard';
 import AdvisoryBoardPanel from '@/components/AdvisoryBoardPanel';
+import OutreachPanel from '@/components/OutreachPanel';
 import EventsAdminPanel from '@/components/EventsAdminPanel';
 import NewPostEmailCard from '@/components/NewPostEmailCard';
 import { useStorageValue } from '@/lib/useAuth';
@@ -42,9 +43,9 @@ import {
   Handshake,
   Library,
   Rss,
-  CalendarDays, FileSearch, UsersRound } from 'lucide-react';
+  CalendarDays, FileSearch, UsersRound, Send } from 'lucide-react';
 
-type AdminTab = 'growth' | 'quality' | 'announcements' | 'partners' | 'advisory' | 'users' | 'institutions' | 'customers' | 'vacancies' | 'scraping' | 'facultytick' | 'events' | 'resume' | 'applications' | 'premium' | 'verification' | 'dpdp' | 'audit' | 'emails' | 'site' | 'directory';
+type AdminTab = 'growth' | 'quality' | 'announcements' | 'partners' | 'advisory' | 'outreach' | 'users' | 'institutions' | 'customers' | 'vacancies' | 'scraping' | 'facultytick' | 'events' | 'resume' | 'applications' | 'premium' | 'verification' | 'dpdp' | 'audit' | 'emails' | 'site' | 'directory';
 
 export default function AdminCompliancePage() {
   const [institutes, setInstitutes] = useState<Institute[]>([]);
@@ -199,6 +200,7 @@ export default function AdminCompliancePage() {
           ['partners', Handshake, 'Partners'],
           ['advisory', UsersRound, 'Advisory board'],
           ['emails', Mail, 'Emails'],
+          ['outreach', Send, 'Email outreach'],
           ['site', Settings2, 'Site & visits'],
         ] as [AdminTab, typeof Users, string][]).map(([key, Icon, label]) => (
           <button
@@ -235,6 +237,7 @@ export default function AdminCompliancePage() {
       {activeTab === 'resume' && <ResumeAdminPanel />}
       {activeTab === 'customers' && <CustomersPanel />}
       {activeTab === 'emails' && <div className="space-y-5"><NewPostEmailCard /><EmailsPanel /></div>}
+      {activeTab === 'outreach' && <OutreachPanel />}
       {activeTab === 'premium' && <div className="space-y-6"><LaunchOffersCard /><PremiumPanel /></div>}
 
       {/* TAB 1: AISHE & NAAC Verification Queue */}
