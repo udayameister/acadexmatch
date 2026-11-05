@@ -72,9 +72,9 @@ function SenderCard({ s }: { s: Summary }) {
       <h3 className="font-semibold flex items-center gap-2"><AlertTriangle className="w-5 h-5" /> Connect the outreach Brevo account to send</h3>
       <p>You can find contacts now. To send, add the second Brevo account (kept separate from the one that sends sign-in codes and candidate alerts):</p>
       <ol className="list-decimal pl-5 space-y-1">
-        <li>Create a second Brevo account and, under Senders &amp; Domains, add and authenticate <strong>acadexmatch.com</strong> with the sender <strong>outreach@acadexmatch.com</strong>.</li>
+        <li>Create a second Brevo account and, under Senders &amp; Domains, add and authenticate <strong>outreach.acadexmatch.com</strong> with the sender <strong>hello@outreach.acadexmatch.com</strong>.</li>
         <li>In that account create an API key (SMTP &amp; API → API keys).</li>
-        <li>In GoDaddy, add two settings (environment variables) and publish: <code>OUTREACH_EMAIL_API_KEY</code> = the new key, and <code>OUTREACH_MAIL_FROM</code> = <code>AcadeXMatch &lt;outreach@acadexmatch.com&gt;</code>.</li>
+        <li>In GoDaddy, add two settings (environment variables) and publish: <code>OUTREACH_EMAIL_API_KEY</code> = the new key, and <code>OUTREACH_MAIL_FROM</code> = <code>AcadeXMatch &lt;hello@outreach.acadexmatch.com&gt;</code>.</li>
       </ol>
     </section>
   );
