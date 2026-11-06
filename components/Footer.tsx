@@ -119,7 +119,15 @@ export default function Footer() {
 
         <div className="border-t border-white/10">
           <div className="max-w-7xl mx-auto px-4 sm:px-8 py-5 flex flex-col lg:flex-row items-center justify-between gap-3 text-xs text-center text-brand-100/60">
-            <span>&copy; {new Date().getFullYear()} AcadeXMatch. Built for Indian higher education.</span>
+            <span>
+              &copy; {new Date().getFullYear()} AcadeXMatch. Built for Indian higher education.
+              <span className="block mt-0.5">
+                A product of{' '}
+                <a href="https://www.ukqaai.com" target="_blank" rel="noopener noreferrer" className="font-semibold text-brand-100/90 hover:text-white underline-offset-2 hover:underline">
+                  UKQAAI Technologies
+                </a>
+              </span>
+            </span>
             <VisitCounter />
             <span>Aligned with UGC Regulations 2018 · AICTE norms · 7th CPC pay matrix</span>
           </div>
