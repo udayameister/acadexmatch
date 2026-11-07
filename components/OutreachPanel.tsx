@@ -1,11 +1,11 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { AlertTriangle, Ban, CheckCircle2, Download, Loader2, Mail, Pause, Play, Search, Send, Square, Trash2, Globe, Save } from 'lucide-react';
+import { AlertTriangle, Ban, CheckCircle2, Download, Loader2, Mail, Pause, Play, Search, Send, Square, Trash2, Globe, Save, Upload } from 'lucide-react';
 
 interface Campaign { id: string; name: string; subject: string; body: string; audience: { state?: string; category?: string }; perCollege: 1 | 2; status: 'draft' | 'sending' | 'paused' | 'done'; createdAt: string; startedAt?: string; finishedAt?: string; queued: number; sent: number; failed: number; skipped: number; lastError?: string }
 interface Summary {
-  senderConfigured: boolean; sender: string | null; contacts: Record<string, number>; colleges: number; visited: number; visitedWithEmail: number; suppressed: number;
+  withWebsite: number; senderConfigured: boolean; sender: string | null; contacts: Record<string, number>; colleges: number; visited: number; visitedWithEmail: number; suppressed: number;
   settings: { dailyLimit: number; perCollege: 1 | 2; gapDays: number };
   finder: { running: boolean; filter: { state?: string; category?: string }; done: number; total: number; found: number; skipped: number; queued: number; startedAt?: string; finishedAt?: string; lastError?: string };
   campaigns: Campaign[]; sentToday: number; states: string[]; categories: string[]; template: { subject: string; body: string };
@@ -58,6 +58,7 @@ export default function OutreachPanel() {
       {err && <p className="text-sm text-crimson-700 bg-crimson-50 border border-crimson-100 rounded-lg px-3 py-2" role="alert">{err}</p>}
 
       <SenderCard s={s} />
+      <ImportCard onDone={load} />
       <FinderCard s={s} run={run} />
       <ContactsCard s={s} total={total} run={run} />
       <CampaignsCard s={s} run={run} flash={flash} setErr={setErr} />
@@ -80,6 +81,53 @@ function SenderCard({ s }: { s: Summary }) {
   );
 }
 
+interface ImportResult { kind: string; file: string; rows: number; added: number; updated: number; unchanged: number; skipped: number; skippedSample: { row: number; reason: string }[] }
+
+function ImportCard({ onDone }: { onDone: () => Promise<void> }) {
+  const [busy, setBusy] = useState('');
+  const [res, setRes] = useState<ImportResult | null>(null);
+  const [err, setErr] = useState('');
+  const upload = async (kind: 'websites' | 'contacts', file: File | undefined) => {
+    if (!file) return;
+    setBusy(kind); setErr(''); setRes(null);
+    try {
+      const f = new FormData(); f.append('kind', kind); f.append('file', file);
+      const r = await fetch('/api/admin/outreach/import', { method: 'POST', credentials: 'same-origin', body: f });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || 'Could not import this file.');
+      setRes(d); await onDone();
+    } catch (e) { setErr((e as Error).message); } finally { setBusy(''); }
+  };
+  const picker = (kind: 'websites' | 'contacts', label: string) => (
+    <label className={`${ghost} cursor-pointer`}>
+      {busy === kind ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />} {label}
+      <input type="file" accept=".csv,.xlsx" className="sr-only" disabled={!!busy} onChange={e => { upload(kind, e.target.files?.[0]); e.target.value = ''; }} />
+    </label>
+  );
+  return (
+    <section className={card} aria-labelledby="import-h">
+      <h3 id="import-h" className="font-semibold text-slate-900 flex items-center gap-2"><Upload className="w-5 h-5 text-brand-700" /> Import data (Excel or CSV)</h3>
+      <div className="grid md:grid-cols-2 gap-4 text-sm text-slate-600">
+        <div className="space-y-2">
+          <p><strong className="text-slate-800">College websites</strong> — columns <code>AISHE Code</code> and <code>Website</code>. The finder (step 1) then visits these websites and collects the emails they publish.</p>
+          {picker('websites', 'Upload websites')}
+        </div>
+        <div className="space-y-2">
+          <p><strong className="text-slate-800">Contact emails</strong> — columns <code>Email</code> and <code>AISHE Code</code> or <code>College</code> (<code>State</code>, <code>District</code> optional). Added straight to the contacts in step 2. Use only official contact addresses that colleges publish publicly.</p>
+          {picker('contacts', 'Upload contacts')}
+        </div>
+      </div>
+      {err && <p role="alert" className="text-sm text-crimson-700">{err}</p>}
+      {res && (
+        <div role="status" className="text-sm p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 space-y-1">
+          <p>{res.file}: {res.rows.toLocaleString('en-IN')} rows · {res.kind === 'websites' ? `${res.updated.toLocaleString('en-IN')} websites added` : `${res.added.toLocaleString('en-IN')} new contacts`} · {res.unchanged.toLocaleString('en-IN')} already there · {res.skipped.toLocaleString('en-IN')} skipped</p>
+          {!!res.skippedSample.length && <details><summary className="cursor-pointer text-xs">Why rows were skipped</summary><ul className="text-xs mt-1 list-disc pl-5">{res.skippedSample.map(x => <li key={x.row}>Row {x.row}: {x.reason}</li>)}</ul></details>}
+        </div>
+      )}
+    </section>
+  );
+}
+
 function FinderCard({ s, run }: { s: Summary; run: (fn: () => Promise<unknown>, ok?: string) => Promise<void> }) {
   const [state, setState] = useState(s.finder.filter.state || '');
   const [category, setCategory] = useState(s.finder.filter.category || '');
@@ -90,7 +138,10 @@ function FinderCard({ s, run }: { s: Summary; run: (fn: () => Promise<unknown>, 
   return (
     <section className={card} aria-labelledby="finder-h">
       <h3 id="finder-h" className="font-semibold text-slate-900 flex items-center gap-2"><Globe className="w-5 h-5 text-brand-700" /> Step 1 · Find contact emails</h3>
-      <p className="text-xs text-slate-500">Visits each college website from the AISHE directory (home page and up to three contact pages, respecting robots.txt, a few sites at a time) and saves the addresses the college publishes. Colleges already on AcadeXMatch and colleges checked in the last 90 days are skipped. So far: {s.visited.toLocaleString('en-IN')} websites checked, {s.visitedWithEmail.toLocaleString('en-IN')} with an email.</p>
+      <p className="text-xs text-slate-500">Visits each college website from the AISHE directory (home page and up to three contact pages, respecting robots.txt, a few sites at a time) and saves the addresses the college publishes. Colleges already on AcadeXMatch and colleges checked in the last 90 days are skipped. Colleges with a website: {s.withWebsite.toLocaleString('en-IN')}. So far: {s.visited.toLocaleString('en-IN')} websites checked, {s.visitedWithEmail.toLocaleString('en-IN')} with an email.</p>
+      {!s.withWebsite && !f.running && (
+        <p className="text-sm p-3 rounded-xl bg-gold-50 border border-gold-200 text-gold-900 flex gap-2"><AlertTriangle className="w-5 h-5 shrink-0" /><span>None of the colleges in the AISHE directory has a website address yet (the AISHE download has no website column), so there is nothing to visit. Use <strong>Import data</strong> above: add college websites, or add contact emails you already have.</span></p>
+      )}
       {f.running ? (
         <div className="space-y-2" role="status">
           <div className="flex justify-between text-sm"><span>Checking websites{f.filter.state ? ` in ${f.filter.state}` : ''}… {f.done} of {f.total}</span><span className="font-semibold">{f.found} new emails</span></div>
@@ -140,7 +191,7 @@ function ContactsCard({ s, total, run }: { s: Summary; total: number; run: (fn: 
         <label className="relative flex-1 min-w-[12rem]"><Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" aria-hidden="true" /><input className={`${input} w-full pl-9`} value={q} onChange={e => setQ(e.target.value)} placeholder="Search email, college or AISHE code" aria-label="Search contacts" /></label>
         <select className={input} value={state} onChange={e => setState(e.target.value)} aria-label="State"><option value="">All states</option>{s.states.map(x => <option key={x}>{x}</option>)}</select>
       </div>
-      {rows === null ? <Loader2 className="w-5 h-5 animate-spin text-brand-700" /> : !rows.length ? <p className="text-sm text-slate-500">No contacts yet. Run step 1.</p> : (
+      {rows === null ? <Loader2 className="w-5 h-5 animate-spin text-brand-700" /> : !rows.length ? <p className="text-sm text-slate-500">No contacts yet. Run step 1 or import a contact list.</p> : (
         <div className="overflow-x-auto -mx-5 px-5">
           <table className="w-full text-sm min-w-[640px]">
             <thead className="text-left text-xs text-slate-500"><tr><th className="py-2 pr-3">Email</th><th className="py-2 pr-3">College</th><th className="py-2 pr-3">Found on</th><th className="py-2 pr-3">Status</th><th /></tr></thead>

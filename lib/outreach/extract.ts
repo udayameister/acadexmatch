@@ -54,6 +54,14 @@ export function cleanEmail(raw: string): string | null {
   return e;
 }
 
+/** Role and score for one address (used for imported contact lists). */
+export function classifyEmail(email: string): { role: string; score: number } {
+  const [local, domain = ''] = email.toLowerCase().split('@');
+  const r = ROLE_RANK.find(([re]) => re.test(local));
+  const institutional = /\.(ac|edu|gov|nic)\.in$|\.edu$/.test(domain);
+  return { role: r?.[2] ?? 'Other', score: (r?.[1] ?? 10) + (institutional ? 30 : FREE_MAIL.test(domain) ? 5 : 0) };
+}
+
 /** Every distinct contact address on a page, ranked (head of institution first). */
 export function extractEmails(html: string, pageUrl: string): FoundEmail[] {
   let host = '';

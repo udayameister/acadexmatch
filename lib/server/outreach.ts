@@ -8,15 +8,16 @@
  *    candidate alerts. Daily limit, test email first, one-click unsubscribe in every email, a permanent
  *    do-not-email list, and registered institutions are never emailed.
  */
-import { createHmac, randomBytes } from 'crypto';
+import { createHash, createHmac, randomBytes } from 'crypto';
 import type { RowDataPacket } from 'mysql2';
 import { readJson, writeJson, sqlPool, backend } from './persist';
 import { serverSecret, safeEqual } from './security';
-import { allAisheRecords, normaliseAisheCode } from './aishe';
+import { allAisheRecords, normaliseAisheCode, importAishe } from './aishe';
+import type { Rows } from './sheet';
 import { withDb } from './db';
 import { appUrl } from './mailer';
 import { STORAGE_KEYS, DEFAULT_PLAN_SETTINGS } from '@/lib/storage';
-import { contactLinks, extractEmails, robotsAllows, baseDomain, type FoundEmail } from '@/lib/outreach/extract';
+import { contactLinks, extractEmails, robotsAllows, baseDomain, cleanEmail, classifyEmail, type FoundEmail } from '@/lib/outreach/extract';
 import { CONTACT_EMAIL } from '@/lib/contact';
 import type { AisheRecord, Institute, PlanSettings } from '@/types';
 
@@ -193,6 +194,12 @@ export async function finderPreview(filter: FinderState['filter']): Promise<numb
 
 export async function startFinder(filter: FinderState['filter'], limit: number): Promise<FinderState> {
   const list = (await candidates(filter)).slice(0, Math.max(1, Math.min(2000, Math.round(limit) || 200)));
+  if (!list.length) {
+    const withSite = (await allAisheRecords()).filter(r => siteUrl(r.website)).length;
+    throw new Error(withSite
+      ? 'No colleges to check for this choice: every college with a website here is already on AcadeXMatch or was checked in the last 90 days. Try another state or category.'
+      : 'None of the colleges in the AISHE directory has a website address (the AISHE download has no website column), so there is nothing to visit. Import a list of college websites, or import contact emails you already have, under "Import data" below.');
+  }
   const st = await updateState(s => {
     if (s.finder.running) throw new Error('The contact finder is already running.');
     s.finder = { ...blankFinder(), running: true, filter, queue: list.map(r => r.code), total: list.length, startedAt: new Date().toISOString() };
@@ -284,7 +291,9 @@ export async function outreachSummary() {
   const [[cr]] = await p.query<RowDataPacket[]>('SELECT COUNT(*) AS visited, SUM(found > 0) AS withEmail FROM acx_outreach_crawled') as unknown as [[{ visited: number; withEmail: number }]];
   const [[sp]] = await p.query<RowDataPacket[]>('SELECT COUNT(*) AS n FROM acx_outreach_suppress') as unknown as [[{ n: number }]];
   const s = await readState();
+  const withWebsite = (await allAisheRecords()).filter(r => siteUrl(r.website)).length;
   return {
+    withWebsite,
     senderConfigured: outreachSenderConfigured(), sender: process.env.OUTREACH_MAIL_FROM || null,
     contacts: Object.fromEntries(byStatus.map(r => [r.status, Number(r.n)])) as Record<string, number>,
     colleges: Number(col.colleges || 0), visited: Number(cr.visited || 0), visitedWithEmail: Number(cr.withEmail || 0), suppressed: Number(sp.n || 0),
@@ -429,17 +438,24 @@ export function unsubscribeLink(email: string): string {
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const linkify = (s: string) => esc(s).replace(/(https?:\/\/[^\s<]+[^\s<.,;:)])/g, '<a href="$1" style="color:#800000">$1</a>');
 
-export function renderOutreach(c: Pick<Campaign, 'subject' | 'body'>, contact: { email: string; college: string; aishe: string }) {
-  const fill = (t: string) => t.replace(/\{\{\s*college\s*\}\}/gi, contact.college).replace(/\{\{\s*aishe\s*\}\}/gi, contact.aishe);
+export function renderOutreach(c: Pick<Campaign, 'subject' | 'body'>, contact: { email: string; college: string; aishe: string; imported?: boolean }) {
+  // Imported contacts without an AISHE code carry an internal "M-…" key: leave the code out of the text.
+  const aishe = /^M-/.test(contact.aishe) ? '' : contact.aishe;
+  const fill = (t: string) => {
+    let out = t.replace(/\{\{\s*college\s*\}\}/gi, contact.college);
+    if (!aishe) out = out.replace(/\s*\(\s*\{\{\s*aishe\s*\}\}\s*\)/gi, '');
+    return out.replace(/\{\{\s*aishe\s*\}\}/gi, aishe);
+  };
   const subject = fill(c.subject);
   const body = fill(c.body);
   const unsub = unsubscribeLink(contact.email);
-  const footer = `You received this email because ${contact.email} is published as a contact address on ${contact.college}'s website. To receive no further emails from AcadeXMatch, unsubscribe: ${unsub}`;
+  const why = contact.imported ? `is listed as a contact address for ${contact.college}` : `is published as a contact address on ${contact.college}'s website`;
+  const footer = `You received this email because ${contact.email} ${why}. To receive no further emails from AcadeXMatch, unsubscribe: ${unsub}`;
   const text = `${body}\n\n—\n${footer}`;
   const html = `<!doctype html><html><body style="margin:0;background:#ffffff;font-family:Arial,Helvetica,sans-serif;color:#2b2b2b;font-size:15px;line-height:1.55">
 <div style="max-width:600px;margin:0 auto;padding:24px 18px">
 ${body.split(/\n{2,}/).map(par => `<p style="margin:0 0 14px">${linkify(par).replace(/\n/g, '<br>')}</p>`).join('\n')}
-<p style="margin:28px 0 0;font-size:12px;color:#777;border-top:1px solid #eee;padding-top:12px">You received this email because ${esc(contact.email)} is published as a contact address on ${esc(contact.college)}'s website. <a href="${esc(unsub)}" style="color:#777">Unsubscribe</a> and we will not email this address again.</p>
+<p style="margin:28px 0 0;font-size:12px;color:#777;border-top:1px solid #eee;padding-top:12px">You received this email because ${esc(contact.email)} ${esc(why)}. <a href="${esc(unsub)}" style="color:#777">Unsubscribe</a> and we will not email this address again.</p>
 </div></body></html>`;
   return { subject, text, html, headers: { 'List-Unsubscribe': `<${unsub}>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' } };
 }
@@ -495,10 +511,10 @@ export async function sendDue(): Promise<{ sent: number }> {
       const results: { email: string; ok: boolean; skip?: boolean; err?: string }[] = [];
       for (const email of job.emails) {
         const domain = email.split('@')[1];
-        const [[row]] = await p.query<RowDataPacket[]>('SELECT email, college, aishe_code, status FROM acx_outreach_contacts WHERE email = ?', [email]) as unknown as [[{ college: string; aishe_code: string; status: string } | undefined]];
+        const [[row]] = await p.query<RowDataPacket[]>('SELECT email, college, aishe_code, status, source_url FROM acx_outreach_contacts WHERE email = ?', [email]) as unknown as [[{ college: string; aishe_code: string; status: string; source_url: string | null } | undefined]];
         if (!row || row.status === 'unsubscribed' || row.status === 'removed' || supp.has(email) || supp.has(`@${domain}`)) { results.push({ email, ok: false, skip: true }); continue; }
         try {
-          await sendOutreachEmail(email, renderOutreach(job.campaign, { email, college: row.college, aishe: row.aishe_code }));
+          await sendOutreachEmail(email, renderOutreach(job.campaign, { email, college: row.college, aishe: row.aishe_code, imported: (row.source_url || '').startsWith(IMPORT_SOURCE) }));
           await p.query("UPDATE acx_outreach_contacts SET status = 'sent', sends = sends + 1, last_sent_at = NOW(), last_campaign = ? WHERE email = ?", [job.campaign.id, email]);
           results.push({ email, ok: true });
           sent++;
@@ -527,4 +543,89 @@ export async function sendDue(): Promise<{ sent: number }> {
     }
   } finally { g.__sender = false; }
   return { sent };
+}
+
+// ------------------------------------------------------------------ imports (administrator spreadsheets)
+
+/** source_url value marking contacts that came from an uploaded list rather than the website finder. */
+export const IMPORT_SOURCE = 'import:';
+const hkey = (h: string) => h.toLowerCase().replace(/[^a-z0-9]/g, '');
+const H = {
+  code: ['aishecode', 'aishe', 'aisheid', 'code', 'aisheno', 'aishenumber'],
+  website: ['website', 'websiteaddress', 'websiteurl', 'url', 'web', 'site', 'homepage', 'collegewebsite'],
+  email: ['email', 'emailid', 'emailaddress', 'mail', 'mailid', 'contactemail', 'principalemail', 'officialemail', 'collegeemail'],
+  college: ['college', 'collegename', 'nameofthecollege', 'nameofcollege', 'institute', 'institutename', 'institution', 'institutionname', 'nameoftheinstitution', 'nameoftheinstitute', 'name'],
+  state: ['state', 'statename'],
+  district: ['district', 'districtname'],
+};
+type Col = keyof typeof H;
+function findHeader(rows: Rows, required: Col[]): { at: number; col: Partial<Record<Col, number>> } {
+  for (let r = 0; r < Math.min(rows.length, 10); r++) {
+    const keys = rows[r].map(hkey);
+    const col: Partial<Record<Col, number>> = {};
+    for (const k of Object.keys(H) as Col[]) { const i = keys.findIndex(x => H[k].includes(x)); if (i >= 0) col[k] = i; }
+    if (required.every(k => col[k] !== undefined)) return { at: r, col };
+  }
+  throw new Error(`The first rows must be a header row with these columns: ${required.map(k => (k === 'code' ? 'AISHE Code' : k[0].toUpperCase() + k.slice(1))).join(', ')}.`);
+}
+const cell = (row: string[], i?: number) => (i === undefined ? '' : String(row[i] ?? '').replace(/\s+/g, ' ').trim());
+
+export interface ImportSummary { rows: number; added: number; updated: number; unchanged: number; skipped: number; skippedSample: { row: number; reason: string }[] }
+
+/** Adds website addresses to AISHE directory rows (columns: AISHE Code, Website), so the finder can visit them. */
+export async function importWebsites(rows: Rows): Promise<ImportSummary> {
+  const { at, col } = findHeader(rows, ['code', 'website']);
+  const byCode = new Map((await allAisheRecords()).map(r => [r.code, r]));
+  const skipped: { row: number; reason: string }[] = [];
+  const recs: AisheRecord[] = [];
+  const seen = new Set<string>();
+  for (let i = at + 1; i < rows.length; i++) {
+    const code = normaliseAisheCode(cell(rows[i], col.code));
+    const web = cell(rows[i], col.website);
+    if (!code && !web) continue;
+    const rec = code ? byCode.get(code) : undefined;
+    const url = siteUrl(web);
+    if (!code) skipped.push({ row: i + 1, reason: 'No valid AISHE code' });
+    else if (!rec) skipped.push({ row: i + 1, reason: `${code} is not in the AISHE directory` });
+    else if (!url) skipped.push({ row: i + 1, reason: `${code}: not a website address` });
+    else if (!seen.has(code)) { seen.add(code); recs.push({ ...rec, website: url.slice(0, 400) }); }
+  }
+  const res = recs.length ? await importAishe(recs) : { added: 0, updated: 0, unchanged: 0 };
+  return { rows: rows.length - at - 1, added: 0, updated: res.updated, unchanged: res.unchanged, skipped: skipped.length, skippedSample: skipped.slice(0, 20) };
+}
+
+/**
+ * Adds contact emails from a list (columns: Email, plus AISHE Code or College name; State and District
+ * optional). Registered institutions and do-not-email addresses are skipped; existing contacts keep
+ * their status.
+ */
+export async function importContacts(rows: Rows): Promise<ImportSummary> {
+  const { at, col } = findHeader(rows, ['email']);
+  if (col.code === undefined && col.college === undefined) throw new Error('Add an "AISHE Code" or a "College" column so each email belongs to a college.');
+  const byCode = new Map((await allAisheRecords()).map(r => [r.code, r]));
+  const [supp, reg, p] = await Promise.all([suppressedSet(), registered(), db()]);
+  const skipped: { row: number; reason: string }[] = [];
+  let added = 0, updated = 0, unchanged = 0;
+  for (let i = at + 1; i < rows.length; i++) {
+    const raw = cell(rows[i], col.email);
+    if (!raw) continue;
+    const skip = (reason: string) => skipped.push({ row: i + 1, reason });
+    const email = cleanEmail(raw);
+    if (!email) { skip(`${raw.slice(0, 60)}: not a usable email address`); continue; }
+    const domain = email.split('@')[1];
+    if (supp.has(email) || supp.has(`@${domain}`)) { skip(`${email}: on the do-not-email list`); continue; }
+    const code = normaliseAisheCode(cell(rows[i], col.code));
+    const rec = code ? byCode.get(code) : undefined;
+    if (code && !rec) { skip(`${code} is not in the AISHE directory`); continue; }
+    if ((code && reg.codes.has(code)) || reg.domains.has(baseDomain(domain))) { skip(`${email}: institution already on AcadeXMatch`); continue; }
+    const college = rec?.name || cell(rows[i], col.college).slice(0, 400);
+    if (!college) { skip(`${email}: no AISHE code or college name`); continue; }
+    const key = rec?.code || `M-${createHash('sha1').update(college.toLowerCase().replace(/[^a-z0-9]/g, '')).digest('hex').slice(0, 12)}`;
+    const { role, score } = classifyEmail(email);
+    const [r] = await p.query(
+      'INSERT IGNORE INTO acx_outreach_contacts (email, aishe_code, college, state, district, category, role, score, source_url) VALUES (?,?,?,?,?,?,?,?,?)',
+      [email, key, college, rec?.state || cell(rows[i], col.state) || null, rec?.district || cell(rows[i], col.district) || null, rec?.category || null, role, score, `${IMPORT_SOURCE}administrator list`]) as unknown as [{ affectedRows: number }];
+    if (r.affectedRows === 1) added++; else unchanged++;
+  }
+  return { rows: rows.length - at - 1, added, updated, unchanged, skipped: skipped.length, skippedSample: skipped.slice(0, 20) };
 }
