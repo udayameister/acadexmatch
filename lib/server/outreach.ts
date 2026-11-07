@@ -338,6 +338,7 @@ function cleanCampaign(raw: Partial<Campaign>): Pick<Campaign, 'name' | 'subject
   const body = String(raw.body || '').replace(/\r/g, '').trim().slice(0, 8000);
   if (subject.length < 5) throw new Error('Write a subject line.');
   if (body.length < 50) throw new Error('Write the message (at least a few sentences).');
+  if (/!\[[^\]]*\]\(http:\/\//i.test(body)) throw new Error('Image links must start with https:// (email apps block http images).');
   return {
     name: String(raw.name || subject).trim().slice(0, 80), subject, body,
     audience: { state: raw.audience?.state ? String(raw.audience.state).slice(0, 120) : undefined, category: raw.audience?.category ? String(raw.audience.category).slice(0, 60) : undefined },
@@ -347,6 +348,7 @@ function cleanCampaign(raw: Partial<Campaign>): Pick<Campaign, 'name' | 'subject
 
 export async function saveCampaign(raw: Partial<Campaign> & { id?: string }): Promise<Campaign> {
   const c = cleanCampaign(raw);
+  await checkCampaignImages(c.body);
   return updateState(s => {
     if (raw.id) {
       const cur = s.campaigns.find(x => x.id === raw.id);
@@ -438,6 +440,55 @@ export function unsubscribeLink(email: string): string {
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const linkify = (s: string) => esc(s).replace(/(https?:\/\/[^\s<]+[^\s<.,;:)])/g, '<a href="$1" style="color:#800000">$1</a>');
 
+/**
+ * Images in a campaign message: a line of its own written as ![description](https://image-url),
+ * optionally wrapped in a link: [![description](https://image-url)](https://link). Only https.
+ */
+const IMG_LINE = /^\s*(?:\[\s*)?!\[([^\]\n]{0,200})\]\((https:\/\/[^\s()]+)\)(?:\s*\]\((https:\/\/[^\s()]+)\))?\s*$/;
+export function campaignImages(body: string): { alt: string; src: string; href?: string }[] {
+  return body.split('\n').map(l => l.match(IMG_LINE)).filter(Boolean).map(m => ({ alt: m![1].trim(), src: m![2], href: m![3] }));
+}
+const imgHtml = (alt: string, src: string, href?: string) => {
+  const img = `<img src="${esc(src)}" alt="${esc(alt)}" width="560" style="display:block;width:100%;max-width:560px;height:auto;border:0;margin:0 auto;border-radius:6px">`;
+  return `<div style="margin:0 0 16px">${href ? `<a href="${esc(href)}" target="_blank">${img}</a>` : img}</div>`;
+};
+function paragraphHtml(par: string): string {
+  // Image lines become pictures; the remaining lines stay one paragraph.
+  const out: string[] = [];
+  let buf: string[] = [];
+  const flush = () => { if (buf.length) out.push(`<p style="margin:0 0 14px">${buf.map(linkify).join('<br>')}</p>`); buf = []; };
+  for (const line of par.split('\n')) {
+    const m = line.match(IMG_LINE);
+    if (m) { flush(); out.push(imgHtml(m[1].trim(), m[2], m[3])); } else buf.push(line);
+  }
+  flush();
+  return out.join('\n');
+}
+const textWithoutImages = (body: string) => body.split('\n').map(l => { const m = l.match(IMG_LINE); return m ? (m[1].trim() ? `[Image: ${m[1].trim()}]${m[3] ? ` ${m[3]}` : ''}` : (m[3] || '')) : l; }).join('\n').replace(/\n{3,}/g, '\n\n');
+
+/** Checks every image link in a message opens a real image (so recipients never see a broken picture). */
+export async function checkCampaignImages(body: string): Promise<void> {
+  const imgs = campaignImages(body);
+  if (imgs.length > 5) throw new Error('Use at most 5 images in one message.');
+  for (const { src } of imgs) {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 10000);
+    try {
+      const r = await fetch(src, { headers: { 'User-Agent': UA, Accept: 'image/*' }, redirect: 'follow', signal: ctrl.signal });
+      const type = r.headers.get('content-type') || '';
+      const size = Number(r.headers.get('content-length') || 0);
+      await r.body?.cancel().catch(() => undefined);
+      if (!r.ok) throw new Error(`The image link does not open (error ${r.status}): ${src}`);
+      if (!/^image\/(png|jpe?g|gif|webp)/i.test(type)) throw new Error(`This link is not a PNG, JPG, GIF or WebP image: ${src}`);
+      if (size > 2_000_000) throw new Error(`This image is larger than 2 MB, which loads slowly in email. Use a smaller image: ${src}`);
+    } catch (e) {
+      if ((e as Error).name === 'AbortError') throw new Error(`The image took too long to load: ${src}`);
+      if (/image|open|larger/.test((e as Error).message)) throw e;
+      throw new Error(`Could not open the image link: ${src}`);
+    } finally { clearTimeout(t); }
+  }
+}
+
 export function renderOutreach(c: Pick<Campaign, 'subject' | 'body'>, contact: { email: string; college: string; aishe: string; imported?: boolean }) {
   // Imported contacts without an AISHE code carry an internal "M-…" key: leave the code out of the text.
   const aishe = /^M-/.test(contact.aishe) ? '' : contact.aishe;
@@ -451,10 +502,10 @@ export function renderOutreach(c: Pick<Campaign, 'subject' | 'body'>, contact: {
   const unsub = unsubscribeLink(contact.email);
   const why = contact.imported ? `is listed as a contact address for ${contact.college}` : `is published as a contact address on ${contact.college}'s website`;
   const footer = `You received this email because ${contact.email} ${why}. To receive no further emails from AcadeXMatch, unsubscribe: ${unsub}`;
-  const text = `${body}\n\n—\n${footer}`;
+  const text = `${textWithoutImages(body)}\n\n—\n${footer}`;
   const html = `<!doctype html><html><body style="margin:0;background:#ffffff;font-family:Arial,Helvetica,sans-serif;color:#2b2b2b;font-size:15px;line-height:1.55">
 <div style="max-width:600px;margin:0 auto;padding:24px 18px">
-${body.split(/\n{2,}/).map(par => `<p style="margin:0 0 14px">${linkify(par).replace(/\n/g, '<br>')}</p>`).join('\n')}
+${body.split(/\n{2,}/).map(paragraphHtml).join('\n')}
 <p style="margin:28px 0 0;font-size:12px;color:#777;border-top:1px solid #eee;padding-top:12px">You received this email because ${esc(contact.email)} ${esc(why)}. <a href="${esc(unsub)}" style="color:#777">Unsubscribe</a> and we will not email this address again.</p>
 </div></body></html>`;
   return { subject, text, html, headers: { 'List-Unsubscribe': `<${unsub}>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' } };
@@ -483,6 +534,7 @@ export async function sendOutreachEmail(to: string, msg: { subject: string; text
 export async function sendTest(raw: Partial<Campaign>, to: string): Promise<void> {
   if (!outreachSenderConfigured()) throw new Error('Add the outreach Brevo account first.');
   const c = cleanCampaign(raw);
+  await checkCampaignImages(c.body);
   const m = renderOutreach(c, { email: to, college: 'Example College of Arts and Science', aishe: 'C-12345' });
   await sendOutreachEmail(to, { ...m, subject: `[TEST] ${m.subject}` });
 }

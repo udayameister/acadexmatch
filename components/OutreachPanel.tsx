@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { AlertTriangle, Ban, CheckCircle2, Download, Loader2, Mail, Pause, Play, Search, Send, Square, Trash2, Globe, Save, Upload } from 'lucide-react';
+import { AlertTriangle, Ban, CheckCircle2, Download, Loader2, Mail, Pause, Play, Search, Send, Square, Trash2, Globe, Save, Upload, Image as ImageIcon } from 'lucide-react';
 
 interface Campaign { id: string; name: string; subject: string; body: string; audience: { state?: string; category?: string }; perCollege: 1 | 2; status: 'draft' | 'sending' | 'paused' | 'done'; createdAt: string; startedAt?: string; finishedAt?: string; queued: number; sent: number; failed: number; skipped: number; lastError?: string }
 interface Summary {
@@ -128,6 +128,43 @@ function ImportCard({ onDone }: { onDone: () => Promise<void> }) {
   );
 }
 
+/** Adds an image line, ![description](https://…), to the campaign message. */
+function ImageInserter({ onInsert }: { onInsert: (line: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [src, setSrc] = useState('');
+  const [alt, setAlt] = useState('');
+  const [href, setHref] = useState('');
+  const [err, setErr] = useState('');
+  const [ok, setOk] = useState(false);
+  if (!open) return <div><button type="button" className={ghost} onClick={() => setOpen(true)}><ImageIcon className="w-4 h-4" /> Insert image</button></div>;
+  const insert = () => {
+    const u = src.trim(), l = href.trim();
+    if (!/^https:\/\/\S+$/i.test(u)) { setErr('Paste an image link that starts with https://'); return; }
+    if (l && !/^https:\/\/\S+$/i.test(l)) { setErr('The click-through link must start with https://'); return; }
+    const a = alt.replace(/[\[\]\n]/g, ' ').trim();
+    const img = `![${a}](${u.replace(/[()\s]/g, encodeURIComponent)})`;
+    onInsert(l ? `[${img}](${l.replace(/[()\s]/g, encodeURIComponent)})` : img);
+    setSrc(''); setAlt(''); setHref(''); setErr(''); setOk(false); setOpen(false);
+  };
+  return (
+    <div className="p-3 rounded-xl border border-slate-200 bg-white space-y-2">
+      <p className="text-xs text-slate-500">Paste the direct link to an image hosted online (it must start with https:// and end in an image, e.g. .png or .jpg; max 2 MB). It is inserted where your cursor is in the message. Email apps sometimes hide images until the reader allows them, so keep the key words in the text as well.</p>
+      <div className="grid sm:grid-cols-3 gap-2">
+        <label className="text-xs text-slate-600 flex flex-col gap-1 sm:col-span-3">Image link *<input className={input} value={src} onChange={e => { setSrc(e.target.value); setOk(false); }} placeholder="https://www.ukqaai.com/images/banner.png" /></label>
+        <label className="text-xs text-slate-600 flex flex-col gap-1">Description (shown if the image is blocked)<input className={input} value={alt} maxLength={120} onChange={e => setAlt(e.target.value)} placeholder="AcadeXMatch launch offer" /></label>
+        <label className="text-xs text-slate-600 flex flex-col gap-1 sm:col-span-2">Open this page when clicked (optional)<input className={input} value={href} onChange={e => setHref(e.target.value)} placeholder="https://acadexmatch.com/register" /></label>
+      </div>
+      {/^https:\/\/\S+$/i.test(src.trim()) && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={src.trim()} alt={alt || 'Preview'} onLoad={() => setOk(true)} onError={() => setOk(false)} className={ok ? 'max-h-40 rounded-lg border border-slate-200' : 'hidden'} />
+      )}
+      {src && !ok && /^https:/i.test(src) && <p className="text-xs text-slate-500">No preview yet. If none appears, the link is not a direct image link (open the image itself and copy that address).</p>}
+      {err && <p role="alert" className="text-xs text-crimson-700">{err}</p>}
+      <div className="flex gap-2"><button type="button" className={primary} onClick={insert}>Insert</button><button type="button" className={ghost} onClick={() => { setOpen(false); setErr(''); }}>Cancel</button></div>
+    </div>
+  );
+}
+
 function FinderCard({ s, run }: { s: Summary; run: (fn: () => Promise<unknown>, ok?: string) => Promise<void> }) {
   const [state, setState] = useState(s.finder.filter.state || '');
   const [category, setCategory] = useState(s.finder.filter.category || '');
@@ -219,6 +256,7 @@ function ContactsCard({ s, total, run }: { s: Summary; total: number; run: (fn: 
 }
 
 function CampaignsCard({ s, run, flash, setErr }: { s: Summary; run: (fn: () => Promise<unknown>, ok?: string) => Promise<void>; flash: (m: string) => void; setErr: (m: string) => void }) {
+  const bodyRef = React.useRef<HTMLTextAreaElement>(null);
   const blank = { id: '', name: 'Launch offer for colleges', subject: s.template.subject, body: s.template.body, state: '', category: '', perCollege: s.settings.perCollege as 1 | 2 };
   const [d, setD] = useState(blank);
   const [count, setCount] = useState<number | null>(null);
@@ -243,8 +281,14 @@ function CampaignsCard({ s, run, flash, setErr }: { s: Summary; run: (fn: () => 
         <label className="text-xs text-slate-600 flex flex-col gap-1">Name (only you see it)<input className={input} value={d.name} maxLength={80} onChange={e => setD({ ...d, name: e.target.value })} /></label>
         <label className="text-xs text-slate-600 flex flex-col gap-1">Subject<input className={input} value={d.subject} maxLength={150} onChange={e => setD({ ...d, subject: e.target.value })} /></label>
         <label className="text-xs text-slate-600 flex flex-col gap-1">Message (plain text; {'{{college}}'} and {'{{aishe}}'} are filled in for each college; an unsubscribe line is added automatically)
-          <textarea className={`${input} font-mono text-[13px]`} rows={14} value={d.body} maxLength={8000} onChange={e => setD({ ...d, body: e.target.value })} />
+          <textarea ref={bodyRef} className={`${input} font-mono text-[13px]`} rows={14} value={d.body} maxLength={8000} onChange={e => setD({ ...d, body: e.target.value })} />
         </label>
+        <ImageInserter onInsert={line => {
+          const el = bodyRef.current;
+          const at = el ? el.selectionStart : d.body.length;
+          const before = d.body.slice(0, at).replace(/\s*$/, ''), after = d.body.slice(at).replace(/^\s*/, '');
+          setD({ ...d, body: `${before}${before ? '\n\n' : ''}${line}${after ? '\n\n' : ''}${after}` });
+        }} />
         <div className="flex flex-wrap gap-3 items-end">
           <label className="text-xs text-slate-600 flex flex-col gap-1">State<select className={input} value={d.state} onChange={e => { setD({ ...d, state: e.target.value }); setCount(null); }}><option value="">All states</option>{s.states.map(x => <option key={x}>{x}</option>)}</select></label>
           <label className="text-xs text-slate-600 flex flex-col gap-1">Category<select className={input} value={d.category} onChange={e => { setD({ ...d, category: e.target.value }); setCount(null); }}><option value="">All</option>{s.categories.map(x => <option key={x}>{x}</option>)}</select></label>
