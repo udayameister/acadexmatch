@@ -136,25 +136,47 @@ function ImageInserter({ onInsert }: { onInsert: (line: string) => void }) {
   const [href, setHref] = useState('');
   const [err, setErr] = useState('');
   const [ok, setOk] = useState(false);
-  if (!open) return <div><button type="button" className={ghost} onClick={() => setOpen(true)}><ImageIcon className="w-4 h-4" /> Insert image</button></div>;
+  const [uploaded, setUploaded] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const upload = async (file: File | undefined) => {
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) { setErr('The image is larger than 2 MB. Make it smaller (for example 1200 pixels wide) and upload again.'); return; }
+    setUploading(true); setErr('');
+    try {
+      const f = new FormData(); f.append('file', file);
+      const r = await fetch('/api/admin/outreach/image', { method: 'POST', credentials: 'same-origin', body: f });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || 'Could not upload the image.');
+      setSrc(d.url); setUploaded(d.url); setOk(false);
+      if (!alt) setAlt(file.name.replace(/\.[a-z0-9]+$/i, '').replace(/[-_]+/g, ' ').slice(0, 120));
+    } catch (e) { setErr((e as Error).message); } finally { setUploading(false); }
+  };
+  if (!open) return <div><button type="button" className={ghost} onClick={() => setOpen(true)}><ImageIcon className="w-4 h-4" /> Insert or upload image</button></div>;
   const insert = () => {
     const u = src.trim(), l = href.trim();
-    if (!/^https:\/\/\S+$/i.test(u)) { setErr('Paste an image link that starts with https://'); return; }
+    if (!/^https:\/\/\S+$/i.test(u) && u !== uploaded) { setErr('Upload an image or paste an image link that starts with https://'); return; }
     if (l && !/^https:\/\/\S+$/i.test(l)) { setErr('The click-through link must start with https://'); return; }
     const a = alt.replace(/[\[\]\n]/g, ' ').trim();
     const img = `![${a}](${u.replace(/[()\s]/g, encodeURIComponent)})`;
     onInsert(l ? `[${img}](${l.replace(/[()\s]/g, encodeURIComponent)})` : img);
-    setSrc(''); setAlt(''); setHref(''); setErr(''); setOk(false); setOpen(false);
+    setSrc(''); setAlt(''); setHref(''); setErr(''); setOk(false); setUploaded(''); setOpen(false);
   };
   return (
     <div className="p-3 rounded-xl border border-slate-200 bg-white space-y-2">
-      <p className="text-xs text-slate-500">Paste the direct link to an image hosted online (it must start with https:// and end in an image, e.g. .png or .jpg; max 2 MB). It is inserted where your cursor is in the message. Email apps sometimes hide images until the reader allows them, so keep the key words in the text as well.</p>
+      <p className="text-xs text-slate-500">Upload an image from your computer, or paste the direct link to an image hosted online (https://, ending in an image such as .png or .jpg). PNG, JPG, GIF or WebP, up to 2 MB; about 1200 pixels wide looks sharp. It is inserted where your cursor is in the message. Email apps sometimes hide images until the reader allows them, so keep the key words in the text as well.</p>
+      <div className="flex flex-wrap items-center gap-2">
+        <label className={`${primary} cursor-pointer`}>
+          {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />} {uploading ? 'Uploading…' : 'Upload from computer'}
+          <input type="file" accept="image/png,image/jpeg,image/gif,image/webp" className="sr-only" disabled={uploading} onChange={e => { upload(e.target.files?.[0]); e.target.value = ''; }} />
+        </label>
+        <span className="text-xs text-slate-500">or paste a link below</span>
+      </div>
       <div className="grid sm:grid-cols-3 gap-2">
         <label className="text-xs text-slate-600 flex flex-col gap-1 sm:col-span-3">Image link *<input className={input} value={src} onChange={e => { setSrc(e.target.value); setOk(false); }} placeholder="https://www.ukqaai.com/images/banner.png" /></label>
         <label className="text-xs text-slate-600 flex flex-col gap-1">Description (shown if the image is blocked)<input className={input} value={alt} maxLength={120} onChange={e => setAlt(e.target.value)} placeholder="AcadeXMatch launch offer" /></label>
         <label className="text-xs text-slate-600 flex flex-col gap-1 sm:col-span-2">Open this page when clicked (optional)<input className={input} value={href} onChange={e => setHref(e.target.value)} placeholder="https://acadexmatch.com/register" /></label>
       </div>
-      {/^https:\/\/\S+$/i.test(src.trim()) && (
+      {(/^https:\/\/\S+$/i.test(src.trim()) || (uploaded && src === uploaded)) && (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={src.trim()} alt={alt || 'Preview'} onLoad={() => setOk(true)} onError={() => setOk(false)} className={ok ? 'max-h-40 rounded-lg border border-slate-200' : 'hidden'} />
       )}

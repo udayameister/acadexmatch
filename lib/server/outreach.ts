@@ -10,7 +10,7 @@
  */
 import { createHash, createHmac, randomBytes } from 'crypto';
 import type { RowDataPacket } from 'mysql2';
-import { readJson, writeJson, sqlPool, backend } from './persist';
+import { readJson, writeJson, sqlPool, backend, putBlob, getBlob } from './persist';
 import { serverSecret, safeEqual } from './security';
 import { allAisheRecords, normaliseAisheCode, importAishe } from './aishe';
 import type { Rows } from './sheet';
@@ -338,7 +338,8 @@ function cleanCampaign(raw: Partial<Campaign>): Pick<Campaign, 'name' | 'subject
   const body = String(raw.body || '').replace(/\r/g, '').trim().slice(0, 8000);
   if (subject.length < 5) throw new Error('Write a subject line.');
   if (body.length < 50) throw new Error('Write the message (at least a few sentences).');
-  if (/!\[[^\]]*\]\(http:\/\//i.test(body)) throw new Error('Image links must start with https:// (email apps block http images).');
+  // http images are blocked by email apps; only the site's own address may be http (local testing).
+  if (campaignImages(body).some(i => i.src.startsWith('http:') && !i.src.startsWith(`${siteBase()}/api/outreach/image/`))) throw new Error('Image links must start with https:// (email apps block http images).');
   return {
     name: String(raw.name || subject).trim().slice(0, 80), subject, body,
     audience: { state: raw.audience?.state ? String(raw.audience.state).slice(0, 120) : undefined, category: raw.audience?.category ? String(raw.audience.category).slice(0, 60) : undefined },
@@ -444,7 +445,7 @@ const linkify = (s: string) => esc(s).replace(/(https?:\/\/[^\s<]+[^\s<.,;:)])/g
  * Images in a campaign message: a line of its own written as ![description](https://image-url),
  * optionally wrapped in a link: [![description](https://image-url)](https://link). Only https.
  */
-const IMG_LINE = /^\s*(?:\[\s*)?!\[([^\]\n]{0,200})\]\((https:\/\/[^\s()]+)\)(?:\s*\]\((https:\/\/[^\s()]+)\))?\s*$/;
+const IMG_LINE = /^\s*(?:\[\s*)?!\[([^\]\n]{0,200})\]\((https?:\/\/[^\s()]+)\)(?:\s*\]\((https:\/\/[^\s()]+)\))?\s*$/;
 export function campaignImages(body: string): { alt: string; src: string; href?: string }[] {
   return body.split('\n').map(l => l.match(IMG_LINE)).filter(Boolean).map(m => ({ alt: m![1].trim(), src: m![2], href: m![3] }));
 }
@@ -466,11 +467,48 @@ function paragraphHtml(par: string): string {
 }
 const textWithoutImages = (body: string) => body.split('\n').map(l => { const m = l.match(IMG_LINE); return m ? (m[1].trim() ? `[Image: ${m[1].trim()}]${m[3] ? ` ${m[3]}` : ''}` : (m[3] || '')) : l; }).join('\n').replace(/\n{3,}/g, '\n\n');
 
+// ------------------------------------------------------------------ uploaded images (public, for emails)
+
+/** The site's public address (images in emails must point at the live site). */
+const siteBase = () => appUrl('https://acadexmatch.com');
+
+export const OUTREACH_IMAGE_MAX = 2 * 1024 * 1024;
+const IMAGE_TYPES: Record<string, string> = { png: 'image/png', jpg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp' };
+export const outreachImageBlob = (file: string) => `outreach-images/${file.replace(/[^a-z0-9.]/g, '')}`;
+function imageExt(b: Buffer): string | null {
+  if (b.length > 8 && b[0] === 0x89 && b.toString('ascii', 1, 4) === 'PNG') return 'png';
+  if (b.length > 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return 'jpg';
+  if (b.length > 6 && /^GIF8[79]a$/.test(b.toString('ascii', 0, 6))) return 'gif';
+  if (b.length > 12 && b.toString('ascii', 0, 4) === 'RIFF' && b.toString('ascii', 8, 12) === 'WEBP') return 'webp';
+  return null;
+}
+/** Stores an administrator's image and returns its public https address on the site. */
+export async function saveOutreachImage(bytes: Buffer): Promise<{ url: string; file: string }> {
+  if (!bytes.length) throw new Error('The file is empty.');
+  if (bytes.length > OUTREACH_IMAGE_MAX) throw new Error('The image is larger than 2 MB. Make it smaller (for example 1200 pixels wide) and upload again.');
+  const ext = imageExt(bytes);
+  if (!ext) throw new Error('Upload a PNG, JPG, GIF or WebP image.');
+  const file = `${randomBytes(12).toString('hex')}.${ext}`;
+  await putBlob(outreachImageBlob(file), IMAGE_TYPES[ext], bytes);
+  return { url: `${siteBase()}/api/outreach/image/${file}`, file };
+}
+export async function readOutreachImage(file: string): Promise<{ bytes: Buffer; type: string } | null> {
+  const m = file.match(/^([0-9a-f]{24})\.(png|jpg|gif|webp)$/);
+  if (!m) return null;
+  const bytes = await getBlob(outreachImageBlob(file)).catch(() => null);
+  return bytes ? { bytes, type: IMAGE_TYPES[m[2]] } : null;
+}
+
 /** Checks every image link in a message opens a real image (so recipients never see a broken picture). */
 export async function checkCampaignImages(body: string): Promise<void> {
   const imgs = campaignImages(body);
   if (imgs.length > 5) throw new Error('Use at most 5 images in one message.');
+  const own = `${siteBase()}/api/outreach/image/`;
   for (const { src } of imgs) {
+    if (src.startsWith(own)) {
+      if (!(await readOutreachImage(src.slice(own.length)))) throw new Error(`This uploaded image no longer exists. Upload it again: ${src}`);
+      continue;
+    }
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), 10000);
     try {
