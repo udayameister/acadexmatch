@@ -5,6 +5,8 @@ import { StorageService } from '@/lib/storage';
 import { useStorageValue } from '@/lib/useAuth';
 import { DOCUMENT_CATEGORIES, openDocument, useDocuments } from '@/lib/documents';
 import VerifiedBadge from '@/components/VerifiedBadge';
+import VerifiedTick from '@/components/VerifiedTick';
+import { hydrate } from '@/lib/clientSync';
 import type { CandidateProfile, Institute, Job, User } from '@/types';
 import { AlertTriangle, BadgeCheck, CheckCircle2, ChevronDown, ChevronRight, ExternalLink, ShieldAlert } from 'lucide-react';
 
@@ -46,6 +48,77 @@ function Section({ title, count, hint, children }: { title: string; count: numbe
       </button>
       {open && <div className="px-5 pb-5 space-y-3"><p className="text-xs text-slate-500">{hint}</p>{children}</div>}
     </section>
+  );
+}
+
+async function verificationApi(action: 'approve' | 'reject' | 'revoke', userId: string, note?: string): Promise<string | null> {
+  const r = await fetch('/api/verification', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, userId, note }) });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) return d.error || 'Failed.';
+  await hydrate();
+  return null;
+}
+
+interface QueueRow { userId: string; name: string; email: string; verified: { at: string; by?: string; note?: string } | null; request: { status: 'pending' | 'rejected'; requestedAt: string; reviewedAt?: string; note?: string } | null; ready: boolean; missing: string[]; completeness: number; highestDegree?: string; designation?: string; institute?: string }
+
+/** Candidates who asked for the verified tick: check readiness and documents, then approve or reject with a reason. */
+function VerificationRequests({ onMsg }: { onMsg: (m: string) => void }) {
+  const [rows, setRows] = useState<QueueRow[] | null>(null);
+  const [open, setOpen] = useState<string | null>(null);
+  const [busy, setBusy] = useState('');
+  const [tab, setTab] = useState<'pending' | 'verified' | 'rejected'>('pending');
+  const load = async () => { const r = await fetch('/api/verification?queue=1', { credentials: 'same-origin', cache: 'no-store' }); const d = await r.json().catch(() => ({})); setRows(r.ok ? d.rows : []); };
+  useEffect(() => { load(); }, []);
+  const act = async (row: QueueRow, action: 'approve' | 'reject' | 'revoke') => {
+    let note: string | undefined;
+    if (action === 'approve') { const n = prompt(`Approve ${row.name} as a verified candidate?\nOptional note (for example "Ph.D. and NET certificates checked"):`, ''); if (n === null) return; note = n; }
+    if (action === 'reject') { const n = prompt(`Reason for ${row.name} (sent to the candidate), for example "Upload the Ph.D. provisional certificate":`, ''); if (n === null) return; note = n; }
+    if (action === 'revoke') { const n = prompt(`Remove ${row.name}'s green tick? Optional reason (sent to the candidate):`, ''); if (n === null) return; note = n; }
+    setBusy(row.userId);
+    const err = await verificationApi(action, row.userId, note);
+    setBusy('');
+    onMsg(err || (action === 'approve' ? `${row.name} is now verified. They were emailed.` : action === 'reject' ? `Request rejected. ${row.name} was emailed the reason.` : 'Verification removed.'));
+    await load();
+  };
+  const fmt = (iso?: string) => (iso ? new Date(iso.length === 10 ? `${iso}T00:00:00` : iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : '');
+  const list = (rows || []).filter(r => (tab === 'verified' ? !!r.verified : !r.verified && r.request?.status === tab)).sort((a, b) => (a.request?.requestedAt || '').localeCompare(b.request?.requestedAt || ''));
+  const pending = (rows || []).filter(r => !r.verified && r.request?.status === 'pending').length;
+  const btn = 'px-3 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-50';
+  return (
+    <Section title="Verification requests (green tick)" count={pending} hint="Candidates who completed their profile and documents and asked for the verified tick. Open the documents, compare them with the profile, then approve or reject with a reason. The candidate is emailed either way.">
+      <div className="flex gap-1 text-xs" role="tablist">
+        {(['pending', 'verified', 'rejected'] as const).map(f => <button key={f} role="tab" aria-selected={tab === f} className={`${btn} ${tab === f ? 'bg-brand-900 text-white' : 'bg-white border border-slate-200 text-slate-700'}`} onClick={() => setTab(f)}>{f === 'pending' ? `Waiting (${pending})` : f === 'verified' ? 'Verified' : 'Rejected'}</button>)}
+      </div>
+      {rows === null ? <p className="text-xs text-slate-500">Loading…</p> : !list.length ? <p className="text-sm text-slate-500">{tab === 'pending' ? 'No requests waiting.' : 'None.'}</p> : list.map(r => (
+        <div key={r.userId} className="py-2 border-t border-slate-100 first:border-t-0">
+          <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+            <button className="flex items-center gap-2 text-left min-w-0" onClick={() => setOpen(open === r.userId ? null : r.userId)} aria-expanded={open === r.userId}>
+              {open === r.userId ? <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" /> : <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />}
+              <span className="font-medium text-slate-900">{r.name}</span>{r.verified && <VerifiedTick size={16} />}
+              <span className="text-xs text-slate-500 truncate">{r.email} · profile {r.completeness}%{r.request ? ` · ${r.request.status === 'pending' ? 'asked' : 'rejected'} ${fmt(r.request.reviewedAt || r.request.requestedAt)}` : ''}{r.verified ? ` · verified ${fmt(r.verified.at)}` : ''}</span>
+              {!r.verified && (r.ready ? <span className="text-xs text-emerald-700 font-semibold">Checklist complete</span> : <span className="text-xs text-crimson-700 font-semibold">{r.missing.length} missing</span>)}
+            </button>
+            <div className="flex gap-1.5">
+              {r.verified
+                ? <button className={`${btn} bg-white border border-slate-200 text-slate-700`} disabled={busy === r.userId} onClick={() => act(r, 'revoke')}>Remove tick</button>
+                : <>
+                    {r.request?.status === 'pending' && <button className={`${btn} bg-white border border-crimson-100 text-crimson-700`} disabled={busy === r.userId} onClick={() => act(r, 'reject')}>Reject…</button>}
+                    <button className={`${btn} bg-emerald-600 hover:bg-emerald-700 text-white inline-flex items-center gap-1`} disabled={busy === r.userId} onClick={() => act(r, 'approve')}><BadgeCheck className="w-3.5 h-3.5" /> Approve</button>
+                  </>}
+            </div>
+          </div>
+          {open === r.userId && (
+            <div className="mt-2 ml-6 p-3 rounded-xl bg-cream border border-slate-100 space-y-2">
+              <p className="text-xs text-slate-600">{[r.designation, r.institute].filter(Boolean).join(', ') || 'No current position given'} · {r.highestDegree || 'degree not given'}</p>
+              {!r.verified && r.missing.length > 0 && <p className="text-xs text-crimson-700">Still missing: {r.missing.join('; ')}.</p>}
+              {r.request?.note && <p className="text-xs text-slate-500">Reason given: {r.request.note}</p>}
+              {r.verified?.note && <p className="text-xs text-slate-500">Note: {r.verified.note}</p>}
+              <DocsList userId={r.userId} />
+            </div>
+          )}
+        </div>
+      ))}
+    </Section>
   );
 }
 
@@ -147,12 +220,12 @@ export default function QualityPanel() {
   }, [docSummary, profiles, users, docFilter]);
   const pendingDocs = docSummary ? Object.keys(docSummary).filter(id => users.find(u => u.id === id)?.role === 'candidate' && !profiles[id]?.documentsVerified).length : 0;
 
-  const verify = (userId: string, on: boolean) => {
+  const verify = async (userId: string, on: boolean) => {
     let note: string | undefined;
     if (on) { const n = prompt('Optional note (for example "Ph.D. and NET certificates checked"):', ''); if (n === null) return; note = n; }
-    else if (!confirm('Remove the verified badge from this candidate?')) return;
-    const r = StorageService.setCandidateVerification(userId, on, note);
-    setMsg(r.success ? (on ? 'Marked as verified.' : 'Verification removed.') : r.error || 'Failed.');
+    else if (!confirm('Remove the green verified tick from this candidate?')) return;
+    const err = await verificationApi(on ? 'approve' : 'revoke', userId, note);
+    setMsg(err || (on ? 'Marked as verified. The candidate was emailed.' : 'Verification removed.'));
   };
 
   const row = 'flex flex-wrap items-center justify-between gap-2 py-2 border-t border-slate-100 first:border-t-0 text-sm';
@@ -162,6 +235,8 @@ export default function QualityPanel() {
     <div className="space-y-4">
       <div className="flex items-center gap-2"><ShieldAlert className="w-4 h-4 text-brand-700" /><h3 className="font-bold text-slate-900">Quality and fraud checks</h3></div>
       {msg && <p className="p-3 rounded-xl bg-emerald-50 border border-emerald-100 text-sm text-emerald-800" role="status">{msg}</p>}
+
+      <VerificationRequests onMsg={setMsg} />
 
       <Section title="Candidate document verification" count={pendingDocs} hint="Open each candidate's proofs, compare them with the profile, then mark the profile as verified. Verified candidates show a badge to institutions and in talent search.">
         <div className="flex gap-1 text-xs" role="tablist">

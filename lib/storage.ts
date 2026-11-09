@@ -1622,7 +1622,7 @@ export const StorageService = {
     if (!user || user.role !== 'super_admin') return { success: false, error: 'Only the platform administrator can do this.' };
     const p = this.getProfilesMap()[userId];
     if (!p) return { success: false, error: 'Profile not found.' };
-    this.saveProfileRecord({ ...p, documentsVerified: verified ? { at: istToday(), by: user.name, note: note?.trim() || undefined } : null });
+    this.saveProfileRecord({ ...p, documentsVerified: verified ? { at: istToday(), by: user.name, note: note?.trim() || undefined } : null, verificationRequest: verified ? null : p.verificationRequest ?? null });
     this.addAuditLog(`${verified ? 'Verified' : 'Removed verification of'} documents for ${p.email}`, userId, 'PII_ACCESS');
     return { success: true };
   },

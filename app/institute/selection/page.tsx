@@ -1,5 +1,6 @@
 'use client';
 
+import { CandidateTick } from '@/components/VerifiedTick';
 import React, { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { StorageService } from '@/lib/storage';
@@ -79,7 +80,7 @@ export default function SelectionResultsPage() {
             {ranked.map((r, i) => (
               <tr key={r.app.id} className={i === 0 ? 'bg-gold-50/50' : ''}>
                 <td className="px-4 py-3 font-bold text-slate-900 tabular-nums">{i + 1}</td>
-                <td className="px-4 py-3"><div className="font-medium text-slate-900">{r.app.candidateName}</div><div className="text-xs text-slate-500">{r.reviews} review{r.reviews === 1 ? '' : 's'}{r.apiScore !== null ? ` · API ${r.apiScore}` : ''} · {r.app.status.replace(/_/g, ' ')}</div></td>
+                <td className="px-4 py-3"><div className="font-medium text-slate-900">{r.app.candidateName} <CandidateTick userId={r.app.candidateId} size={15} /></div><div className="text-xs text-slate-500">{r.reviews} review{r.reviews === 1 ? '' : 's'}{r.apiScore !== null ? ` · API ${r.apiScore}` : ''} · {r.app.status.replace(/_/g, ' ')}</div></td>
                 <td className="px-4 py-3"><div className="flex items-center gap-2"><span className="font-bold tabular-nums">{r.total}</span><div className="w-20 h-1.5 rounded-full bg-slate-100 overflow-hidden"><div className="h-full bg-brand-900" style={{ width: `${r.total}%` }} /></div></div></td>
                 <td className="px-4 py-3 tabular-nums">{r.research}</td><td className="px-4 py-3 tabular-nums">{r.teaching}</td><td className="px-4 py-3 tabular-nums">{r.api}</td><td className="px-4 py-3 tabular-nums">{r.interview}</td>
                 <td className="px-4 py-3 text-xs text-slate-600">{RECS.filter(k => r.recs[k]).map(k => `${r.recs[k]}× ${k}`).join(' · ') || '—'}</td>

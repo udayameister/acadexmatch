@@ -2,6 +2,7 @@
 
 import { PartnerOffers } from '@/components/Partners';
 import VerifiedBadge from '@/components/VerifiedBadge';
+import VerificationCard from '@/components/VerificationCard';
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { StorageService, isDeadlinePassed } from '@/lib/storage';
@@ -12,7 +13,7 @@ import ExplainableMatchModal from '@/components/ExplainableMatchModal';
 import ResumeParserModal from '@/components/ResumeParserModal';
 import { CandidateAvatar } from '@/components/CandidateDocuments';
 import { usePlan, PremiumLock, PlanPill } from '@/components/Premium';
-import { useDocuments, missingRequired } from '@/lib/documents';
+import { useDocuments } from '@/lib/documents';
 import UpcomingDeadlines from '@/components/UpcomingDeadlines';
 import { TalentInvitesCard } from '@/components/ApplicationExtras';
 import { 
@@ -31,7 +32,7 @@ export default function CandidateDashboardPage() {
   const [selectedMatchJob, setSelectedMatchJob] = useState<Job | null>(null);
   const [showCvModal, setShowCvModal] = useState(false);
   const { isPremium, user: planUser } = usePlan();
-  const { docs: photoDocs, ready: docsReady } = useDocuments(profile?.userId);
+  const { docs: photoDocs } = useDocuments(profile?.userId);
 
   useEffect(() => {
     setProfile(StorageService.getCandidateProfile());
@@ -60,21 +61,13 @@ export default function CandidateDashboardPage() {
     .map(m => m.job);
   const initial = profile.name.replace(/^(dr|prof|mr|ms|mrs)\.?\s+/i, '').charAt(0).toUpperCase() || '?';
 
-  const missingDocs = docsReady ? missingRequired(photoDocs, profile.experience.length > 0) : [];
 
   return (
     <div className="w-full px-4 sm:px-8 lg:px-12 py-8 space-y-8">
 
-      {missingDocs.length > 0 && (
-        <div className="p-4 rounded-2xl bg-gold-50 border border-gold-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3" role="status">
-          <div>
-            <div className="font-semibold text-slate-900 text-sm">Upload your proof documents</div>
-            <p className="text-xs text-slate-600">Still missing: {missingDocs.map(m => m.title.toLowerCase()).join(', ')}. Institutions use these to verify your profile.</p>
-          </div>
-          <Link href="/candidate/profile#documents" className="px-3.5 py-2 rounded-xl bg-brand-900 hover:bg-brand-800 text-white text-xs font-semibold shrink-0 text-center">Upload documents</Link>
-        </div>
-      )}
-      
+      {/* Verification: checklist (profile + documents) → request → green tick after the administrator approves. */}
+      <VerificationCard />
+
       {/* Header Profile Banner - Full Width */}
       <div className="rounded-3xl bg-white border border-slate-200 p-6 sm:p-8 shadow-sm">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">

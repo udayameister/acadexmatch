@@ -1,5 +1,6 @@
 'use client';
 
+import { CandidateTick } from '@/components/VerifiedTick';
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { StorageService } from '@/lib/storage';
@@ -183,7 +184,7 @@ export default function InstituteAtsKanbanPage() {
                       <div>
                         <div className="flex items-center justify-between">
                           <button onClick={() => setDetailApp(app)} className="font-bold text-slate-900 text-sm truncate hover:text-brand-700 text-left">
-                            {app.candidateName}
+                            {app.candidateName} <CandidateTick userId={app.candidateId} size={15} />
                           </button>
                           <span className="text-[12px] font-bold font-mono bg-emerald-50 text-emerald-800 px-1.5 py-0.5 rounded border border-emerald-200">
                             {app.matchScore}% Fit

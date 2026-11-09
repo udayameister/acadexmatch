@@ -1,5 +1,6 @@
 'use client';
 
+import { CandidateTick } from '@/components/VerifiedTick';
 import React, { useState } from 'react';
 import { StorageService } from '@/lib/storage';
 import type { Application } from '@/types';
@@ -38,7 +39,7 @@ export default function OfferModal({ app, onClose, onDone }: { app: Application;
     <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-4 bg-brand-950/40 backdrop-blur-sm overflow-y-auto" role="dialog" aria-modal="true" aria-label="Issue offer">
       <form onSubmit={submit} className="w-full max-w-xl my-8 rounded-2xl bg-white border border-slate-200 shadow-2xl">
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
-          <h3 className="font-bold text-slate-900">{o ? 'Revise offer' : 'Issue offer'} · {app.candidateName}</h3>
+          <h3 className="font-bold text-slate-900">{o ? 'Revise offer' : 'Issue offer'} · {app.candidateName} <CandidateTick userId={app.candidateId} size={16} /></h3>
           <button type="button" onClick={onClose} aria-label="Close" className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100"><X className="w-5 h-5" /></button>
         </div>
         <div className="p-5 grid sm:grid-cols-2 gap-4">

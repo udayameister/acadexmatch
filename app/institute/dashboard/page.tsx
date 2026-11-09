@@ -1,5 +1,6 @@
 'use client';
 
+import { CandidateTick } from '@/components/VerifiedTick';
 import { PromoteButton, PromotionBadges } from '@/components/Promotions';
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
@@ -269,7 +270,7 @@ export default function InstituteDashboardPage() {
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <h3 className="font-bold text-slate-900 text-base">
-                      {app.candidateName}
+                      {app.candidateName} <CandidateTick userId={app.candidateId} />
                     </h3>
                     <p className="text-xs text-slate-500 font-medium">Applied for: {app.jobTitle}</p>
                   </div>

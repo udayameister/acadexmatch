@@ -1,5 +1,6 @@
 'use client';
 
+import VerifiedTick from '@/components/VerifiedTick';
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { StorageService } from '@/lib/storage';
@@ -76,7 +77,7 @@ export default function TalentSearchPage() {
               <li key={r.candidateId} className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-3">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <div className="font-semibold text-slate-900 flex items-center gap-1.5">{r.name}{r.verified && <BadgeCheck className="w-4 h-4 text-emerald-600" aria-label="Documents verified" />}</div>
+                    <div className="font-semibold text-slate-900 flex items-center gap-1.5">{r.name}{r.verified && <VerifiedTick size={16} />}</div>
                     <div className="text-xs text-slate-600">{[r.designation, r.institute].filter(Boolean).join(' · ') || '—'}</div>
                     <div className="text-xs text-slate-500">{[r.highestDegree, [r.city, r.state].filter(Boolean).join(', ')].filter(Boolean).join(' · ')}</div>
                   </div>

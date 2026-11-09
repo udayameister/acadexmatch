@@ -55,7 +55,7 @@ export default function AdminCompliancePage() {
   // Links such as /admin?tab=outreach (e.g. from the outreach approval email) open that tab.
   useEffect(() => {
     const t = new URLSearchParams(window.location.search).get('tab');
-    if (t === 'outreach' || t === 'emails' || t === 'verification' || t === 'premium' || t === 'site') setActiveTab(t);
+    if (t === 'outreach' || t === 'emails' || t === 'verification' || t === 'premium' || t === 'site' || t === 'quality' || t === 'users') setActiveTab(t);
   }, []);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
   const [users, setUsers] = useState<User[]>([]);

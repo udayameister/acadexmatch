@@ -9,6 +9,7 @@ import { getUgcTable3ABreakdown, verifyJournalUgcCareStatus, computeProfileCompl
 import { CandidateProfile, PublicationItem, EducationItem, ExperienceItem } from '@/types';
 import ResumeParserModal from '@/components/ResumeParserModal';
 import { DocumentUploader, DocumentChecklist, CandidateAvatar } from '@/components/CandidateDocuments';
+import VerificationCard from '@/components/VerificationCard';
 import { useDocuments, missingRequired } from '@/lib/documents';
 import { usePlan, PremiumLock } from '@/components/Premium';
 import { Sparkles, BookOpen, Briefcase, GraduationCap, CheckCircle2, Plus, Save, Trash2, ArrowLeft, ShieldCheck, User, Link2, Award, FileCheck2, Upload, Download } from 'lucide-react';
@@ -291,6 +292,8 @@ function ProfileEditor() {
           <Section id="documents" icon={FileCheck2} title="Documents & proofs" subtitle="Upload proof for what you list on this profile. Institutions you apply to can view these files.">
             <DocumentUploader userId={profile.userId} hasExperience={hasExperience} />
           </Section>
+
+          <VerificationCard />
 
           <Section icon={ShieldCheck} title="Statutory qualifications" subtitle="Used for UGC / AICTE eligibility checks on every vacancy.">
             <div className="grid sm:grid-cols-2 gap-4">

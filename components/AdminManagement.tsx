@@ -1,5 +1,6 @@
 'use client';
 
+import { CandidateTick } from '@/components/VerifiedTick';
 import { AdminPromotionControls } from '@/components/Promotions';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
@@ -246,7 +247,7 @@ export function UsersPanel() {
         {visible.map(u => (
           <tr key={u.id} className={sel.has(u.id) ? 'bg-brand-50/60' : 'hover:bg-ivory'}>
             <RowCheck sel={sel} id={u.id} label={u.name} />
-            <td className="px-4 py-3 font-medium text-slate-900 whitespace-nowrap">{u.name}{u.id === me?.id && <span className="ml-2 text-[12px] px-1.5 py-0.5 rounded bg-gold-100 text-gold-800">You</span>}</td>
+            <td className="px-4 py-3 font-medium text-slate-900 whitespace-nowrap">{u.name}{u.role === 'candidate' && <CandidateTick userId={u.id} size={15} className="ml-1" />}{u.id === me?.id && <span className="ml-2 text-[12px] px-1.5 py-0.5 rounded bg-gold-100 text-gold-800">You</span>}</td>
             <td className="px-4 py-3 text-slate-600">{u.email}</td>
             <td className="px-4 py-3"><span className={`text-xs px-2 py-0.5 rounded-full ${u.role === 'super_admin' ? 'bg-brand-900 text-white' : 'bg-brand-50 text-brand-800'}`}>{ROLE_LABEL[u.role]}</span></td>
             <td className="px-4 py-3 whitespace-nowrap">{u.role === 'candidate' ? <PlanPill user={u} /> : <span className="text-slate-400">—</span>}{u.role === 'candidate' && u.plan === 'premium' && u.premiumUntil && <div className={`text-[12px] mt-0.5 ${isPremiumUser(u) ? 'text-slate-500' : 'text-crimson-700'}`}>{isPremiumUser(u) ? 'until' : 'expired'} {u.premiumUntil}</div>}</td>
@@ -909,7 +910,7 @@ export function ApplicationsPanel() {
         {visible.map(a => (
           <tr key={a.id} className={sel.has(a.id) ? 'bg-brand-50/60' : 'hover:bg-ivory'}>
             <RowCheck sel={sel} id={a.id} label={`${a.candidateName}'s application`} />
-            <td className="px-4 py-3"><div className="font-medium text-slate-900">{a.candidateName}</div><div className="text-xs text-slate-500">{a.candidateEmail}</div></td>
+            <td className="px-4 py-3"><div className="font-medium text-slate-900">{a.candidateName} <CandidateTick userId={a.candidateId} size={15} /></div><div className="text-xs text-slate-500">{a.candidateEmail}</div></td>
             <td className="px-4 py-3 text-slate-600 max-w-xs"><span className="line-clamp-2">{a.jobTitle}</span></td>
             <td className="px-4 py-3 text-slate-600">{a.instituteName}</td>
             <td className="px-4 py-3 text-slate-900 font-semibold">{a.matchScore}%</td>

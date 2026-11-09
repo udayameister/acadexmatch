@@ -1,5 +1,6 @@
 'use client';
 
+import { CandidateTick } from '@/components/VerifiedTick';
 import React, { useState } from 'react';
 import { Application, InterviewSlot } from '@/types';
 import { StorageService } from '@/lib/storage';
@@ -74,7 +75,7 @@ export default function InterviewScheduleModal({
               </h3>
             </div>
             <p className="text-xs text-slate-500 mt-1">
-              Candidate: <strong className="text-slate-900">{application.candidateName}</strong> • {application.jobTitle}
+              Candidate: <strong className="text-slate-900">{application.candidateName}</strong> <CandidateTick userId={application.candidateId} size={15} /> • {application.jobTitle}
             </p>
           </div>
 

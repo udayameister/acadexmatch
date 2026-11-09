@@ -1,5 +1,6 @@
 'use client';
 
+import { CandidateTick } from '@/components/VerifiedTick';
 import React, { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { StorageService } from '@/lib/storage';
@@ -102,7 +103,7 @@ export default function InterviewSlotsPage() {
                 <ul className="divide-y divide-slate-100 rounded-xl border border-slate-200">
                   {notInvited.map(a => (
                     <li key={a.id} className="px-3 py-2 flex items-center justify-between gap-2 text-sm">
-                      <span><span className="font-medium text-slate-900">{a.candidateName}</span> <span className="text-xs text-slate-500">· {a.matchScore}% match · {a.status.replace(/_/g, ' ')}</span></span>
+                      <span><span className="font-medium text-slate-900">{a.candidateName} <CandidateTick userId={a.candidateId} size={15} /></span> <span className="text-xs text-slate-500">· {a.matchScore}% match · {a.status.replace(/_/g, ' ')}</span></span>
                       <button className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-brand-50 text-brand-900 text-xs font-semibold hover:bg-brand-100" onClick={() => invite([a.id])}><Send className="w-3 h-3" /> Invite</button>
                     </li>
                   ))}

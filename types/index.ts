@@ -587,6 +587,8 @@ export interface CandidateProfile {
   discoverable?: boolean;
   /** Set by the platform administrator after checking the uploaded proofs. */
   documentsVerified?: { at: string; by: string; note?: string } | null;
+  /** The candidate's request to be verified (set through /api/verification, never by the profile editor). */
+  verificationRequest?: { status: 'pending' | 'rejected'; requestedAt: string; reviewedAt?: string; note?: string } | null;
 }
 
 export type ApplicationStage =

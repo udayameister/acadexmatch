@@ -1,5 +1,6 @@
 'use client';
 
+import { CandidateTick } from '@/components/VerifiedTick';
 import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -163,7 +164,7 @@ export default function Navbar() {
               >
                 <UserBadge userId={user.role === 'candidate' ? user.id : undefined} name={user.name} />
                 <span className="hidden sm:block text-left">
-                  <span className="block text-sm font-medium text-slate-900 max-w-[140px] truncate">{user.name}</span>
+                  <span className="flex items-center gap-1 text-sm font-medium text-slate-900"><span className="max-w-[140px] truncate">{user.name}</span>{user.role === 'candidate' && <CandidateTick userId={user.id} size={14} />}</span>
                   <span className="block text-xs text-slate-500 -mt-0.5">{ROLE_LABEL[user.role]}</span>
                 </span>
                 <ChevronDown className="w-4 h-4 text-slate-400" />
@@ -172,7 +173,7 @@ export default function Navbar() {
               {menuOpen && (
                 <div className="absolute right-0 mt-2 w-64 bg-white border border-slate-200 rounded-2xl shadow-xl p-2 z-50">
                   <div className="px-3 py-2.5 border-b border-slate-100 mb-1">
-                    <div className="text-sm font-medium text-slate-900 truncate">{user.name}</div>
+                    <div className="text-sm font-medium text-slate-900 flex items-center gap-1 min-w-0"><span className="truncate">{user.name}</span>{user.role === 'candidate' && <CandidateTick userId={user.id} size={15} />}</div>
                     <div className="text-xs text-slate-500 truncate">{user.email}</div>
                     {user.role === 'candidate' && <div className="mt-1.5"><PlanPill user={user} /></div>}
                   </div>

@@ -367,6 +367,7 @@ const ownProfile: Guard = (me, args, db) => {
   // Only the administrator may set the documents-verified badge.
   const stored = (db[STORAGE_KEYS.CANDIDATE_PROFILES] as Record<string, CandidateProfile>)[me.id];
   p.documentsVerified = stored?.documentsVerified ?? null;
+  p.verificationRequest = stored?.verificationRequest ?? null;
   return true;
 };
 const staffOrAdmin: Guard = me => (me?.role === 'super_admin' || isStaff(me) ? true : 'Institution staff only.');
