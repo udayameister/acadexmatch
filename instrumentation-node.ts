@@ -12,7 +12,6 @@ import { runExpiryCheck, sendExpiryReminders } from './lib/server/expiry';
 import { processQueue, queueHealth } from './lib/server/notifications';
 import { sendDeadlineReminders } from './lib/server/deadlineReminders';
 import { sendInterviewReminders, pruneOldSlots } from './lib/server/notify';
-import { syncGoogleIndexing } from './lib/server/googleIndexing';
 
 const g = globalThis as unknown as { __acadScheduler?: boolean; __acadConfigLogged?: boolean };
 
@@ -51,8 +50,6 @@ if (process.env.ACAD_DISABLE_SCHEDULER !== '1' && !g.__acadScheduler) {
         sendInterviewReminders().catch(err => console.error('[AcadeXMatch] Interview reminder error', err));
         sendExpiryReminders().catch(err => console.error('[AcadeXMatch] Expiry reminder error', err));
         pruneOldSlots().catch(() => undefined);
-        // Tell Google about new, changed and closed vacancies (Indexing API; only when its key is configured).
-        syncGoogleIndexing().catch(err => console.error('[AcadeXMatch] Google indexing error', err));
       });
   };
   setTimeout(tick, 30_000); // shortly after start-up

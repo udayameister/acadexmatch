@@ -7,7 +7,6 @@ import FacultyTickPanel from '@/components/FacultyTickPanel';
 import ResumeAdminPanel from '@/components/ResumeAdminPanel';
 import LaunchOffersCard from '@/components/LaunchOffersCard';
 import AiResumeAdminCard from '@/components/AiResumeAdminCard';
-import SeoIndexingCard from '@/components/SeoIndexingCard';
 import AdvisoryBoardPanel from '@/components/AdvisoryBoardPanel';
 import OutreachPanel from '@/components/OutreachPanel';
 import EventsAdminPanel from '@/components/EventsAdminPanel';
@@ -236,7 +235,7 @@ export default function AdminCompliancePage() {
       {activeTab === 'institutions' && <InstitutionsPanel />}
       {activeTab === 'vacancies' && <VacanciesPanel />}
       {activeTab === 'applications' && <ApplicationsPanel />}
-      {activeTab === 'site' && <div className="space-y-6"><SeoIndexingCard /><SitePanel /></div>}
+      {activeTab === 'site' && <SitePanel />}
       {activeTab === 'directory' && <AisheDirectoryPanel />}
       {activeTab === 'scraping' && <ScrapePipelinePanel />}
       {activeTab === 'facultytick' && <FacultyTickPanel />}

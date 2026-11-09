@@ -81,7 +81,7 @@ export default function PremiumPage() {
       <div className="space-y-2">
         {planPicker}
         <Link href="/register" className="w-full inline-flex justify-center items-center gap-2 px-5 py-3 rounded-xl bg-brand-900 hover:bg-brand-800 text-white font-semibold text-sm">Create a free account <ArrowRight className="w-4 h-4" /></Link>
-        <p className="text-xs text-slate-500 text-center">Already registered? <Link href="/login?next=/premium" rel="nofollow" className="font-semibold text-brand-800 hover:underline">Sign in</Link> to upgrade.</p>
+        <p className="text-xs text-slate-500 text-center">Already registered? <Link href="/login?next=/premium" className="font-semibold text-brand-800 hover:underline">Sign in</Link> to upgrade.</p>
       </div>
     );
   } else if (!isCandidate) {

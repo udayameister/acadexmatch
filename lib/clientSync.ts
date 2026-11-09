@@ -37,10 +37,7 @@ export function isHydrated(): boolean {
  * browser matches the server HTML. The signed-in user's own data still arrives through hydrate().
  */
 export function seedCache(data: Record<string, unknown>): void {
-  // Only a successful load from /api/data fills the cache. If that request failed or was blocked (search engine
-  // crawlers may not fetch /api/), the cache is still empty and the page's public snapshot must be used, or
-  // pages would render "not found" after hydration (Google then reports them as soft 404s).
-  if (Object.keys(cache).length) return;
+  if (hydrated || Object.keys(cache).length) return;
   Object.assign(cache, data);
 }
 

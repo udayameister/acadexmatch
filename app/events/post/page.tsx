@@ -100,7 +100,7 @@ function PostEventPage() {
         <div className="p-6 rounded-3xl bg-white border border-slate-200 text-center space-y-3">
           <p className="text-slate-700">Sign in or create a free account to post your listing.</p>
           <div className="flex justify-center gap-2">
-            <Link href="/login?next=/events/post" rel="nofollow" className="px-5 py-2.5 rounded-xl bg-brand-900 text-white text-sm font-semibold hover:bg-brand-800">Sign in</Link>
+            <Link href="/login?next=/events/post" className="px-5 py-2.5 rounded-xl bg-brand-900 text-white text-sm font-semibold hover:bg-brand-800">Sign in</Link>
             <Link href="/register" className="px-5 py-2.5 rounded-xl border border-slate-300 text-sm font-semibold text-slate-800 hover:bg-slate-50">Create an account</Link>
           </div>
         </div>

@@ -43,7 +43,7 @@ export default function HomeEventPosters() {
 
   return (
     <section className="border-b border-slate-200 bg-white" aria-labelledby="home-posters">
-      <div className="max-w-7xl mx-auto px-4 sm:px-8 py-8 sm:py-10">
+      <div className="max-w-7xl mx-auto px-4 sm:px-8 py-12 sm:py-14">
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
           <div>
             <p className="text-sm font-semibold text-gold-800 flex items-center gap-2"><Star className="w-4 h-4 fill-gold-500 text-gold-600" />Featured events</p>
@@ -54,9 +54,9 @@ export default function HomeEventPosters() {
             <Link href="/conferences" className="inline-flex items-center gap-1.5 font-semibold text-brand-700 hover:text-brand-900">Conferences <ArrowRight className="w-4 h-4" /></Link>
           </div>
         </div>
-        <ul className="mt-5 flex gap-4 overflow-x-auto snap-x snap-mandatory pb-3 -mx-4 px-4 sm:mx-0 sm:px-0" aria-label="Featured events">
+        <ul className="mt-6 flex gap-4 sm:gap-5 overflow-x-auto snap-x snap-mandatory pb-3 -mx-4 px-4 sm:mx-0 sm:px-0" aria-label="Featured events">
           {posters.map(e => (
-            <li key={e.id} className="snap-start shrink-0 w-[60%] sm:w-52 lg:w-56">
+            <li key={e.id} className="snap-start shrink-0 w-[68%] sm:w-64 lg:w-[17.5rem]">
               <Link href={`/events/${encodeURIComponent(e.id)}`} className="group block">
                 <div className="aspect-[4/5] rounded-2xl overflow-hidden border border-gold-300 shadow-md group-hover:shadow-xl group-hover:-translate-y-0.5 transition bg-white">
                   <EventPoster event={e} />

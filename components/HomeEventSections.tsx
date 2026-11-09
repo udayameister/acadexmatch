@@ -25,18 +25,18 @@ export default function HomeEventSections() {
   return (
     <>
       {programmes.length > 0 && (
-        <section className="max-w-7xl mx-auto px-4 sm:px-8 py-10 lg:py-12" aria-labelledby="home-events">
+        <section className="max-w-7xl mx-auto px-4 sm:px-8 pb-24" aria-labelledby="home-events">
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-brand-700 flex items-center gap-3"><span className="gold-rule" />Professional development</p>
-              <h2 id="home-events" className="font-serif text-2xl sm:text-3xl font-bold text-slate-900 mt-1.5">FDPs, workshops and seminars</h2>
+              <p className="text-sm font-semibold text-brand-700 flex items-center gap-3"><span className="gold-rule" />Professional development</p>
+              <h2 id="home-events" className="font-serif text-3xl sm:text-4xl font-bold text-slate-900 mt-2">FDPs, workshops and seminars</h2>
             </div>
             <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm">
               <Link href="/events" className="inline-flex items-center gap-1.5 font-semibold text-brand-700 hover:text-brand-900">View all {programmes.length} <ArrowRight className="w-4 h-4" /></Link>
               <Link href="/events/post?type=fdp" className="inline-flex items-center gap-1.5 font-semibold text-gold-800 hover:text-gold-900"><Megaphone className="w-4 h-4" />Advertise yours · {fdpPrice}</Link>
             </div>
           </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-5">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 mt-8">
             {programmes.slice(0, 6).map(e => <EventCard key={e.id} event={e} />)}
           </div>
         </section>
@@ -44,18 +44,18 @@ export default function HomeEventSections() {
 
       {conferences.length > 0 && (
         <section className="bg-brand-950 border-y border-brand-900" aria-labelledby="home-conferences">
-          <div className="max-w-7xl mx-auto px-4 sm:px-8 py-10 lg:py-12">
+          <div className="max-w-7xl mx-auto px-4 sm:px-8 py-16 sm:py-20">
             <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-gold-300 flex items-center gap-3"><span className="gold-rule" />Call for papers</p>
-                <h2 id="home-conferences" className="font-serif text-2xl sm:text-3xl font-bold text-white mt-1.5">Upcoming conferences</h2>
+                <p className="text-sm font-semibold text-gold-300 flex items-center gap-3"><span className="gold-rule" />Call for papers</p>
+                <h2 id="home-conferences" className="font-serif text-3xl sm:text-4xl font-bold text-white mt-2">Upcoming conferences</h2>
               </div>
               <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm">
                 <Link href="/conferences" className="inline-flex items-center gap-1.5 font-semibold text-gold-200 hover:text-white">View all {conferences.length} <ArrowRight className="w-4 h-4" /></Link>
                 <Link href="/events/post?type=conference" className="inline-flex items-center gap-1.5 font-semibold text-gold-300 hover:text-white"><Megaphone className="w-4 h-4" />Advertise your conference · {confPrice}</Link>
               </div>
             </div>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-5">
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 mt-8">
               {conferences.slice(0, 6).map(e => <EventCard key={e.id} event={e} />)}
             </div>
           </div>
@@ -63,8 +63,8 @@ export default function HomeEventSections() {
       )}
 
       {(programmes.length === 0 || conferences.length === 0) && (
-        <section className="max-w-7xl mx-auto px-4 sm:px-8 pb-10">
-          <div className="p-5 sm:p-6 rounded-3xl bg-cream border border-gold-200 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+        <section className="max-w-7xl mx-auto px-4 sm:px-8 pb-20">
+          <div className="p-6 sm:p-8 rounded-3xl bg-cream border border-gold-200 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
             <div className="max-w-xl">
               <p className="text-sm font-semibold text-gold-800 inline-flex items-center gap-2"><Megaphone className="w-4 h-4" />Advertise on AcadeXMatch</p>
               <h2 className="font-serif text-2xl font-bold text-slate-900 mt-2">Organising an FDP, workshop, seminar or conference?</h2>

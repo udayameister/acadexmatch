@@ -48,23 +48,23 @@ function Photo({ person, width, priority = false }: { person: Person; width: num
 export function FounderSection() {
   return (
     <section id="founder" className="scroll-mt-20 bg-cream border-y border-slate-200">
-      <div className="max-w-6xl mx-auto px-4 sm:px-8 py-10 lg:py-12 space-y-6">
+      <div className="max-w-6xl mx-auto px-4 sm:px-8 py-20 space-y-12">
         <div className="text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-brand-700 inline-flex items-center gap-3"><span className="gold-rule" />Meet the founders</p>
-          <h2 className="font-serif text-2xl sm:text-3xl font-bold text-slate-900 mt-1.5">Built by educators, for educators</h2>
+          <p className="text-sm font-semibold text-brand-700 inline-flex items-center gap-3"><span className="gold-rule" />Meet the founders</p>
+          <h2 className="font-serif text-3xl sm:text-4xl font-bold text-slate-900 mt-2">Built by educators, for educators</h2>
         </div>
-        <div className="grid lg:grid-cols-2 gap-5">
+        <div className="grid lg:grid-cols-2 gap-8">
           {[
             { person: FOUNDER, note: FOUNDER.note, line: FOUNDER.summary, links: FOUNDER.links },
             { person: CO_FOUNDER, note: CO_FOUNDER.note, line: CO_FOUNDER.education, links: [] as typeof FOUNDER.links },
           ].map(({ person, note, line, links }) => (
-            <article key={person.name} className="p-5 sm:p-6 rounded-3xl bg-white border border-slate-200 shadow-sm flex flex-col sm:flex-row gap-5 sm:gap-6">
-              <div className="mx-auto sm:mx-0"><Photo person={person} width={120} /></div>
+            <article key={person.name} className="p-6 sm:p-8 rounded-3xl bg-white border border-slate-200 shadow-sm flex flex-col sm:flex-row gap-6 sm:gap-8">
+              <div className="mx-auto sm:mx-0"><Photo person={person} width={150} /></div>
               <div className="flex-1">
                 <h3 className="font-serif text-2xl font-bold text-slate-900">{person.name}</h3>
                 <p className="text-brand-800 font-semibold">{person.role}, AcadeXMatch</p>
                 <p className="text-sm text-slate-500 mt-1">{line}</p>
-                <blockquote className="mt-3 text-sm text-slate-700 leading-relaxed border-l-2 border-gold-400 pl-4">{note}</blockquote>
+                <blockquote className="mt-4 text-slate-700 leading-relaxed border-l-2 border-gold-400 pl-4">{note}</blockquote>
                 {links.length > 0 && (
                   <div className="mt-4 flex flex-wrap gap-4">
                     {links.map(l => (
