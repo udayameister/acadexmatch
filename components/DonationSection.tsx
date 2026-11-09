@@ -57,7 +57,7 @@ export default function DonationSection() {
 
           {!ready ? null : !user ? (
             <div className="space-y-2">
-              <Link href="/login?next=/%23support" className="w-full inline-flex justify-center px-5 py-3 rounded-xl bg-brand-900 hover:bg-brand-800 text-white font-semibold text-sm">Sign in to contribute {valid ? inr(value) : ''}</Link>
+              <Link href="/login?next=/%23support" rel="nofollow" className="w-full inline-flex justify-center px-5 py-3 rounded-xl bg-brand-900 hover:bg-brand-800 text-white font-semibold text-sm">Sign in to contribute {valid ? inr(value) : ''}</Link>
               <p className="text-xs text-slate-500 text-center">Candidates and institutions can contribute from their account, so the receipt reaches the right email address. No account yet? <Link href="/register" className="font-semibold text-brand-800 hover:underline">Create one free</Link>.</p>
             </div>
           ) : online === null ? (

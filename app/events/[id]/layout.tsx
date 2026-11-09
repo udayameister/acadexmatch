@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import JsonLd from '@/components/JsonLd';
-import { getLiveEvent } from '@/lib/server/events';
+import { notFound } from 'next/navigation';
+import { getLiveEvent, eventExists } from '@/lib/server/events';
 import { EVENT_KIND_SHORT, formatEventDates } from '@/lib/events';
 import { SITE_URL } from '@/lib/site';
 
@@ -23,6 +24,8 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 export default async function Layout({ params, children }: Props) {
   const { id } = await params;
   const e = await getLiveEvent(id);
+  // An id that never existed (or was deleted) is a real 404, not an empty 200 page (a "soft 404" for Google).
+  if (!e && !(await eventExists(id))) notFound();
   const data = e ? {
     '@context': 'https://schema.org',
     '@type': 'Event',

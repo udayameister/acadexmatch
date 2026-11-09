@@ -409,7 +409,7 @@ export default function JobDetailPage() {
               <div className="space-y-4 text-center py-4">
                 <h4 className="font-serif font-bold text-slate-900 text-lg">Apply for this position</h4>
                 <p className="text-xs text-slate-500">Sign in with a candidate account to see your match score and apply.</p>
-                <Link href={`/login?next=/jobs/${job.id}`} className="w-full inline-flex justify-center px-4 py-3 rounded-xl bg-brand-900 hover:bg-brand-800 text-white font-semibold text-sm">Sign in to apply</Link>
+                <Link href={`/login?next=/jobs/${job.id}`} rel="nofollow" className="w-full inline-flex justify-center px-4 py-3 rounded-xl bg-brand-900 hover:bg-brand-800 text-white font-semibold text-sm">Sign in to apply</Link>
                 <Link href="/register" className="block text-xs font-semibold text-brand-700 hover:text-brand-900">New here? Create a free profile</Link>
               </div>
             ) : user.role !== 'candidate' ? (

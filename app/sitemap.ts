@@ -28,6 +28,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const pages: MetadataRoute.Sitemap = [
     { url: `${SITE_URL}/`, ...(latestJob ? { lastModified: latestJob } : {}) },
     { url: `${SITE_URL}/jobs`, ...(latestJob ? { lastModified: latestJob } : {}) },
+    { url: `${SITE_URL}/vacancies`, ...(latestJob ? { lastModified: latestJob } : {}) },
     { url: `${SITE_URL}/institutes` },
     { url: `${SITE_URL}/events` },
     { url: `${SITE_URL}/conferences` },

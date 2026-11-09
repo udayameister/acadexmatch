@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { promotionRank } from '@/components/Promotions';
 import React, { useState, useEffect, useMemo, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
@@ -57,7 +58,7 @@ function JobsContent() {
             Explore Faculty &amp; Research Positions
           </h1>
           <p className="text-slate-500 text-xs sm:text-sm mt-1">
-            Filter compliant vacancies across India by 7th CPC bands, UGC regulations, and research domains.
+            Filter compliant vacancies across India by 7th CPC bands, UGC regulations, and research domains. <Link href="/vacancies" className="font-semibold text-brand-800 hover:underline">See every open vacancy by state</Link>.
           </p>
         </div>
 

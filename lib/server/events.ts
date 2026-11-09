@@ -134,6 +134,11 @@ export async function getLiveEvent(id: string): Promise<AcademicEvent | null> {
   });
 }
 
+/** True when a listing with this id exists at all (live or not), so unknown ids can return a real 404. */
+export async function eventExists(id: string): Promise<boolean> {
+  return withDb(null, db => ((db[STORAGE_KEYS.EVENTS] as AcademicEvent[]) || []).some(e => e.id === id));
+}
+
 /** Live listings for the sitemap. */
 export async function liveEvents(): Promise<AcademicEvent[]> {
   return withDb(null, db => ((db[STORAGE_KEYS.EVENTS] as AcademicEvent[]) || []).filter(e => isEventLive(e)));
