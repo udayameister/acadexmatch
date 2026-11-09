@@ -392,8 +392,11 @@ export async function deleteCampaign(cid: string): Promise<void> {
 }
 
 /** Who a campaign would reach now: best address(es) per college, never registered, suppressed or recently emailed. */
-export async function audienceFor(c: Pick<Campaign, 'audience' | 'perCollege'>, gapDays: number): Promise<string[]> {
+export async function audienceFor(c: Pick<Campaign, 'audience' | 'perCollege'>, gapDays: number, exceptCampaign?: string): Promise<string[]> {
   const p = await db();
+  // Never pick a college already waiting in another batch or campaign (approval, sending or paused): no double emails.
+  const busyCampaigns = (await readState()).campaigns.filter(x => x.id !== exceptCampaign && (x.status === 'awaiting' || x.status === 'sending' || x.status === 'paused'));
+  const busyEmails = new Set(busyCampaigns.flatMap(x => x.queue));
   // The waiting period applies to the whole college: once any of its addresses is emailed, none is emailed again until it ends.
   const gap = Math.max(1, Math.round(gapDays));
   const where = ["status IN ('new','sent')", `aishe_code NOT IN (SELECT aishe_code FROM (SELECT DISTINCT aishe_code FROM acx_outreach_contacts WHERE last_sent_at >= (NOW() - INTERVAL ${gap} DAY)) recent)`];
@@ -403,10 +406,12 @@ export async function audienceFor(c: Pick<Campaign, 'audience' | 'perCollege'>, 
   const [rows] = await p.query<RowDataPacket[]>(`SELECT email, aishe_code FROM acx_outreach_contacts WHERE ${where.join(' AND ')} ORDER BY aishe_code, score DESC, email`, args);
   const reg = await registered();
   const supp = await suppressedSet();
+  const busyCodes = new Set(rows.filter(r => busyEmails.has(String(r.email))).map(r => String(r.aishe_code)));
   const perCode = new Map<string, number>();
   const out: string[] = [];
   for (const r of rows) {
     const email = String(r.email), code = String(r.aishe_code), domain = email.split('@')[1];
+    if (busyCodes.has(code)) continue;
     if (reg.codes.has(code) || reg.domains.has(baseDomain(domain)) || supp.has(email) || supp.has(`@${domain}`)) continue;
     const n = perCode.get(code) || 0;
     if (n >= c.perCollege) continue;
@@ -431,10 +436,10 @@ export async function startCampaign(cid: string): Promise<Campaign> {
   if (c0.status === 'paused') queue = c0.queue;
   else if (c0.status === 'awaiting') {
     // Keep the approved list, minus anyone who unsubscribed, registered or was emailed since it was prepared.
-    const still = new Set(await audienceFor(c0, s0.settings.gapDays));
+    const still = new Set(await audienceFor(c0, s0.settings.gapDays, c0.id));
     queue = c0.queue.filter(e => still.has(e));
     if (!queue.length) throw new Error('Nobody in this batch can be emailed any more (they registered, unsubscribed or were emailed since). Decline it; a new batch is prepared tomorrow.');
-  } else queue = await audienceFor(c0, s0.settings.gapDays);
+  } else queue = await audienceFor(c0, s0.settings.gapDays, c0.id);
   const c = await updateState(s => {
     const cur = s.campaigns.find(x => x.id === cid);
     if (!cur) throw new Error('Campaign not found.');
