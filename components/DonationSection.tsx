@@ -21,14 +21,14 @@ export default function DonationSection() {
   const valid = Number.isInteger(value) && value >= DONATION_MIN_INR && value <= DONATION_MAX_INR;
 
   return (
-    <section id="support" className="max-w-7xl mx-auto px-4 sm:px-8 pb-24 scroll-mt-24" aria-labelledby="support-heading">
-      <div className="rounded-3xl border border-gold-200 bg-gradient-to-br from-white via-gold-50/40 to-white p-6 sm:p-10 grid lg:grid-cols-2 gap-8 items-center">
+    <section id="support" className="max-w-7xl mx-auto px-4 sm:px-8 pb-10 lg:pb-12 scroll-mt-24" aria-labelledby="support-heading">
+      <div className="rounded-3xl border border-gold-200 bg-gradient-to-br from-white via-gold-50/40 to-white p-5 sm:p-7 grid lg:grid-cols-2 gap-6 items-center">
         <div>
-          <p className="text-sm font-semibold text-brand-700 flex items-center gap-3"><span className="gold-rule" />Support us</p>
-          <h2 id="support-heading" className="font-serif text-3xl sm:text-4xl font-bold text-slate-900 mt-2 flex items-center gap-3">
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-brand-700 flex items-center gap-3"><span className="gold-rule" />Support us</p>
+          <h2 id="support-heading" className="font-serif text-2xl sm:text-3xl font-bold text-slate-900 mt-1.5 flex items-center gap-3">
             <HeartHandshake className="w-8 h-8 text-brand-700 shrink-0" aria-hidden="true" /> Help keep AcadeXMatch free
           </h2>
-          <p className="text-slate-600 mt-3 leading-relaxed">
+          <p className="text-sm text-slate-600 mt-2 leading-relaxed">
             AcadeXMatch is built by educators for India&apos;s teachers, researchers and institutions. If it has helped you, you can contribute any amount from {inr(DONATION_MIN_INR)} to {inr(DONATION_MAX_INR)}. Contributions go towards running and improving the platform.
           </p>
           <p className="text-xs text-slate-500 mt-3 flex items-start gap-1.5"><ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />Entirely voluntary: it does not unlock any feature. Payments are processed securely by Razorpay; you get an emailed receipt. AcadeXMatch is not a registered charity, so contributions are not eligible for tax exemption (80G).</p>
