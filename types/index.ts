@@ -103,6 +103,11 @@ export interface PlanSettings {
   institutionFreeUntil?: string;
   /** Launch offer: FDP, workshop, seminar and conference listings are free until this date (YYYY-MM-DD, IST); '' = off. */
   eventsFreeUntil?: string;
+  /** AI resume builder (one session per payment). Runs only when the AI key is configured; false = switched off by the admin. */
+  aiResumeEnabled?: boolean;
+  aiResumePriceInr?: number;
+  /** Lower price for active Premium members. */
+  aiResumePremiumPriceInr?: number;
 }
 
 /** Academic events advertised on AcadeXMatch. FDP, workshop and seminar share one price; conferences have their own. */
@@ -166,7 +171,13 @@ export type InstitutionCategory = 'college' | 'standalone' | 'university' | 'rnd
 /** Institution Premium price (₹, incl. GST) for each AISHE category. */
 export type InstitutionCategoryPrices = Record<InstitutionCategory, number>;
 
-export type PaymentProduct = 'candidate_premium' | 'institution_premium' | 'featured_listing' | 'urgent_listing' | 'event_listing' | 'conference_listing' | 'donation';
+export type PaymentProduct = 'candidate_premium' | 'institution_premium' | 'featured_listing' | 'urgent_listing' | 'event_listing' | 'conference_listing' | 'donation' | 'ai_resume';
+
+/** AI resume builder: one payment = one session (chat interview, AI-written resume, AI improvement passes). */
+export const AI_RESUME_DEFAULT_PRICE_INR = 199;
+export const AI_RESUME_DEFAULT_PREMIUM_PRICE_INR = 149;
+/** Days a paid AI resume session stays usable. */
+export const AI_RESUME_SESSION_DAYS = 30;
 
 /** Voluntary contribution limits (₹). */
 export const DONATION_MIN_INR = 100;

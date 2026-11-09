@@ -3,7 +3,7 @@
 import React, { Suspense, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ArrowLeft, Check, Download, FileSearch, Loader2, Plus, Printer, Save, Trash2, X } from 'lucide-react';
+import { ArrowLeft, Check, Download, FileSearch, Loader2, Plus, Save, Trash2, X } from 'lucide-react';
 import { EMPTY_DATA, TEMPLATES, renderSections, type BuilderData, type BuilderResume, type TemplateId } from '@/lib/resume/builder';
 
 export default function BuilderWrapper() {
@@ -60,7 +60,7 @@ function Builder() {
     if (r.ok) router.push(`/candidate/resume-checker/${j.analysis.id}`); else alert(j.error || 'The check failed.');
   };
   const docx = async () => { if (await save()) window.location.href = `/api/resume/docx?id=${encodeURIComponent(draft.id)}`; };
-  const pdf = async () => { if (await save()) window.print(); };
+  const pdf = async () => { if (await save()) window.location.href = `/api/resume/pdf?id=${encodeURIComponent(draft.id)}`; };
   const remove = async () => {
     if (!confirm(`Delete the draft “${draft.label}”?`)) return;
     await fetch('/api/resume/builder', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'delete', id: draft.id }) });
@@ -81,7 +81,7 @@ function Builder() {
             {state === 'saving' ? <Loader2 className="w-4 h-4 animate-spin" /> : state === 'saved' ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />} {state === 'saved' ? 'Saved' : 'Save'}
           </button>
           <button onClick={check} className="px-4 py-2 rounded-xl bg-white border border-slate-200 text-sm font-semibold text-slate-800 flex items-center gap-1.5">{state === 'checking' ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileSearch className="w-4 h-4" />} Check ATS score</button>
-          <button onClick={pdf} className="px-4 py-2 rounded-xl bg-white border border-slate-200 text-sm font-semibold text-slate-800 flex items-center gap-1.5"><Printer className="w-4 h-4" /> PDF</button>
+          <button onClick={pdf} className="px-4 py-2 rounded-xl bg-white border border-slate-200 text-sm font-semibold text-slate-800 flex items-center gap-1.5"><Download className="w-4 h-4" /> PDF</button>
           <button onClick={docx} className="px-4 py-2 rounded-xl bg-white border border-slate-200 text-sm font-semibold text-slate-800 flex items-center gap-1.5"><Download className="w-4 h-4" /> Word</button>
           <button onClick={remove} aria-label="Delete draft" className="px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-500 hover:text-red-700"><Trash2 className="w-4 h-4" /></button>
         </div>

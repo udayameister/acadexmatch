@@ -14,6 +14,7 @@ const PRODUCT: Record<Payment['product'], string> = {
   event_listing: 'FDP / workshop / seminar listing',
   conference_listing: 'Conference listing',
   donation: 'Contribution',
+  ai_resume: 'AI resume builder',
 };
 
 

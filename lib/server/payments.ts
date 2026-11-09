@@ -5,7 +5,9 @@ import { emailLayout, sendMail, appUrl } from './mailer';
 import { productLabel } from '@/lib/paymentLabel';
 import { eventPriceFor, productForKind, EVENT_KIND_SHORT } from '@/lib/events';
 import type { AcademicEvent, Institute, Job, Payment, PaymentEvent, PaymentProduct, PaymentRefund, PlanSettings, PremiumPlanOption, UserAccount } from '@/types';
-import { DONATION_MIN_INR, DONATION_MAX_INR } from '@/types';
+import { DONATION_MIN_INR, DONATION_MAX_INR, AI_RESUME_SESSION_DAYS } from '@/types';
+import { aiResumePriceFor, onPaidPremium } from '@/lib/aiResumePricing';
+import { aiResumeAvailable } from './ai';
 
 /*
  * Razorpay payments. Keys come from .env.local (RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET; optional
@@ -57,6 +59,12 @@ export async function createOrder(userId: string, product: PaymentProduct, opts:
       if (!Number.isInteger(amount) || amount < DONATION_MIN_INR || amount > DONATION_MAX_INR) return { error: `Choose an amount between ₹${DONATION_MIN_INR} and ₹${DONATION_MAX_INR.toLocaleString('en-IN')}.` };
       const inst = me.instituteId ? (db[STORAGE_KEYS.INSTITUTES] as Institute[]).find(i => i.id === me.instituteId) : undefined;
       return { me, inst, amount, months: 0 };
+    }
+    if (product === 'ai_resume') {
+      if (me.role !== 'candidate') return { error: 'The AI resume builder is for candidate accounts.' };
+      // Never take money for a service that cannot run.
+      if (!aiResumeAvailable(s)) return { error: 'The AI resume builder is not available right now.' };
+      return { me, amount: aiResumePriceFor(s, onPaidPremium(me)), months: 0 };
     }
     if (product === 'candidate_premium') {
       if (me.role !== 'candidate') return { error: 'Premium is for candidate accounts.' };
@@ -214,6 +222,9 @@ function activate(db: Record<string, unknown>, c: { set: (k: string, v: unknown)
   if (p.product === 'donation') {
     // A contribution buys nothing: never touch plans or subscriptions.
     p.activeUntil = undefined;
+  } else if (p.product === 'ai_resume') {
+    // One AI session; the AI module counts paid, unrefunded ai_resume payments as credits.
+    p.activeUntil = addDays(todayIso(), AI_RESUME_SESSION_DAYS);
   } else if (p.product === 'candidate_premium') {
     const users = (db[STORAGE_KEYS.USERS] as UserAccount[]).slice();
     const u = users.find(x => x.id === p.userId);
@@ -269,6 +280,7 @@ function revoke(db: Record<string, unknown>, c: { set: (k: string, v: unknown) =
   const done = (note: string, until?: string) => { if (until) p.activeUntil = until; return note; };
   const today = todayIso();
   if (p.product === 'donation') return 'Contribution refunded';
+  if (p.product === 'ai_resume') return done('AI resume session cancelled', today);
   if (p.product === 'candidate_premium') {
     const users = (db[STORAGE_KEYS.USERS] as UserAccount[]).slice();
     const u = users.find(x => x.id === p.userId);
@@ -443,6 +455,8 @@ export async function recordOfflinePayment(input: {
       const inst = (db[STORAGE_KEYS.INSTITUTES] as Institute[]).find(i => i.id === u.instituteId);
       if (!inst) return { ok: false, error: 'That account is not linked to an institute.' };
       p.instituteId = inst.id; p.instituteName = inst.name; p.months = Math.max(1, Math.round(Number(input.months) || s.institutionDurationMonths));
+    } else if (input.product === 'ai_resume') {
+      if (u.role !== 'candidate') return { ok: false, error: 'The AI resume builder is for candidate accounts.' };
     } else if (input.product === 'donation') {
       if (amount < 1) return { ok: false, error: 'Enter the amount received.' };
       const inst = u.instituteId ? (db[STORAGE_KEYS.INSTITUTES] as Institute[]).find(i => i.id === u.instituteId) : undefined;

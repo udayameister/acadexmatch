@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, FileSearch, FileText, History, Loader2, PenLine, ShieldCheck, Trash2, Upload, Wand2 } from 'lucide-react';
+import { ArrowLeft, FileSearch, FileText, History, Loader2, PenLine, ShieldCheck, Sparkles, Trash2, Upload, Wand2 } from 'lucide-react';
 import { ScoreBadge } from '@/components/resume/ResumeWidgets';
 
 interface Summary { id: string; createdAt: string; source: string; fileName: string; jobLabel: string | null; overall: number; band: { label: string; tone: string }; matchPercent: number | null }
@@ -144,6 +144,11 @@ export default function ResumeCheckerPage() {
         </form>
 
         <aside className="space-y-6">
+          <Link href="/candidate/ai-resume" className="block p-5 rounded-2xl bg-gradient-to-br from-brand-900 to-brand-700 text-white shadow-sm hover:shadow-md transition">
+            <h2 className="font-semibold flex items-center gap-2"><Sparkles className="w-5 h-5 text-gold-300" /> AI resume builder</h2>
+            <p className="text-xs text-white/80 mt-1">Chat with our AI, get a professionally written ATS-friendly resume, and let a second AI improve its score. PDF and Word.</p>
+            <span className="mt-3 inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-gold-300 text-brand-900 text-xs font-bold">Build with AI →</span>
+          </Link>
           {data?.builderEnabled !== false && (
             <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm">
               <h2 className="font-semibold text-slate-900 flex items-center gap-2"><PenLine className="w-5 h-5 text-brand-700" /> Resume builder</h2>

@@ -6,6 +6,7 @@ import ScrapePipelinePanel from '@/components/ScrapePipelinePanel';
 import FacultyTickPanel from '@/components/FacultyTickPanel';
 import ResumeAdminPanel from '@/components/ResumeAdminPanel';
 import LaunchOffersCard from '@/components/LaunchOffersCard';
+import AiResumeAdminCard from '@/components/AiResumeAdminCard';
 import AdvisoryBoardPanel from '@/components/AdvisoryBoardPanel';
 import OutreachPanel from '@/components/OutreachPanel';
 import EventsAdminPanel from '@/components/EventsAdminPanel';
@@ -243,7 +244,7 @@ export default function AdminCompliancePage() {
       {activeTab === 'customers' && <CustomersPanel />}
       {activeTab === 'emails' && <div className="space-y-5"><NewPostEmailCard /><EmailsPanel /></div>}
       {activeTab === 'outreach' && <OutreachPanel />}
-      {activeTab === 'premium' && <div className="space-y-6"><LaunchOffersCard /><PremiumPanel /></div>}
+      {activeTab === 'premium' && <div className="space-y-6"><LaunchOffersCard /><AiResumeAdminCard /><PremiumPanel /></div>}
 
       {/* TAB 1: AISHE & NAAC Verification Queue */}
       {activeTab === 'verification' && (

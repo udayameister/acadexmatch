@@ -61,7 +61,7 @@ export default function PayButton({ product, label, description, className = '',
           if (v.ok && d.ok) {
             await hydrate();
             onPaid?.();
-            setMsg({ ok: true, text: product === 'donation' ? `Thank you! Your contribution of ₹${(order.amount / 100).toLocaleString('en-IN')} was received. A receipt has been emailed to you.` : eventId ? 'Payment confirmed. Your listing is now with our team for a quick review; a receipt has been emailed to you.' : `Payment confirmed — active until ${d.payment?.activeUntil}. A receipt has been emailed to you.` });
+            setMsg({ ok: true, text: product === 'ai_resume' ? 'Payment confirmed. Your AI resume session is ready; a receipt has been emailed to you.' : product === 'donation' ? `Thank you! Your contribution of ₹${(order.amount / 100).toLocaleString('en-IN')} was received. A receipt has been emailed to you.` : eventId ? 'Payment confirmed. Your listing is now with our team for a quick review; a receipt has been emailed to you.' : `Payment confirmed — active until ${d.payment?.activeUntil}. A receipt has been emailed to you.` });
           } else {
             setMsg({ ok: false, text: d.error || 'We could not confirm the payment yet. If money was deducted it will be confirmed automatically.' });
           }

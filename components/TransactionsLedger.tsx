@@ -1,5 +1,6 @@
 'use client';
 
+import { aiResumePriceFor } from '@/lib/aiResumePricing';
 import React, { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { StorageService, premiumPlansOf, institutionPriceFor } from '@/lib/storage';
@@ -27,6 +28,7 @@ const PRODUCT: Record<PaymentProduct, string> = {
   event_listing: 'FDP / workshop / seminar listing',
   conference_listing: 'Conference listing',
   donation: 'Contribution',
+  ai_resume: 'AI resume builder',
 };
 
 const rs = (n: number) => `₹${(Math.round(n * 100) / 100).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
@@ -183,7 +185,7 @@ function OfflineForm({ onClose }: { onClose: () => void }) {
     : f.product === 'institution_premium' ? institutionPriceFor(settings, StorageService.getInstitutes().find(i => i.id === buyer?.instituteId)).amount
       : f.product === 'event_listing' ? eventPrices(settings).eventPriceInr
         : f.product === 'conference_listing' ? eventPrices(settings).conferencePriceInr
-          : f.product === 'featured_listing' ? settings.featuredPriceInr : f.product === 'donation' ? undefined : settings.urgentPriceInr;
+          : f.product === 'featured_listing' ? settings.featuredPriceInr : f.product === 'donation' ? undefined : f.product === 'ai_resume' ? aiResumePriceFor(settings, false) : settings.urgentPriceInr;
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
