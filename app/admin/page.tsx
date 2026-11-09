@@ -52,6 +52,11 @@ export default function AdminCompliancePage() {
   const [dpdpRequests, setDpdpRequests] = useState<DPDPDataRequest[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [activeTab, setActiveTab] = useState<AdminTab>('users');
+  // Links such as /admin?tab=outreach (e.g. from the outreach approval email) open that tab.
+  useEffect(() => {
+    const t = new URLSearchParams(window.location.search).get('tab');
+    if (t === 'outreach' || t === 'emails' || t === 'verification' || t === 'premium' || t === 'site') setActiveTab(t);
+  }, []);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [jobCount, setJobCount] = useState(0);

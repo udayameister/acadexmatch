@@ -1,15 +1,18 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { AlertTriangle, Ban, CheckCircle2, Download, Loader2, Mail, Pause, Play, Search, Send, Square, Trash2, Globe, Save, Upload, Image as ImageIcon } from 'lucide-react';
+import { AlertTriangle, Ban, Bot, CheckCircle2, ClipboardCheck, ExternalLink, X, Wrench, Download, Loader2, Mail, Pause, Play, Search, Send, Square, Trash2, Globe, Save, Upload, Image as ImageIcon } from 'lucide-react';
 
-interface Campaign { id: string; name: string; subject: string; body: string; audience: { state?: string; category?: string }; perCollege: 1 | 2; status: 'draft' | 'sending' | 'paused' | 'done'; createdAt: string; startedAt?: string; finishedAt?: string; queued: number; sent: number; failed: number; skipped: number; lastError?: string }
+interface Campaign { id: string; name: string; subject: string; body: string; audience: { state?: string; category?: string }; perCollege: 1 | 2; status: 'draft' | 'awaiting' | 'sending' | 'paused' | 'done' | 'rejected'; auto?: boolean; approvedAt?: string; createdAt: string; startedAt?: string; finishedAt?: string; queued: number; sent: number; failed: number; skipped: number; lastError?: string }
 interface Summary {
   withWebsite: number; senderConfigured: boolean; sender: string | null; contacts: Record<string, number>; colleges: number; visited: number; visitedWithEmail: number; suppressed: number;
   settings: { dailyLimit: number; perCollege: 1 | 2; gapDays: number };
   finder: { running: boolean; filter: { state?: string; category?: string }; done: number; total: number; found: number; skipped: number; queued: number; startedAt?: string; finishedAt?: string; lastError?: string };
   campaigns: Campaign[]; sentToday: number; states: string[]; categories: string[]; template: { subject: string; body: string };
+  auto: Auto; senderProblem: string | null;
 }
+interface Auto { enabled: boolean; subject: string; body: string; audience: { state?: string; category?: string }; perCollege: 1 | 2; visitPerDay: number; batchSize: number; startHour: number; enabledAt?: string; lastFinderDate?: string; lastBatchDate?: string; note?: string }
+interface Recipient { email: string; college: string; state: string | null; role: string | null; source: string | null }
 interface Contact { email: string; aishe_code: string; college: string; state: string | null; role: string | null; source_url: string | null; status: string; sends: number; last_sent_at: string | null }
 
 const btn = 'px-4 py-2 rounded-xl text-sm font-semibold inline-flex items-center gap-1.5 disabled:opacity-50';
@@ -58,15 +61,180 @@ export default function OutreachPanel() {
       {err && <p className="text-sm text-crimson-700 bg-crimson-50 border border-crimson-100 rounded-lg px-3 py-2" role="alert">{err}</p>}
 
       <SenderCard s={s} />
-      <ImportCard onDone={load} />
-      <FinderCard s={s} run={run} />
-      <ContactsCard s={s} total={total} run={run} />
-      <CampaignsCard s={s} run={run} flash={flash} setErr={setErr} />
+      {s.campaigns.filter(c => c.status === 'awaiting').map(c => <ApprovalCard key={c.id} c={c} s={s} run={run} flash={flash} setErr={setErr} />)}
+      <AutoCard s={s} run={run} flash={flash} setErr={setErr} />
+
+      <details className="group rounded-2xl border border-slate-200 bg-slate-50/60" open={!s.auto.enabled}>
+        <summary className="cursor-pointer list-none px-5 py-4 flex items-center gap-2 font-semibold text-slate-900">
+          <Wrench className="w-5 h-5 text-brand-700" /> Manual tools <span className="text-xs font-normal text-slate-500">import lists, find emails, contacts, one-off campaigns</span>
+          <span className="ml-auto text-xs text-brand-800 group-open:hidden">Show</span><span className="ml-auto text-xs text-brand-800 hidden group-open:inline">Hide</span>
+        </summary>
+        <div className="p-4 pt-0 space-y-6">
+          <ImportCard onDone={load} />
+          <FinderCard s={s} run={run} />
+          <ContactsCard s={s} total={total} run={run} />
+          <CampaignsCard s={s} run={run} flash={flash} setErr={setErr} />
+        </div>
+      </details>
     </div>
   );
 }
 
+const IST_HOURS = Array.from({ length: 24 }, (_, h) => h);
+const hourLabel = (h: number) => `${((h + 11) % 12) + 1}:00 ${h < 12 ? 'AM' : 'PM'}`;
+
+/** A batch prepared by automatic mode: review, remove anyone, then approve (sends) or decline. */
+function ApprovalCard({ c, s, run, flash, setErr }: { c: Campaign; s: Summary; run: (fn: () => Promise<unknown>, ok?: string) => Promise<void>; flash: (m: string) => void; setErr: (m: string) => void }) {
+  const [list, setList] = useState<Recipient[] | null>(null);
+  const [busy, setBusy] = useState('');
+  const [showMsg, setShowMsg] = useState(false);
+  const loadList = useCallback(async () => {
+    const r = await fetch(`/api/admin/outreach?batch=${encodeURIComponent(c.id)}`, { credentials: 'same-origin', cache: 'no-store' });
+    const d = await r.json().catch(() => ({}));
+    setList(r.ok ? d.recipients : []);
+  }, [c.id]);
+  useEffect(() => { loadList(); }, [loadList]);
+  const act = async (key: string, fn: () => Promise<void>) => { setBusy(key); try { await fn(); } catch (e) { setErr((e as Error).message); } finally { setBusy(''); } };
+  const n = list?.length ?? c.queued;
+  const days = Math.max(1, Math.ceil(n / Math.max(1, s.settings.dailyLimit)));
+  return (
+    <section className="p-5 rounded-2xl bg-white border-2 border-gold-300 shadow-sm space-y-4" aria-labelledby={`appr-${c.id}`}>
+      <div className="flex flex-col sm:flex-row sm:items-start gap-3">
+        <div className="flex-1 min-w-0">
+          <h3 id={`appr-${c.id}`} className="font-semibold text-slate-900 flex items-center gap-2"><ClipboardCheck className="w-5 h-5 text-gold-700" /> Waiting for your approval</h3>
+          <p className="text-sm text-slate-600 mt-1">{c.name}: <strong>{n.toLocaleString('en-IN')} college{n === 1 ? '' : 's'}</strong> will receive “{c.subject}”. Nothing is sent until you approve.{n > s.settings.dailyLimit ? ` At ${s.settings.dailyLimit} a day this takes about ${days} days.` : ''}</p>
+        </div>
+        <div className="flex flex-wrap gap-2 shrink-0">
+          <button className={primary} disabled={!s.senderConfigured || !!busy || !n} onClick={() => act('ok', async () => {
+            if (!confirm(`Send “${c.subject}” to ${n} colleges now (at most ${s.settings.dailyLimit} a day)? You can pause at any time.`)) return;
+            await api({ action: 'approveBatch', id: c.id });
+            flash('Approved. Sending has started in the background.');
+            await run(async () => undefined);
+          })}>{busy === 'ok' ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />} Approve and send</button>
+          <button className={ghost} disabled={!!busy} onClick={() => act('no', async () => {
+            if (!confirm('Decline this batch? Nothing is sent. A new batch is prepared on the next day.')) return;
+            await api({ action: 'rejectBatch', id: c.id });
+            await run(async () => undefined, 'Batch declined. Nothing was sent.');
+          })}><X className="w-4 h-4" /> Decline</button>
+        </div>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <button className={ghost} onClick={() => setShowMsg(v => !v)}><Mail className="w-4 h-4" /> {showMsg ? 'Hide the message' : 'Read the message'}</button>
+        <button className={ghost} disabled={!s.senderConfigured || !!busy} onClick={() => act('test', async () => { const r = await api({ action: 'test', campaign: { name: c.name, subject: c.subject, body: c.body, audience: c.audience, perCollege: c.perCollege } }); flash(`Test email sent to ${r.to}.`); })}>{busy === 'test' && <Loader2 className="w-4 h-4 animate-spin" />}<Send className="w-4 h-4" /> Send me a test</button>
+      </div>
+      {showMsg && <pre className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-[13px] text-slate-800 whitespace-pre-wrap break-words font-sans max-h-96 overflow-auto"><strong>{c.subject}</strong>{'\n\n'}{c.body}</pre>}
+      {list === null ? <div className="py-4 flex justify-center"><Loader2 className="w-5 h-5 animate-spin text-brand-700" aria-label="Loading recipients" /></div> : !list.length ? <p className="text-sm text-slate-500">Nobody left in this batch.</p> : (
+        <div className="max-h-96 overflow-auto rounded-xl border border-slate-200">
+          <table className="w-full text-sm">
+            <thead className="bg-slate-50 text-xs text-slate-500 text-left sticky top-0"><tr><th className="px-3 py-2 font-semibold">College</th><th className="px-3 py-2 font-semibold">Email</th><th className="px-3 py-2 font-semibold hidden md:table-cell">Found on</th><th className="px-3 py-2"><span className="sr-only">Remove</span></th></tr></thead>
+            <tbody>
+              {list.map(r => (
+                <tr key={r.email} className="border-t border-slate-100 align-top">
+                  <td className="px-3 py-2 text-slate-800 break-words">{r.college}{r.state && <span className="block text-xs text-slate-500">{r.state}</span>}</td>
+                  <td className="px-3 py-2 break-all">{r.email}{r.role && <span className="block text-xs text-slate-500">{r.role}</span>}</td>
+                  <td className="px-3 py-2 text-xs hidden md:table-cell break-all">{r.source?.startsWith('import:') ? 'Imported list' : r.source ? <a className="text-brand-800 hover:underline" href={r.source} target="_blank" rel="noreferrer">{r.source.replace(/^https?:\/\//, '').slice(0, 50)}</a> : ''}</td>
+                  <td className="px-3 py-2 text-right"><button type="button" className="text-xs text-crimson-700 hover:underline whitespace-nowrap" disabled={!!busy} onClick={() => act(`rm-${r.email}`, async () => { await api({ action: 'removeFromBatch', id: c.id, email: r.email }); setList(l => (l || []).filter(x => x.email !== r.email)); })}>Remove</button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <p className="text-xs text-slate-500">Removing someone here only leaves them out of this batch. To never email an address or college again, use “Do not email” in the contacts list under Manual tools.</p>
+    </section>
+  );
+}
+
+/** Automatic mode: visits college websites daily and prepares one batch a day for approval. */
+function AutoCard({ s, run, flash, setErr }: { s: Summary; run: (fn: () => Promise<unknown>, ok?: string) => Promise<void>; flash: (m: string) => void; setErr: (m: string) => void }) {
+  const bodyRef = React.useRef<HTMLTextAreaElement>(null);
+  const [a, setA] = useState<Auto>(s.auto);
+  const [edit, setEdit] = useState(!s.auto.enabled);
+  const [busy, setBusy] = useState('');
+  const act = async (key: string, fn: () => Promise<void>) => { setBusy(key); try { await fn(); } catch (e) { setErr((e as Error).message); } finally { setBusy(''); } };
+  const save = (enabled: boolean, ok: string) => act(enabled ? 'on' : 'off', async () => {
+    const r = await api({ action: 'saveAuto', auto: { ...a, enabled } });
+    setA(r.auto); if (enabled) setEdit(false);
+    await run(async () => undefined, ok);
+  });
+  const waiting = s.campaigns.some(c => c.auto && c.status === 'awaiting');
+  const busyBatch = s.campaigns.find(c => c.auto && (c.status === 'sending' || c.status === 'paused'));
+  const where = [a.audience.state || 'all states', a.audience.category || 'all categories'].join(', ');
+  return (
+    <section className={card} aria-labelledby="auto-h">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+        <h3 id="auto-h" className="font-semibold text-slate-900 flex items-center gap-2 flex-1"><Bot className="w-5 h-5 text-brand-700" /> Automatic mode
+          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${s.auto.enabled ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'}`}>{s.auto.enabled ? 'On' : 'Off'}</span>
+        </h3>
+        {s.auto.enabled
+          ? <div className="flex gap-2">{!edit && <button className={ghost} onClick={() => setEdit(true)}>Change settings</button>}<button className={ghost} disabled={!!busy} onClick={() => save(false, 'Automatic mode is off. Nothing new will be prepared.')}>{busy === 'off' && <Loader2 className="w-4 h-4 animate-spin" />}<Pause className="w-4 h-4" /> Turn off</button></div>
+          : null}
+      </div>
+      <ol className="text-sm text-slate-600 grid sm:grid-cols-3 gap-2">
+        <li className="p-3 rounded-xl bg-slate-50 border border-slate-200"><strong className="text-slate-800">1 · Find</strong><br />Every day from {hourLabel(a.startHour)} (IST) it visits the websites of {a.visitPerDay.toLocaleString('en-IN')} more colleges ({where}) and collects their published emails.</li>
+        <li className="p-3 rounded-xl bg-slate-50 border border-slate-200"><strong className="text-slate-800">2 · Prepare</strong><br />It then prepares a batch of up to {a.batchSize.toLocaleString('en-IN')} new colleges with your message and emails you to review it.</li>
+        <li className="p-3 rounded-xl bg-gold-50 border border-gold-200"><strong className="text-slate-800">3 · You approve</strong><br />Nothing is sent until you click <em>Approve and send</em>. You can remove anyone first, or decline.</li>
+      </ol>
+      {s.auto.enabled && !edit && (
+        <div className="text-sm text-slate-700 space-y-1" role="status">
+          {waiting ? <p className="text-gold-900 font-semibold">A batch is waiting for your approval (above).</p>
+            : busyBatch ? <p>The approved batch is {busyBatch.status === 'paused' ? 'paused' : 'sending'} ({busyBatch.queued} left). The next batch is prepared after it finishes.</p>
+            : <p>Next: {s.auto.lastBatchDate === new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }) ? `tomorrow from ${hourLabel(s.auto.startHour)}` : s.finder.running ? 'visiting college websites now; the batch follows' : `today from ${hourLabel(s.auto.startHour)}`}.</p>}
+          {s.auto.note && <p className="text-xs text-slate-500">{s.auto.note}</p>}
+          {!waiting && !busyBatch && <button className={ghost} disabled={!!busy || s.finder.running} onClick={() => act('prep', async () => { await api({ action: 'prepareBatch' }); await run(async () => undefined, 'Batch prepared. Review it above.'); })}>{busy === 'prep' && <Loader2 className="w-4 h-4 animate-spin" />}<ClipboardCheck className="w-4 h-4" /> Prepare a batch now</button>}
+          <p className="text-xs text-slate-500">Message: “{s.auto.subject}”</p>
+        </div>
+      )}
+      {edit && (
+        <div className="space-y-3">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            <label className="text-xs text-slate-600 flex flex-col gap-1">Which colleges · State<select className={input} value={a.audience.state || ''} onChange={e => setA({ ...a, audience: { ...a.audience, state: e.target.value || undefined } })}><option value="">All states</option>{s.states.map(x => <option key={x}>{x}</option>)}</select></label>
+            <label className="text-xs text-slate-600 flex flex-col gap-1">Category<select className={input} value={a.audience.category || ''} onChange={e => setA({ ...a, audience: { ...a.audience, category: e.target.value || undefined } })}><option value="">All</option>{s.categories.map(x => <option key={x}>{x}</option>)}</select></label>
+            <label className="text-xs text-slate-600 flex flex-col gap-1">Start time each day (IST)<select className={input} value={a.startHour} onChange={e => setA({ ...a, startHour: Number(e.target.value) })}>{IST_HOURS.map(h => <option key={h} value={h}>{hourLabel(h)}</option>)}</select></label>
+            <label className="text-xs text-slate-600 flex flex-col gap-1">College websites to visit per day<input type="number" min={0} max={2000} className={input} value={a.visitPerDay} onChange={e => setA({ ...a, visitPerDay: Number(e.target.value) })} /></label>
+            <label className="text-xs text-slate-600 flex flex-col gap-1">Colleges per batch (one batch a day)<input type="number" min={1} max={1000} className={input} value={a.batchSize} onChange={e => setA({ ...a, batchSize: Number(e.target.value) })} /></label>
+            <label className="text-xs text-slate-600 flex flex-col gap-1">Addresses per college<select className={input} value={a.perCollege} onChange={e => setA({ ...a, perCollege: Number(e.target.value) as 1 | 2 })}><option value={1}>1 (the best one)</option><option value={2}>2</option></select></label>
+          </div>
+          <label className="text-xs text-slate-600 flex flex-col gap-1">Subject<input className={input} value={a.subject} maxLength={150} onChange={e => setA({ ...a, subject: e.target.value })} /></label>
+          <label className="text-xs text-slate-600 flex flex-col gap-1">Message ({'{{college}}'} and {'{{aishe}}'} are filled in for each college; an unsubscribe line is added automatically)
+            <textarea ref={bodyRef} className={`${input} font-mono text-[13px]`} rows={12} value={a.body} maxLength={8000} onChange={e => setA({ ...a, body: e.target.value })} />
+          </label>
+          <ImageInserter onInsert={line => {
+            const el = bodyRef.current;
+            const at = el ? el.selectionStart : a.body.length;
+            const before = a.body.slice(0, at).replace(/\s*$/, ''), after = a.body.slice(at).replace(/^\s*/, '');
+            setA({ ...a, body: `${before}${before ? '\n\n' : ''}${line}${after ? '\n\n' : ''}${after}` });
+          }} />
+          <p className="text-xs text-slate-500">Emails per day are capped at {s.settings.dailyLimit} (change it under Manual tools → Campaigns). A batch larger than that is sent over several days.</p>
+          <div className="flex flex-wrap gap-2">
+            <button className={ghost} disabled={!s.senderConfigured || !!busy} onClick={() => act('test', async () => { const r = await api({ action: 'test', campaign: { name: 'Automatic batches', subject: a.subject, body: a.body, audience: a.audience, perCollege: a.perCollege } }); flash(`Test email sent to ${r.to}.`); })}>{busy === 'test' && <Loader2 className="w-4 h-4 animate-spin" />}<Mail className="w-4 h-4" /> Send me a test</button>
+            <button className={primary} disabled={!s.senderConfigured || !!busy} onClick={() => save(true, s.auto.enabled ? 'Automatic mode settings saved.' : 'Automatic mode is on. You will get an email when the first batch is ready for approval.')}>{busy === 'on' && <Loader2 className="w-4 h-4 animate-spin" />}<Play className="w-4 h-4" /> {s.auto.enabled ? 'Save settings' : 'Turn on automatic mode'}</button>
+            {s.auto.enabled && <button className={ghost} onClick={() => { setA(s.auto); setEdit(false); }}>Cancel</button>}
+          </div>
+          {!s.senderConfigured && <p className="text-xs text-gold-800">Connect the outreach Brevo account first (see above).</p>}
+        </div>
+      )}
+    </section>
+  );
+}
+
 function SenderCard({ s }: { s: Summary }) {
+  if (s.senderConfigured && s.senderProblem) {
+    const ip = s.senderProblem.match(/\b\d{1,3}(?:\.\d{1,3}){3}\b/)?.[0];
+    return (
+      <section role="alert" className="p-5 rounded-2xl bg-crimson-50 border border-crimson-200 text-sm text-crimson-900 space-y-2">
+        <h3 className="font-semibold flex items-center gap-2"><AlertTriangle className="w-5 h-5" /> Sending is paused: Brevo refused the emails</h3>
+        <p className="break-words">Brevo said: “{s.senderProblem}”</p>
+        {/IP/i.test(s.senderProblem) ? (
+          <ol className="list-decimal pl-5 space-y-1">
+            <li>Sign in to the <strong>outreach</strong> Brevo account and open <a className="font-semibold underline inline-flex items-center gap-1" href="https://app.brevo.com/security/authorised_ips" target="_blank" rel="noreferrer">Security → Authorized IPs <ExternalLink className="w-3 h-3" /></a>.</li>
+            <li>Either click <strong>Authorize IP address</strong> and add {ip ? <code className="bg-white px-1 rounded">{ip}</code> : 'the address above'} (the website server), or click <strong>Deactivate for API keys</strong>.</li>
+            <li>Come back here and click <strong>Resume</strong> (or approve the batch again). Nobody was skipped: unsent colleges stay in the queue.</li>
+          </ol>
+        ) : <p>Check the outreach Brevo API key in GoDaddy (OUTREACH_EMAIL_API_KEY) and that the account is active, then click Resume. Unsent colleges stay in the queue.</p>}
+      </section>
+    );
+  }
   if (s.senderConfigured) return <p className="text-sm p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 flex gap-2"><CheckCircle2 className="w-5 h-5 shrink-0" /><span>Outreach emails are sent from <strong>{s.sender}</strong> through the separate Brevo account. Replies go to info@acadexmatch.com. Sent today: {s.sentToday} of {s.settings.dailyLimit}.</span></p>;
   return (
     <section className="p-5 rounded-2xl bg-gold-50 border border-gold-200 text-sm text-gold-900 space-y-2">
@@ -287,7 +455,7 @@ function CampaignsCard({ s, run, flash, setErr }: { s: Summary; run: (fn: () => 
   const campaign = () => ({ id: d.id || undefined, name: d.name, subject: d.subject, body: d.body, audience: { state: d.state || undefined, category: d.category || undefined }, perCollege: d.perCollege });
   const act = async (key: string, fn: () => Promise<void>) => { setBusy(key); try { await fn(); } catch (e) { setErr((e as Error).message); } finally { setBusy(''); } };
   const save = async () => { const r = await api({ action: 'saveCampaign', campaign: campaign() }); setD(x => ({ ...x, id: r.campaign.id })); return r.campaign as Campaign; };
-  const STATUS: Record<Campaign['status'], string> = { draft: 'Draft', sending: 'Sending', paused: 'Paused', done: 'Finished' };
+  const STATUS: Record<Campaign['status'], string> = { draft: 'Draft', awaiting: 'Waiting for your approval', sending: 'Sending', paused: 'Paused', done: 'Finished', rejected: 'Declined' };
   return (
     <section className={card} aria-labelledby="camp-h">
       <h3 id="camp-h" className="font-semibold text-slate-900 flex items-center gap-2"><Send className="w-5 h-5 text-brand-700" /> Step 3 · Campaigns</h3>
@@ -348,7 +516,7 @@ function CampaignsCard({ s, run, flash, setErr }: { s: Summary; run: (fn: () => 
                 {c.status === 'draft' && <button className={ghost} onClick={() => { setD({ id: c.id, name: c.name, subject: c.subject, body: c.body, state: c.audience.state || '', category: c.audience.category || '', perCollege: c.perCollege }); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>Edit</button>}
                 {c.status === 'sending' && <button className={ghost} onClick={() => run(() => api({ action: 'pauseCampaign', id: c.id }), 'Paused.')}><Pause className="w-4 h-4" /> Pause</button>}
                 {c.status === 'paused' && <button className={ghost} disabled={!s.senderConfigured} onClick={() => run(() => api({ action: 'startCampaign', id: c.id }), 'Resumed.')}><Play className="w-4 h-4" /> Resume</button>}
-                {c.status !== 'sending' && <button className={`${ghost} text-crimson-700`} aria-label={`Delete ${c.name}`} onClick={() => confirm(`Delete “${c.name}”?`) && run(() => api({ action: 'deleteCampaign', id: c.id }), 'Deleted.')}><Trash2 className="w-4 h-4" /></button>}
+                {c.status !== 'sending' && c.status !== 'awaiting' && <button className={`${ghost} text-crimson-700`} aria-label={`Delete ${c.name}`} onClick={() => confirm(`Delete “${c.name}”?`) && run(() => api({ action: 'deleteCampaign', id: c.id }), 'Deleted.')}><Trash2 className="w-4 h-4" /></button>}
               </div>
             </li>
           ))}

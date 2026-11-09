@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin, sameOrigin } from '@/lib/server/auth';
 import {
   outreachSummary, listContacts, finderPreview, startFinder, stopFinder, saveSettings, suppress, saveCampaign, deleteCampaign,
-  campaignPreviewCount, sendTest, startCampaign, pauseCampaign, launchOfferTemplate,
+  campaignPreviewCount, sendTest, startCampaign, pauseCampaign, launchOfferTemplate, saveAuto, runAutopilot, rejectBatch, removeFromBatch, batchRecipients,
 } from '@/lib/server/outreach';
 import { aisheStats } from '@/lib/server/aishe';
 import { withDb, accountOf } from '@/lib/server/db';
@@ -26,6 +26,7 @@ export async function GET(req: NextRequest) {
       const csv = ['email,aishe_code,college,state,category,role,status,sends,last_sent_at,source_url', ...all.map(r => [r.email, r.aishe_code, r.college, r.state, r.category, r.role, r.status, r.sends, r.last_sent_at, r.source_url].map(csvCell).join(','))].join('\n');
       return new NextResponse(csv, { headers: { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': 'attachment; filename="outreach-contacts.csv"', 'Cache-Control': 'no-store' } });
     }
+    if (sp.get('batch')) return NextResponse.json({ recipients: await batchRecipients(sp.get('batch')!) }, { headers: { 'Cache-Control': 'no-store' } });
     if (sp.get('contacts') === '1') {
       return NextResponse.json(await listContacts({ search: sp.get('q') || undefined, state: sp.get('state') || undefined, status: sp.get('status') || undefined, limit: Number(sp.get('limit')) || 50, offset: Number(sp.get('offset')) || 0 }), { headers: { 'Cache-Control': 'no-store' } });
     }
@@ -60,6 +61,11 @@ export async function POST(req: NextRequest) {
       }
       case 'startCampaign': return NextResponse.json({ campaign: await startCampaign(String(b.id || '')) });
       case 'pauseCampaign': await pauseCampaign(String(b.id || '')); return NextResponse.json({ ok: true });
+      case 'saveAuto': return NextResponse.json({ auto: await saveAuto(b.auto || {}) });
+      case 'prepareBatch': return NextResponse.json({ campaign: await runAutopilot(new Date(), { force: true }) });
+      case 'approveBatch': return NextResponse.json({ campaign: await startCampaign(String(b.id || '')) });
+      case 'rejectBatch': await rejectBatch(String(b.id || '')); return NextResponse.json({ ok: true });
+      case 'removeFromBatch': await removeFromBatch(String(b.id || ''), String(b.email || '')); return NextResponse.json({ ok: true });
       default: return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
     }
   } catch (e) {

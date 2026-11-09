@@ -73,11 +73,25 @@ export interface Campaign {
   id: string; name: string; subject: string; body: string;
   audience: { state?: string; category?: string };
   perCollege: 1 | 2;
-  status: 'draft' | 'sending' | 'paused' | 'done';
-  createdAt: string; startedAt?: string; finishedAt?: string;
+  /** awaiting = prepared by automatic mode, waiting for the administrator's approval; rejected = declined. */
+  status: 'draft' | 'awaiting' | 'sending' | 'paused' | 'done' | 'rejected';
+  /** Prepared by automatic mode. */
+  auto?: boolean;
+  createdAt: string; startedAt?: string; finishedAt?: string; approvedAt?: string;
   queue: string[]; sent: number; failed: number; skipped: number; lastError?: string;
 }
-interface State { settings: OutreachSettings; finder: FinderState; campaigns: Campaign[]; day: { date: string; sent: number } }
+/**
+ * Automatic mode: every day (from startHour IST) visit the next colleges' websites, then prepare a batch of
+ * new colleges with the saved message. Nothing is sent until the administrator approves the batch.
+ */
+export interface AutoSettings {
+  enabled: boolean; subject: string; body: string;
+  audience: { state?: string; category?: string }; perCollege: 1 | 2;
+  visitPerDay: number; batchSize: number; startHour: number;
+  enabledAt?: string; lastFinderDate?: string; lastBatchDate?: string; note?: string;
+}
+const AUTO_DEFAULTS: AutoSettings = { enabled: false, subject: '', body: '', audience: {}, perCollege: 1, visitPerDay: 300, batchSize: 100, startHour: 9 };
+interface State { settings: OutreachSettings; finder: FinderState; campaigns: Campaign[]; day: { date: string; sent: number }; auto: AutoSettings }
 
 const todayIst = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
 const blankFinder = (): FinderState => ({ running: false, filter: {}, queue: [], done: 0, total: 0, found: 0, skipped: 0 });
@@ -85,7 +99,7 @@ const blankFinder = (): FinderState => ({ running: false, filter: {}, queue: [],
 let stateChain: Promise<unknown> = Promise.resolve();
 async function readState(): Promise<State> {
   const s = await readJson<Partial<State>>('outreach-state');
-  return { settings: { ...DEFAULTS, ...(s?.settings || {}) }, finder: { ...blankFinder(), ...(s?.finder || {}) }, campaigns: s?.campaigns || [], day: s?.day || { date: todayIst(), sent: 0 } };
+  return { settings: { ...DEFAULTS, ...(s?.settings || {}) }, finder: { ...blankFinder(), ...(s?.finder || {}) }, campaigns: s?.campaigns || [], day: s?.day || { date: todayIst(), sent: 0 }, auto: { ...AUTO_DEFAULTS, ...(s?.auto || {}) } };
 }
 function updateState<T>(fn: (s: State) => T | Promise<T>): Promise<T> {
   const run = stateChain.then(async () => { const s = await readState(); const out = await fn(s); await writeJson('outreach-state', s); return out; });
@@ -300,6 +314,10 @@ export async function outreachSummary() {
     settings: s.settings, finder: { ...s.finder, queue: undefined, queued: s.finder.queue.length },
     campaigns: s.campaigns.map(c => ({ ...c, queue: undefined, queued: c.queue.length })),
     sentToday: s.day.date === todayIst() ? s.day.sent : 0,
+    // Automatic mode; until a message is saved, it starts from the launch-offer template.
+    auto: s.auto.subject ? s.auto : { ...s.auto, ...(await launchOfferTemplate()) },
+    // A Brevo key/IP/account refusal pauses sending: say so plainly at the top.
+    senderProblem: s.campaigns.find(c => c.status === 'paused' && /\b40[13]\b|unrecognised IP|not authori[sz]ed|key/i.test(c.lastError || ''))?.lastError || null,
   };
 }
 
@@ -408,13 +426,23 @@ export async function startCampaign(cid: string): Promise<Campaign> {
   const s0 = await readState();
   const c0 = s0.campaigns.find(x => x.id === cid);
   if (!c0) throw new Error('Campaign not found.');
-  const queue = c0.status === 'paused' ? c0.queue : await audienceFor(c0, s0.settings.gapDays);
+  if (c0.status === 'rejected') throw new Error('This batch was declined.');
+  let queue: string[];
+  if (c0.status === 'paused') queue = c0.queue;
+  else if (c0.status === 'awaiting') {
+    // Keep the approved list, minus anyone who unsubscribed, registered or was emailed since it was prepared.
+    const still = new Set(await audienceFor(c0, s0.settings.gapDays));
+    queue = c0.queue.filter(e => still.has(e));
+    if (!queue.length) throw new Error('Nobody in this batch can be emailed any more (they registered, unsubscribed or were emailed since). Decline it; a new batch is prepared tomorrow.');
+  } else queue = await audienceFor(c0, s0.settings.gapDays);
   const c = await updateState(s => {
     const cur = s.campaigns.find(x => x.id === cid);
     if (!cur) throw new Error('Campaign not found.');
     if (cur.status === 'done' || cur.status === 'sending') throw new Error('This campaign has already been sent or is sending.');
     if (s.campaigns.some(x => x.status === 'sending' && x.id !== cid)) throw new Error('Another campaign is sending. Pause it first.');
-    if (cur.status === 'draft') { cur.queue = queue; cur.startedAt = new Date().toISOString(); }
+    if (cur.status === 'rejected') throw new Error('This batch was declined.');
+    if (cur.status === 'awaiting') cur.approvedAt = new Date().toISOString();
+    if (cur.status === 'draft' || cur.status === 'awaiting') { cur.queue = queue; cur.startedAt = new Date().toISOString(); }
     cur.status = 'sending';
     return cur;
   });
@@ -599,6 +627,7 @@ export async function sendDue(): Promise<{ sent: number }> {
       const p = await db();
       const supp = await suppressedSet();
       const results: { email: string; ok: boolean; skip?: boolean; err?: string }[] = [];
+      let authError = '';
       for (const email of job.emails) {
         const domain = email.split('@')[1];
         const [[row]] = await p.query<RowDataPacket[]>('SELECT email, college, aishe_code, status, source_url FROM acx_outreach_contacts WHERE email = ?', [email]) as unknown as [[{ college: string; aishe_code: string; status: string; source_url: string | null } | undefined]];
@@ -610,9 +639,10 @@ export async function sendDue(): Promise<{ sent: number }> {
           sent++;
         } catch (e) {
           const status = (e as { status?: number }).status;
+          // Key, IP or account problem: stop and put this address back (it was never delivered).
+          if (status === 401 || status === 403) { authError = (e as Error).message; break; }
           if (status === 400) await p.query("UPDATE acx_outreach_contacts SET status = 'failed' WHERE email = ?", [email]);
           results.push({ email, ok: false, err: (e as Error).message });
-          if (status === 401 || status === 403) break; // key problem: stop, do not burn the list
         }
         await sleep(400);
       }
@@ -629,7 +659,9 @@ export async function sendDue(): Promise<{ sent: number }> {
         s.day.sent -= notTried.length + results.filter(r => r.skip).length;
         if (notTried.length) { c.queue.unshift(...notTried); c.status = 'paused'; }
         if (failed.length) c.lastError = failed[failed.length - 1].err?.slice(0, 200);
+        if (authError) { c.status = 'paused'; c.lastError = authError.slice(0, 300); }
       });
+      if (authError) break;
     }
   } finally { g.__sender = false; }
   return { sent };
@@ -718,4 +750,115 @@ export async function importContacts(rows: Rows): Promise<ImportSummary> {
     if (r.affectedRows === 1) added++; else unchanged++;
   }
   return { rows: rows.length - at - 1, added, updated, unchanged, skipped: skipped.length, skippedSample: skipped.slice(0, 20) };
+}
+
+// ------------------------------------------------------------------ automatic mode (with administrator approval)
+
+export async function saveAuto(raw: Partial<AutoSettings>): Promise<AutoSettings> {
+  const cur = (await readState()).auto;
+  const merged = { ...cur, ...raw };
+  const msg = cleanCampaign({ name: 'Automatic batches', subject: merged.subject, body: merged.body, audience: merged.audience || {}, perCollege: merged.perCollege });
+  if (raw.body !== undefined) await checkCampaignImages(msg.body);
+  if (merged.enabled && !outreachSenderConfigured()) throw new Error('Connect the outreach Brevo account first (OUTREACH_EMAIL_API_KEY and OUTREACH_MAIL_FROM).');
+  const n = (v: unknown, lo: number, hi: number, d: number) => { const x = Math.round(Number(v)); return Number.isFinite(x) ? Math.min(hi, Math.max(lo, x)) : d; };
+  return updateState(s => {
+    const wasOn = s.auto.enabled;
+    s.auto = {
+      ...s.auto,
+      enabled: !!merged.enabled,
+      subject: msg.subject, body: msg.body, audience: msg.audience, perCollege: msg.perCollege,
+      visitPerDay: n(merged.visitPerDay, 0, 2000, 300),
+      batchSize: n(merged.batchSize, 1, 1000, 100),
+      startHour: n(merged.startHour, 0, 23, 9),
+    };
+    if (s.auto.enabled && !wasOn) { s.auto.enabledAt = new Date().toISOString(); s.auto.lastFinderDate = undefined; s.auto.lastBatchDate = undefined; s.auto.note = undefined; }
+    return s.auto;
+  });
+}
+
+const istHour = (d: Date) => Number(d.toLocaleString('en-GB', { timeZone: 'Asia/Kolkata', hour: '2-digit', hour12: false })) % 24;
+
+async function adminEmails(): Promise<string[]> {
+  try {
+    const { withDb } = await import('./db');
+    const { STORAGE_KEYS } = await import('@/lib/storage');
+    return await withDb(null, db => ((db[STORAGE_KEYS.USERS] as { role?: string; email?: string }[]) || [])
+      .filter(u => u.role === 'super_admin' && u.email && !/@acadexmatch\.in$/.test(u.email)).map(u => u.email!));
+  } catch { return []; }
+}
+
+async function tellAdmin(c: Campaign): Promise<void> {
+  const { sendMail, emailLayout } = await import('./mailer');
+  const to = await adminEmails();
+  const url = `${siteBase()}/admin?tab=outreach`;
+  const { html, text } = emailLayout({
+    heading: 'Outreach batch waiting for your approval',
+    paragraphs: [
+      `Automatic mode has prepared today's batch: ${c.queue.length} college${c.queue.length === 1 ? '' : 's'} with the message "${c.subject.replace(/\{\{\s*college\s*\}\}/gi, '[college]')}".`,
+      'Nothing is sent until you approve it. Open the Email outreach tab to look through the list, remove anyone, and approve or decline.',
+    ],
+    button: { label: 'Review the batch', url },
+  });
+  for (const email of to.length ? to : ['info@acadexmatch.com']) {
+    await sendMail({ to: email, subject: `Approve today's outreach batch (${c.queue.length} colleges)`, text, html, kind: 'outreach-approval' }).catch(() => undefined);
+  }
+}
+
+/** Scheduler tick: daily website visits, then one batch for approval (never sends by itself). */
+export async function runAutopilot(now = new Date(), opts: { force?: boolean } = {}): Promise<Campaign | null> {
+  const s = await readState();
+  const a = s.auto;
+  if (!a.enabled || (!opts.force && istHour(now) < a.startHour)) return null;
+  const today = todayIst();
+  if (!opts.force && a.visitPerDay > 0 && a.lastFinderDate !== today && !s.finder.running) {
+    await updateState(x => { x.auto.lastFinderDate = today; });
+    try { await startFinder(a.audience, a.visitPerDay); return null; } catch (e) { await updateState(x => { x.auto.note = (e as Error).message.slice(0, 300); }); }
+  }
+  if (!opts.force && (s.finder.running || a.lastBatchDate === today)) return null;
+  // One automatic batch at a time: wait while one is awaiting approval, sending or paused.
+  if (s.campaigns.some(c => c.auto && (c.status === 'awaiting' || c.status === 'sending' || c.status === 'paused'))) {
+    if (opts.force) throw new Error('An automatic batch is already waiting for approval or sending. Finish, pause-and-delete, or decline it first.');
+    return null;
+  }
+  const emails = (await audienceFor(a, s.settings.gapDays)).slice(0, a.batchSize);
+  const made = await updateState(x => {
+    if ((!opts.force && x.auto.lastBatchDate === today) || !x.auto.enabled) return null;
+    x.auto.lastBatchDate = today;
+    if (!emails.length) { x.auto.note = `${new Date().toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short' })}: no new colleges to email yet. More are found as websites are visited.`; return null; }
+    x.auto.note = undefined;
+    const label = new Date().toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', year: 'numeric' });
+    const camp: Campaign = { id: id(), name: `Automatic batch · ${label}`, subject: x.auto.subject, body: x.auto.body, audience: x.auto.audience, perCollege: x.auto.perCollege, auto: true, status: 'awaiting', createdAt: new Date().toISOString(), queue: emails, sent: 0, failed: 0, skipped: 0 };
+    x.campaigns.unshift(camp);
+    x.campaigns = x.campaigns.slice(0, 50);
+    return camp;
+  });
+  if (made) await tellAdmin(made);
+  else if (opts.force) throw new Error('No new colleges to email right now. Find more contacts first (Manual tools → Find emails), or wait for tomorrow\'s website visits.');
+  return made;
+}
+
+export async function rejectBatch(cid: string): Promise<void> {
+  await updateState(s => {
+    const c = s.campaigns.find(x => x.id === cid);
+    if (!c || c.status !== 'awaiting') throw new Error('Only a batch waiting for approval can be declined.');
+    c.status = 'rejected'; c.queue = []; c.finishedAt = new Date().toISOString();
+  });
+}
+
+export async function removeFromBatch(cid: string, email: string): Promise<void> {
+  await updateState(s => {
+    const c = s.campaigns.find(x => x.id === cid);
+    if (!c || c.status !== 'awaiting') throw new Error('Only a batch waiting for approval can be changed.');
+    c.queue = c.queue.filter(e => e !== email.toLowerCase());
+  });
+}
+
+/** Who is in a batch (for the approval screen). */
+export async function batchRecipients(cid: string): Promise<{ email: string; college: string; state: string | null; role: string | null; source: string | null }[]> {
+  const c = (await readState()).campaigns.find(x => x.id === cid);
+  if (!c || !c.queue.length) return [];
+  const p = await db();
+  const [rows] = await p.query<RowDataPacket[]>('SELECT email, college, state, role, source_url FROM acx_outreach_contacts WHERE email IN (?)', [c.queue.slice(0, 1000)]);
+  const by = new Map(rows.map(r => [String(r.email), r]));
+  return c.queue.slice(0, 1000).map(e => { const r = by.get(e); return { email: e, college: r ? String(r.college) : '', state: r?.state ?? null, role: r?.role ?? null, source: r?.source_url ?? null }; });
 }
