@@ -103,3 +103,15 @@ html { scroll-behavior: smooth; font-size: 110%; }
 .acx-ring { stroke-dashoffset: var(--acx-ring-end); animation: acx-ring 1.4s cubic-bezier(.2,.7,.2,1) 0.2s both; }
 .acx-rise { animation: acx-rise 0.7s ease-out both; }
 .acx-ping { animation: acx-ping 1.8s ease-out infinite; }
+
+/* Header "Donate" button: heartbeat, soft gold halo and a shine sweep on hover. */
+@keyframes acx-heartbeat { 0%, 40%, 100% { transform: scale(1); } 10% { transform: scale(1.22); } 20% { transform: scale(0.96); } 30% { transform: scale(1.14); } }
+@keyframes acx-halo { 0% { box-shadow: 0 0 0 0 rgba(198, 161, 91, 0.6); } 70%, 100% { box-shadow: 0 0 0 9px rgba(198, 161, 91, 0); } }
+@keyframes acx-shine { from { transform: translateX(-120%) skewX(-20deg); } to { transform: translateX(260%) skewX(-20deg); } }
+.acx-donate { position: relative; overflow: hidden; isolation: isolate; animation: acx-halo 2.4s ease-out infinite; }
+.acx-donate::after { content: ""; position: absolute; inset: 0 auto 0 0; width: 40%; background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.55), transparent); transform: translateX(-120%) skewX(-20deg); z-index: -1; pointer-events: none; }
+.acx-donate:hover::after, .acx-donate:focus-visible::after { animation: acx-shine 0.9s ease-out; }
+.acx-donate .acx-heart { animation: acx-heartbeat 2.4s ease-in-out infinite; transform-origin: center; }
+@media (prefers-reduced-motion: reduce) {
+  .acx-donate, .acx-donate .acx-heart, .acx-donate:hover::after { animation: none; }
+}

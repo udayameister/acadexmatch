@@ -9,7 +9,7 @@ import { useCurrentUser, homePathForRole } from '@/lib/useAuth';
 import { UserRole } from '@/types';
 import { useProfilePhoto } from '@/lib/documents';
 import { PlanPill } from './Premium';
-import { Crown, KeyRound, ChevronDown, LogOut, Menu, X, LayoutDashboard, UserCircle, Bell, CalendarClock, Mic, Calculator, Megaphone, FileSearch } from 'lucide-react';
+import { Crown, KeyRound, ChevronDown, LogOut, Menu, X, LayoutDashboard, UserCircle, Bell, CalendarClock, Mic, Calculator, Megaphone, FileSearch, Heart } from 'lucide-react';
 
 interface NavLinkItem {
   href: string;
@@ -153,6 +153,7 @@ export default function Navbar() {
         </nav>
 
         <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+          <DonateButton className={ready && user ? 'inline-flex' : 'hidden sm:inline-flex'} />
           {!ready ? (
             <div className="w-24 h-9" />
           ) : user ? (
@@ -258,6 +259,9 @@ export default function Navbar() {
               {item.label}
             </Link>
           ))}
+          <Link href="/#support" onClick={() => setMobileOpen(false)} className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold text-gold-900 bg-gradient-to-r from-gold-100 to-gold-50 border border-gold-200">
+            <Heart className="w-4 h-4 text-crimson-600 fill-crimson-600" aria-hidden="true" /> Donate to AcadeXMatch <span className="ml-auto text-xs font-medium text-gold-700">₹100 – ₹10,000</span>
+          </Link>
           {!user && (
             <Link href="/login" className="block px-3 py-2.5 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50">
               Sign in
@@ -266,5 +270,20 @@ export default function Navbar() {
         </nav>
       )}
     </header>
+  );
+}
+
+/** Header call to action: opens the home page "Support us" section (contributions of ₹100 – ₹10,000 via Razorpay). */
+function DonateButton({ className = 'inline-flex' }: { className?: string }) {
+  return (
+    <Link
+      href="/#support"
+      title="Support AcadeXMatch: contribute ₹100 – ₹10,000"
+      aria-label="Donate to AcadeXMatch"
+      className={`acx-donate ${className} items-center gap-1.5 px-2.5 sm:px-3.5 py-2 rounded-full text-sm font-bold whitespace-nowrap text-brand-900 bg-gradient-to-r from-gold-300 via-gold-200 to-gold-300 border border-gold-400 shadow-sm hover:shadow-md hover:from-gold-200 hover:to-gold-200 hover:-translate-y-px transition focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 focus-visible:ring-offset-2`}
+    >
+      <Heart className="acx-heart w-4 h-4 text-crimson-600 fill-crimson-600" aria-hidden="true" />
+      <span className="hidden sm:inline">Donate</span>
+    </Link>
   );
 }
