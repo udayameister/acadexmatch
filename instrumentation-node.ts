@@ -1,5 +1,6 @@
 import { maybeRunDaily } from './lib/server/scrapeQueue';
 import { maybeRunFacultyTickDaily } from './lib/server/facultytickEngine';
+import { maybeRunFacultyPlusDaily } from './lib/server/facultyplusEngine';
 import { pruneOldResumeData } from './lib/server/resumes';
 import { runFinder, sendDue, runAutopilot } from './lib/server/outreach';
 import { maybeSendDigest } from './lib/server/newPostDigest';
@@ -33,6 +34,7 @@ if (process.env.ACAD_DISABLE_SCHEDULER !== '1' && !g.__acadScheduler) {
   const tick = () => {
     maybeRunDaily().catch(err => console.error('[AcadeXMatch] Daily scrape error', err));
     maybeRunFacultyTickDaily().catch(err => console.error('[AcadeXMatch] FacultyTick scrape error', err));
+    maybeRunFacultyPlusDaily().catch(err => console.error('[AcadeXMatch] FacultyPlus scrape error', err));
     maybeSendDigest().catch(err => console.error('[AcadeXMatch] New-post email error', err));
     // College outreach: continue the contact finder after a restart, and send the running campaign within its daily limit.
     runFinder().catch(err => console.error('[AcadeXMatch] Outreach finder error', err));

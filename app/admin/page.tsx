@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { StorageService } from '@/lib/storage';
 import ScrapePipelinePanel from '@/components/ScrapePipelinePanel';
 import FacultyTickPanel from '@/components/FacultyTickPanel';
+import FacultyPlusPanel from '@/components/FacultyPlusPanel';
 import ResumeAdminPanel from '@/components/ResumeAdminPanel';
 import LaunchOffersCard from '@/components/LaunchOffersCard';
 import AiResumeAdminCard from '@/components/AiResumeAdminCard';
@@ -44,9 +45,10 @@ import {
   Handshake,
   Library,
   Rss,
+  Newspaper,
   CalendarDays, FileSearch, UsersRound, Send } from 'lucide-react';
 
-type AdminTab = 'growth' | 'quality' | 'announcements' | 'partners' | 'advisory' | 'outreach' | 'users' | 'institutions' | 'customers' | 'vacancies' | 'scraping' | 'facultytick' | 'events' | 'resume' | 'applications' | 'premium' | 'verification' | 'dpdp' | 'audit' | 'emails' | 'site' | 'directory';
+type AdminTab = 'growth' | 'quality' | 'announcements' | 'partners' | 'advisory' | 'outreach' | 'users' | 'institutions' | 'customers' | 'vacancies' | 'scraping' | 'facultytick' | 'facultyplus' | 'events' | 'resume' | 'applications' | 'premium' | 'verification' | 'dpdp' | 'audit' | 'emails' | 'site' | 'directory';
 
 export default function AdminCompliancePage() {
   const [institutes, setInstitutes] = useState<Institute[]>([]);
@@ -56,7 +58,7 @@ export default function AdminCompliancePage() {
   // Links such as /admin?tab=outreach (e.g. from the outreach approval email) open that tab.
   useEffect(() => {
     const t = new URLSearchParams(window.location.search).get('tab');
-    if (t === 'outreach' || t === 'emails' || t === 'verification' || t === 'premium' || t === 'site' || t === 'quality' || t === 'users') setActiveTab(t);
+    if (t === 'outreach' || t === 'emails' || t === 'verification' || t === 'premium' || t === 'site' || t === 'quality' || t === 'users' || t === 'facultyplus') setActiveTab(t);
   }, []);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
   const [users, setUsers] = useState<User[]>([]);
@@ -66,6 +68,7 @@ export default function AdminCompliancePage() {
   const [upgradeCount, setUpgradeCount] = useState(0);
   const [scrapePending, setScrapePending] = useState(0);
   const [ftPending, setFtPending] = useState(0);
+  const [fpPending, setFpPending] = useState(0);
   const eventsToReview = useStorageValue<number>(() => StorageService.getEvents().filter((e: AcademicEvent) => e.status === 'under_review').length, 0);
 
   useEffect(() => {
@@ -77,9 +80,14 @@ export default function AdminCompliancePage() {
       .then(r => (r.ok ? r.json() : null))
       .then(d => { if (d?.queue) setFtPending(d.queue.filter((q: { status: string }) => q.status === 'pending').length); })
       .catch(() => undefined);
+    const checkFp = () => fetch('/api/admin/facultyplus', { cache: 'no-store', credentials: 'same-origin' })
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => { if (d?.queue) setFpPending(d.queue.filter((q: { status: string }) => q.status === 'pending').length); })
+      .catch(() => undefined);
     check();
     checkFt();
-    const t = setInterval(() => { check(); checkFt(); }, 60_000);
+    checkFp();
+    const t = setInterval(() => { check(); checkFt(); checkFp(); }, 60_000);
     return () => clearInterval(t);
   }, [activeTab]);
   const [auditFilter, setAuditFilter] = useState<string>('ALL');
@@ -193,6 +201,7 @@ export default function AdminCompliancePage() {
           ['vacancies', Briefcase, `Vacancies (${allJobCount})`],
           ['scraping', Globe, `Job scraping${scrapePending ? ` (${scrapePending} to approve)` : ''}`],
           ['facultytick', Rss, `FacultyTick${ftPending ? ` (${ftPending} to approve)` : ''}`],
+          ['facultyplus', Newspaper, `FacultyPlus${fpPending ? ` (${fpPending} to approve)` : ''}`],
           ['events', CalendarDays, `Events & conferences${eventsToReview ? ` (${eventsToReview} to review)` : ''}`],
           ['resume', FileSearch, 'Resume checker'],
           ['applications', ClipboardList, `Applications (${appCount})`],
@@ -239,6 +248,7 @@ export default function AdminCompliancePage() {
       {activeTab === 'directory' && <AisheDirectoryPanel />}
       {activeTab === 'scraping' && <ScrapePipelinePanel />}
       {activeTab === 'facultytick' && <FacultyTickPanel />}
+      {activeTab === 'facultyplus' && <FacultyPlusPanel />}
       {activeTab === 'events' && <EventsAdminPanel />}
       {activeTab === 'resume' && <ResumeAdminPanel />}
       {activeTab === 'customers' && <CustomersPanel />}
