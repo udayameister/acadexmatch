@@ -10,6 +10,8 @@ import { PlanPill } from '@/components/Premium';
 import { useStorageValue, useCurrentUser } from '@/lib/useAuth';
 import { useVisitStats } from '@/components/VisitCounter';
 import { useJobViews } from '@/components/JobViews';
+import JobReviewDrawer from '@/components/JobReviewDrawer';
+import { deadlineState, deadlineCounts, matchesDeadline, sortJobs, DEADLINE_BADGE, JOB_SORTS, istToday, type DeadlineFilter, type JobSort } from '@/lib/deadline';
 import { CandidateAvatar, DocumentList } from '@/components/CandidateDocuments';
 import { useDocuments, deleteDocument, readLegacyBrowserDocuments, uploadDocumentFor } from '@/lib/documents';
 import { hydrate, hasLegacyBrowserData, importLegacyBrowserData } from '@/lib/clientSync';
@@ -625,17 +627,23 @@ export function VacanciesPanel() {
   const institutes = useStorageValue<Institute[]>(() => StorageService.getInstitutes(), []);
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | Job['status']>('all');
-  const [sortByViews, setSortByViews] = useState(false);
+  const [deadlineFilter, setDeadlineFilter] = useState<DeadlineFilter>('all');
+  const [sort, setSort] = useState<JobSort | 'views'>('expired-recent');
   const { counts: views } = useJobViews();
   const [editing, setEditing] = useState<Job | 'new' | null>(null);
+  const [reviewing, setReviewing] = useState<string | null>(null);
+  const today = istToday();
   const [flash, setFlash] = useFlash();
 
+  const searched = useMemo(() => jobs.filter(j =>
+    (statusFilter === 'all' || j.status === statusFilter) &&
+    `${j.title} ${j.instituteName} ${j.department} ${j.advertisementNumber} ${j.location.city} ${j.location.state}`.toLowerCase().includes(query.toLowerCase())), [jobs, query, statusFilter]);
+  const dCounts = useMemo(() => deadlineCounts(searched, today), [searched, today]);
   const visible = useMemo(() => {
-    const list = jobs.filter(j =>
-      (statusFilter === 'all' || j.status === statusFilter) &&
-      `${j.title} ${j.instituteName} ${j.department} ${j.advertisementNumber}`.toLowerCase().includes(query.toLowerCase()));
-    return sortByViews ? [...list].sort((a, b) => (views?.[b.id]?.total || 0) - (views?.[a.id]?.total || 0)) : list;
-  }, [jobs, query, statusFilter, sortByViews, views]);
+    const list = searched.filter(j => matchesDeadline(j, deadlineFilter, today));
+    return sort === 'views' ? [...list].sort((a, b) => (views?.[b.id]?.total || 0) - (views?.[a.id]?.total || 0)) : sortJobs(list, sort, today);
+  }, [searched, deadlineFilter, sort, views, today]);
+  const reviewJob = reviewing ? jobs.find(j => j.id === reviewing) || null : null;
 
   const sel = useSelection(visible.map(j => j.id));
   const bulkDelete = () => {
@@ -675,9 +683,24 @@ export function VacanciesPanel() {
           <option value="under_review">Under review</option>
           <option value="closed">Closed</option>
         </select>
-        <label className="flex items-center gap-1.5 text-xs text-slate-700 whitespace-nowrap"><input type="checkbox" className="w-4 h-4 accent-brand-700" checked={sortByViews} onChange={e => setSortByViews(e.target.checked)} /> Most viewed first</label>
+        <select value={sort} onChange={e => setSort(e.target.value as JobSort | 'views')} className={selectCls} aria-label="Sort vacancies">
+          {JOB_SORTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          <option value="views">Most viewed first</option>
+        </select>
         <button className={btnPrimary} onClick={() => setEditing('new')} disabled={institutes.length === 0}><Plus className="w-4 h-4" /> Add vacancy</button>
       </Toolbar>
+      <div className="flex flex-wrap gap-2" role="group" aria-label="Filter by last date">
+        {([
+          ['all', `All (${dCounts.all})`, 'bg-white border-slate-200 text-slate-700'],
+          ['live', `Live (${dCounts.live})`, DEADLINE_BADGE.live],
+          ['closing', `Closing within 7 days (${dCounts.closing})`, DEADLINE_BADGE.closing],
+          ['completed', `Deadline completed (${dCounts.completed})`, DEADLINE_BADGE.completed],
+          ['none', `No last date (${dCounts.none})`, DEADLINE_BADGE.none],
+        ] as [DeadlineFilter, string, string][]).map(([k, label, cls]) => (
+          <button key={k} onClick={() => setDeadlineFilter(k)} aria-pressed={deadlineFilter === k}
+            className={`px-3 py-1.5 rounded-full border text-xs font-semibold transition ${cls} ${deadlineFilter === k ? 'ring-2 ring-brand-700 ring-offset-1' : 'opacity-80 hover:opacity-100'}`}>{label}</button>
+        ))}
+      </div>
       {expired.length > 0 && (
         <div className="p-3.5 rounded-xl bg-gold-50 border border-gold-200 text-sm text-gold-900 flex flex-col sm:flex-row sm:items-center justify-between gap-2" role="status">
           <span className="flex items-center gap-2"><AlertTriangle className="w-4 h-4 shrink-0" />{expired.length} published vacanc{expired.length === 1 ? 'y is' : 'ies are'} past the last date. They close automatically once a day; you can close them now.</span>
@@ -704,7 +727,12 @@ export function VacanciesPanel() {
               <div className="text-xs text-slate-500 truncate">{j.department}</div>
             </td>
             <td className="px-4 py-3 text-slate-600 whitespace-nowrap">{j.instituteShortName}</td>
-            <td className={`px-4 py-3 whitespace-nowrap ${isDeadlinePassed(j) ? 'text-crimson-700' : 'text-slate-600'}`}>{j.applicationDeadline}</td>
+            <td className="px-4 py-3 whitespace-nowrap">
+              {(() => { const st = deadlineState(j, today); return (<>
+                <div className={isDeadlinePassed(j) ? 'text-crimson-700' : 'text-slate-700'}>{j.applicationDeadline || '—'}</div>
+                <span className={`inline-block mt-0.5 text-[11px] font-semibold px-1.5 py-0.5 rounded border ${DEADLINE_BADGE[st.kind]}`}>{st.label}</span>
+              </>); })()}
+            </td>
             <td className="px-4 py-3 text-slate-600 whitespace-nowrap tabular-nums" title={views?.[j.id]?.last ? `Last view ${new Date(views[j.id].last!).toLocaleString('en-IN')}` : 'No views yet'}>
               {views ? <>{(views[j.id]?.total || 0).toLocaleString('en-IN')} <span className="text-slate-400">({views[j.id]?.last7 || 0})</span></> : '…'}
             </td>
@@ -722,6 +750,7 @@ export function VacanciesPanel() {
               <div className="flex justify-end gap-1">
                 <button className={iconBtn} title={j.featured ? 'Unfeature' : 'Feature'} aria-label={j.featured ? 'Remove from featured' : 'Mark as featured'} onClick={() => { StorageService.updateJob(j.id, { featured: !j.featured }); setFlash(j.featured ? 'Removed from featured.' : 'Marked as featured.'); }}><Star className={`w-4 h-4 ${j.featured ? 'fill-gold-400 text-gold-500' : ''}`} /></button>
                 <AdminPromotionControls job={j} onDone={setFlash} />
+                <button className={iconBtn} title="All details" aria-label={`Review all details of ${j.title}`} onClick={() => setReviewing(j.id)}><Eye className="w-4 h-4" /></button>
                 <Link href={`/jobs/${j.id}`} className={iconBtn} title="View" aria-label={`View ${j.title}`}><ExternalLink className="w-4 h-4" /></Link>
                 <button className={iconBtn} title="Edit" aria-label={`Edit ${j.title}`} onClick={() => setEditing(j)}><Pencil className="w-4 h-4" /></button>
                 <button className={dangerIconBtn} title="Delete" aria-label={`Delete ${j.title}`} onClick={() => remove(j)}><Trash2 className="w-4 h-4" /></button>
@@ -731,6 +760,14 @@ export function VacanciesPanel() {
         ))}
       </TableShell>
       {editing && <JobForm job={editing === 'new' ? null : editing} institutes={institutes} onClose={() => setEditing(null)} onDone={m => { setEditing(null); setFlash(m); }} />}
+      {reviewJob && !editing && (
+        <JobReviewDrawer job={reviewJob} onClose={() => setReviewing(null)} actions={<>
+          {reviewJob.status !== 'closed'
+            ? <button className={btnGhost} onClick={() => { StorageService.setJobStatus(reviewJob.id, 'closed'); setFlash('Vacancy closed.'); }}>Close vacancy</button>
+            : <button className={btnGhost} onClick={() => { StorageService.setJobStatus(reviewJob.id, 'published'); setFlash('Vacancy published again.'); }}>Publish again</button>}
+          <button className={btnPrimary} onClick={() => setEditing(reviewJob)}><Pencil className="w-4 h-4" /> Edit</button>
+        </>} />
+      )}
       <Flash msg={flash} />
     </div>
   );

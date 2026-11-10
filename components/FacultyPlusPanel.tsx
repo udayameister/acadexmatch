@@ -5,9 +5,11 @@ import Link from 'next/link';
 import { StorageService } from '@/lib/storage';
 import { useStorageValue } from '@/lib/useAuth';
 import { duplicateGroups, findDuplicate } from '@/lib/jobDuplicates';
+import { deadlineCounts, deadlineState, matchesDeadline, sortJobs, DEADLINE_BADGE, JOB_SORTS, istToday, type DeadlineFilter, type JobSort } from '@/lib/deadline';
+import JobReviewDrawer from '@/components/JobReviewDrawer';
 import type { Job } from '@/types';
 import {
-  AlertTriangle, Check, CheckCircle2, Clock, Copy, ExternalLink, Link2, Loader2, Pencil, Play, RefreshCw, RotateCcw, Settings2, Trash2, X,
+  AlertTriangle, Check, CheckCircle2, Clock, Copy, ExternalLink, Eye, Link2, Loader2, Pencil, Play, RefreshCw, RotateCcw, Settings2, Trash2, X,
 } from 'lucide-react';
 
 interface FpCategory { id: number; name: string; count: number }
@@ -62,6 +64,10 @@ export default function FacultyPlusPanel() {
   const [showSettings, setShowSettings] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   const [titleDraft, setTitleDraft] = useState('');
+  const [sort, setSort] = useState<JobSort | 'found'>('deadline-asc');
+  const [deadlineFilter, setDeadlineFilter] = useState<DeadlineFilter>('all');
+  const [reviewing, setReviewing] = useState<string | null>(null);
+  const today = istToday();
 
   const flash = (ok: boolean, text: string) => { setMsg({ ok, text }); setTimeout(() => setMsg(null), 6000); };
   const load = useCallback(async () => {
@@ -95,7 +101,14 @@ export default function FacultyPlusPanel() {
   const pending = useMemo(() => allPending.filter(q => (
     filter === 'all' ? true : filter === 'new' ? !dups[q.id] : filter === 'duplicates' ? !!dups[q.id] : !dups[q.id] && !q.issues.length
   )), [allPending, filter, dups]);
-  const list = view === 'pending' ? pending : (data?.queue || []).filter(q => q.status === view);
+  const inView = view === 'pending' ? pending : (data?.queue || []).filter(q => q.status === view);
+  const dCounts = deadlineCounts(inView.map(q => q.job), today);
+  const filtered = inView.filter(q => matchesDeadline(q.job, deadlineFilter, today));
+  const list = sort === 'found' ? filtered : (() => {
+    const order = sortJobs(filtered.map(q => ({ ...q.job, _id: q.id })), sort, today).map(j => j._id);
+    const byId = new Map(filtered.map(q => [q.id, q]));
+    return order.map(id => byId.get(id)!);
+  })();
   const counts = useMemo(() => {
     const q = data?.queue || [];
     return { pending: allPending.length, approved: q.filter(x => x.status === 'approved').length, rejected: q.filter(x => x.status === 'rejected').length };
@@ -129,9 +142,10 @@ export default function FacultyPlusPanel() {
   if (!data) return <div className="py-10 flex justify-center"><Loader2 className="w-6 h-6 animate-spin text-brand-700" aria-label="Loading" /></div>;
 
   const lastRun = data.runs[0];
-  const allSel = pending.length > 0 && pending.every(q => selected.has(q.id));
+  const shownPending = view === 'pending' ? list : [];
+  const allSel = shownPending.length > 0 && shownPending.every(q => selected.has(q.id));
   const toggle = (id: string) => setSelected(p => { const n = new Set(p); if (n.has(id)) n.delete(id); else n.add(id); return n; });
-  const selItems = pending.filter(q => selected.has(q.id));
+  const selItems = shownPending.filter(q => selected.has(q.id));
 
   return (
     <div className="space-y-5">
@@ -206,9 +220,30 @@ export default function FacultyPlusPanel() {
           {view !== 'pending' && list.length > 0 && <button className={btnGhost} disabled={busy} onClick={() => act({ action: 'clearDecided' }, 'Cleared.')}>Clear decided</button>}
         </div>
 
-        {view === 'pending' && pending.length > 0 && (
+        {inView.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2">
+            {([
+              ['all', `All (${dCounts.all})`, 'bg-white border-slate-200 text-slate-700'],
+              ['live', `Live (${dCounts.live})`, DEADLINE_BADGE.live],
+              ['closing', `Closing within 7 days (${dCounts.closing})`, DEADLINE_BADGE.closing],
+              ['completed', `Deadline completed (${dCounts.completed})`, DEADLINE_BADGE.completed],
+              ['none', `No last date (${dCounts.none})`, DEADLINE_BADGE.none],
+            ] as [DeadlineFilter, string, string][]).map(([k, label, cls]) => (
+              <button key={k} onClick={() => { setDeadlineFilter(k); setSelected(new Set()); }} aria-pressed={deadlineFilter === k}
+                className={`px-3 py-1.5 rounded-full border text-xs font-semibold transition ${cls} ${deadlineFilter === k ? 'ring-2 ring-brand-700 ring-offset-1' : 'opacity-80 hover:opacity-100'}`}>{label}</button>
+            ))}
+            <label className="ml-auto text-xs text-slate-600 flex items-center gap-2">Sort
+              <select className={`${inputCls} py-1.5`} value={sort} onChange={e => setSort(e.target.value as JobSort | 'found')}>
+                {JOB_SORTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                <option value="found">Order found</option>
+              </select>
+            </label>
+          </div>
+        )}
+
+        {view === 'pending' && shownPending.length > 0 && (
           <div className="sticky top-2 z-10 flex flex-wrap items-center gap-2 p-2.5 rounded-xl bg-white border border-slate-200 shadow-sm">
-            <label className="flex items-center gap-2 text-sm text-slate-700 px-1.5"><input type="checkbox" className="accent-brand-900 w-4 h-4" checked={allSel} onChange={() => setSelected(allSel ? new Set() : new Set(pending.map(q => q.id)))} /> Select all</label>
+            <label className="flex items-center gap-2 text-sm text-slate-700 px-1.5"><input type="checkbox" className="accent-brand-900 w-4 h-4" checked={allSel} onChange={() => setSelected(allSel ? new Set() : new Set(shownPending.map(q => q.id)))} /> Select all shown</label>
             <span className="text-xs text-slate-500">{selected.size} selected</span>
             <div className="flex gap-2 ml-auto">
               <button className={btnGhost} disabled={busy || !selItems.length} onClick={() => reject(selItems.map(q => q.id))}><X className="w-4 h-4" /> Reject</button>
@@ -219,7 +254,7 @@ export default function FacultyPlusPanel() {
 
         {list.length === 0 && (
           <p className="p-8 rounded-2xl bg-white border border-slate-200 text-center text-sm text-slate-500">
-            {view === 'pending' ? (data.running ? 'Reading FacultyPlus…' : counts.pending ? 'Nothing matches this filter.' : 'Nothing waiting. Use “Get latest now” or add a post by its address.') : 'Nothing here yet.'}
+            {view === 'pending' ? (data.running ? 'Reading FacultyPlus…' : counts.pending ? 'Nothing matches this filter.' : 'Nothing waiting. Use “Get latest now” or add a post by its address.') : inView.length ? 'Nothing matches this filter.' : 'Nothing here yet.'}
           </p>
         )}
 
@@ -253,6 +288,7 @@ export default function FacultyPlusPanel() {
                         <div className="text-sm text-slate-700 break-words">{j.instituteName}{(j.location.city || j.location.state) ? <span className="text-slate-500"> · {[j.location.city, j.location.state].filter(Boolean).join(', ')}</span> : null}</div>
                       </div>
                       <div className="flex flex-wrap gap-1 sm:justify-end shrink-0">
+                        {(() => { const st = deadlineState(j, today); return <span className={`text-[11px] px-2 py-0.5 rounded-full border font-semibold ${DEADLINE_BADGE[st.kind]}`}>{st.label}</span>; })()}
                         {q.categories.slice(0, 4).map(c => <span key={c} className="text-[11px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">{c}</span>)}
                         {q.status === 'approved' && <span className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 font-semibold">Published · {q.decidedAt}</span>}
                         {q.status === 'rejected' && <span className="text-[11px] px-2 py-0.5 rounded-full bg-crimson-50 text-crimson-700 border border-crimson-100 font-semibold">{q.reason === 'duplicate' ? 'Removed as duplicate' : 'Rejected'} · {q.decidedAt}</span>}
@@ -310,13 +346,17 @@ export default function FacultyPlusPanel() {
                       </div>
                       {q.status === 'pending' ? (
                         <div className="flex gap-2">
+                          <button className={btnGhost} onClick={() => setReviewing(q.id)}><Eye className="w-4 h-4" /> All details</button>
                           <button className={btnGhost} disabled={busy} onClick={() => reject([q.id])}><X className="w-4 h-4" /> Reject</button>
                           <button className={btnPrimary} disabled={busy} onClick={() => approve([q])}><Check className="w-4 h-4" /> Approve &amp; publish</button>
                         </div>
-                      ) : q.status === 'rejected' ? (
-                        <button className={btnGhost} disabled={busy} onClick={() => act({ action: 'reopen', ids: [q.id] }, 'Moved back to approval.')}><RotateCcw className="w-4 h-4" /> Reconsider</button>
                       ) : (
-                        <span className="text-xs text-emerald-700 inline-flex items-center gap-1"><CheckCircle2 className="w-4 h-4" /> On the job board</span>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <button className={btnGhost} onClick={() => setReviewing(q.id)}><Eye className="w-4 h-4" /> All details</button>
+                          {q.status === 'rejected'
+                            ? <button className={btnGhost} disabled={busy} onClick={() => act({ action: 'reopen', ids: [q.id] }, 'Moved back to approval.')}><RotateCcw className="w-4 h-4" /> Reconsider</button>
+                            : <span className="text-xs text-emerald-700 inline-flex items-center gap-1"><CheckCircle2 className="w-4 h-4" /> On the job board</span>}
+                        </div>
                       )}
                     </div>
                   </div>
@@ -326,6 +366,28 @@ export default function FacultyPlusPanel() {
           })}
         </ul>
       </section>
+
+      {(() => {
+        const q = reviewing ? data.queue.find(x => x.id === reviewing) : null;
+        if (!q) return null;
+        const dup = q.status === 'pending' ? dups[q.id] : undefined;
+        return (
+          <JobReviewDrawer job={q.job} onClose={() => setReviewing(null)}
+            statusText={q.status === 'pending' ? 'Waiting for your approval' : q.status === 'approved' ? `Approved ${q.decidedAt || ''}`.trim() : q.reason === 'duplicate' ? 'Removed as duplicate' : 'Rejected'}
+            note={<div className="space-y-2">
+              {dup && <p className="p-3 rounded-xl bg-gold-50 border border-gold-200 text-sm text-gold-900"><strong>Possible duplicate:</strong> {WHERE[dup.where]} — {dup.title}, {dup.instituteName}{dup.applicationDeadline ? `, last date ${fmtDate(dup.applicationDeadline)}` : ''}</p>}
+              {q.issues.length > 0 && <ul className="flex flex-wrap gap-1.5">{q.issues.map(i => <li key={i} className="text-xs px-2 py-1 rounded-lg bg-gold-50 border border-gold-200 text-gold-900">{i}</li>)}</ul>}
+              <p className="text-xs text-slate-500">Found {q.foundAt} · categories: {q.categories.join(', ') || '—'} · <a href={q.link} target="_blank" rel="noopener noreferrer nofollow" className="underline">check on FacultyPlus (admin only)</a></p>
+            </div>}
+            actions={q.status === 'pending' ? <>
+              {dup && <button className={btnWarn} disabled={busy} onClick={async () => { await reject([q.id], 'duplicate'); setReviewing(null); }}><Trash2 className="w-4 h-4" /> Remove duplicate</button>}
+              <button className={btnGhost} disabled={busy} onClick={async () => { await reject([q.id]); setReviewing(null); }}><X className="w-4 h-4" /> Reject</button>
+              <button className={btnPrimary} disabled={busy} onClick={async () => { await approve([q]); setReviewing(null); }}><Check className="w-4 h-4" /> Approve &amp; publish</button>
+            </> : q.status === 'rejected'
+              ? <button className={btnGhost} disabled={busy} onClick={() => act({ action: 'reopen', ids: [q.id] }, 'Moved back to approval.')}><RotateCcw className="w-4 h-4" /> Reconsider</button>
+              : undefined} />
+        );
+      })()}
 
       <BoardDuplicates onDone={t => flash(true, t)} />
 
