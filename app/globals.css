@@ -115,3 +115,27 @@ html { scroll-behavior: smooth; font-size: 110%; }
 @media (prefers-reduced-motion: reduce) {
   .acx-donate, .acx-donate .acx-heart, .acx-donate:hover::after { animation: none; }
 }
+
+/* Home page motion: scroll reveal, rotating highlight, services ticker, floating badges, step timeline. */
+@media (scripting: enabled) {
+  .acx-reveal { opacity: 0; transform: translateY(18px); transition: opacity .7s ease-out, transform .7s cubic-bezier(.2,.7,.2,1); }
+  .acx-reveal.acx-reveal-in { opacity: 1; transform: none; }
+}
+@keyframes acx-swap { from { opacity: 0; transform: translateY(70%); } to { opacity: 1; transform: translateY(0); } }
+.acx-swap { animation: acx-swap .45s cubic-bezier(.2,.7,.2,1) both; }
+@keyframes acx-marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+.acx-marquee-track { animation: acx-marquee 55s linear infinite; }
+.acx-marquee:hover .acx-marquee-track, .acx-marquee:focus-within .acx-marquee-track { animation-play-state: paused; }
+@keyframes acx-bob { 0%, 100% { transform: translateY(0) rotate(var(--acx-tilt, 0deg)); } 50% { transform: translateY(-10px) rotate(var(--acx-tilt, 0deg)); } }
+.acx-bob { animation: acx-bob 5.5s ease-in-out infinite; }
+@keyframes acx-draw { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+.acx-reveal-in .acx-draw { transform-origin: top; animation: acx-draw 1.6s cubic-bezier(.2,.7,.2,1) .2s both; }
+@keyframes acx-sheen { 0% { background-position: 0% 50%; } 100% { background-position: 200% 50%; } }
+.acx-sheen { background-size: 200% 100%; animation: acx-sheen 6s linear infinite; }
+.acx-tile .acx-tile-icon { transition: transform .35s cubic-bezier(.2,.7,.2,1), box-shadow .35s; }
+.acx-tile:hover .acx-tile-icon, .acx-tile:focus-visible .acx-tile-icon { transform: translateY(-3px) rotate(-6deg) scale(1.08); box-shadow: 0 8px 18px -6px rgba(128, 0, 0, .35); }
+@media (prefers-reduced-motion: reduce) {
+  .acx-reveal { opacity: 1 !important; transform: none !important; transition: none !important; }
+  .acx-swap, .acx-marquee-track, .acx-bob, .acx-reveal-in .acx-draw, .acx-sheen { animation: none !important; }
+  .acx-tile:hover .acx-tile-icon { transform: none; }
+}
