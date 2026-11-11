@@ -36,6 +36,27 @@ export function matchesFilters(job: Job, f: JobSearchFilters): boolean {
   return true;
 }
 
+/**
+ * Keywords of a job alert: the search box split at commas, semicolons or " or ", so
+ * "Computer Science, VLSI" means either. Two characters at least; up to 10.
+ */
+export function alertKeywords(f: Pick<JobSearchFilters, 'search'>): string[] {
+  return [...new Set((f.search || '').split(/[,;|]|\s+or\s+/i).map(s => s.replace(/\s+/g, ' ').trim()).filter(s => s.length >= 2))].slice(0, 10);
+}
+
+export const alertHasKeywords = (f: Pick<JobSearchFilters, 'search'>) => alertKeywords(f).length > 0;
+
+/**
+ * Whether a vacancy should be emailed for an alert: only alerts with keywords send anything, and the vacancy must
+ * contain at least one keyword and also meet the alert's other filters (state, designation…).
+ */
+export function matchesAlert(job: Job, f: JobSearchFilters): boolean {
+  const kws = alertKeywords(f);
+  return kws.length > 0 && kws.some(k => matchesFilters(job, { ...f, search: k }));
+}
+
+export const ALERT_NEEDS_KEYWORDS = 'Add at least one keyword (for example: Computer Science, Physics or VLSI). Alerts only email vacancies that match your keywords.';
+
 /** Short human description of the filters, e.g. "Assistant Professor · Maharashtra · \"machine learning\"". */
 export function describeFilters(f: JobSearchFilters): string {
   const parts: string[] = [];

@@ -1,6 +1,6 @@
 import { createHmac, randomBytes, timingSafeEqual } from 'crypto';
 import { STORAGE_KEYS, isDeadlinePassed } from '@/lib/storage';
-import { matchesFilters, describeFilters } from '@/lib/jobFilter';
+import { matchesAlert, alertHasKeywords, describeFilters } from '@/lib/jobFilter';
 import { deadlineLabel, locationLabel, payLabel } from '@/lib/display';
 import { withDb } from './db';
 import { appUrl, EmailItem } from './mailer';
@@ -63,7 +63,7 @@ function openVacancies(db: Record<string, unknown>): Job[] {
   return ((db[STORAGE_KEYS.JOBS] as Job[]) || []).filter(j => j.status === 'published' && !isDeadlinePassed(j));
 }
 
-export interface AlertRunResult { checked: number; emails: number; vacancies: number; skippedUnverified: number }
+export interface AlertRunResult { checked: number; emails: number; vacancies: number; skippedUnverified: number; skippedNoKeywords: number }
 
 /**
  * Emails each due alert the vacancies that are new since its last run.
@@ -72,7 +72,7 @@ export interface AlertRunResult { checked: number; emails: number; vacancies: nu
  */
 export async function runJobAlerts(opts: { force?: boolean } = {}): Promise<AlertRunResult> {
   const { day, hour } = istNow();
-  const result: AlertRunResult = { checked: 0, emails: 0, vacancies: 0, skippedUnverified: 0 };
+  const result: AlertRunResult = { checked: 0, emails: 0, vacancies: 0, skippedUnverified: 0, skippedNoKeywords: 0 };
   const nowMs = Date.now();
   // Daily and weekly alerts wait for the morning send hour; instant alerts go out on every run.
   const scheduledOpen = opts.force || hour >= SEND_HOUR_IST;
@@ -86,9 +86,11 @@ export async function runJobAlerts(opts: { force?: boolean } = {}): Promise<Aler
 
     for (const alert of alerts) {
       const st = state[alert.id];
-      const matching = open.filter(j => matchesFilters(j, alert.filters));
+      // Only alerts with keywords send email, and only vacancies that contain one of the keywords.
+      const matching = open.filter(j => matchesAlert(j, alert.filters));
       if (!st) { state[alert.id] = { seen: matching.map(j => j.id), lastRun: day }; continue; }
       if (!alert.active) continue;
+      if (!alertHasKeywords(alert.filters)) { result.skippedNoKeywords++; st.seen = matching.map(j => j.id).slice(0, MAX_SEEN); continue; }
       if (alert.frequency === 'instant') {
         if (!opts.force && st.lastSentMs && nowMs - st.lastSentMs < INSTANT_GAP_MIN * 60_000) continue;
       } else {

@@ -1,4 +1,5 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
+import { alertHasKeywords, ALERT_NEEDS_KEYWORDS } from '@/lib/jobFilter';
 import { randomBytes } from 'crypto';
 import {
   StorageService, STORAGE_KEYS, DEFAULT_ADMIN, StoreContext, setStoreContextProvider, toPublicUser,
@@ -397,6 +398,7 @@ export const RPC_GUARDS: Record<string, Guard> = {
   requestPremiumUpgrade: candidate,
   saveJobAlert: (me, args, db) => {
     if (me?.role !== 'candidate') return 'Job alerts are for candidate accounts.';
+    if (!alertHasKeywords((args[0] as { filters?: { search?: string } } | undefined)?.filters as { search: string } || { search: '' })) return ALERT_NEEDS_KEYWORDS;
     const id = (args[0] as { id?: string } | undefined)?.id;
     if (!id) return true;
     return ((db[STORAGE_KEYS.JOB_ALERTS] as JobAlert[]) || []).some(a => a.id === id && a.userId === me.id) ? true : 'You can only change your own alerts.';

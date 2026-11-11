@@ -4,10 +4,10 @@ import React, { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { StorageService, isDeadlinePassed } from '@/lib/storage';
 import { useCurrentUser, useStorageValue } from '@/lib/useAuth';
-import { DEFAULT_FILTERS, describeFilters, matchesFilters, nameFromFilters } from '@/lib/jobFilter';
+import { DEFAULT_FILTERS, describeFilters, matchesAlert, alertHasKeywords, alertKeywords, nameFromFilters, ALERT_NEEDS_KEYWORDS } from '@/lib/jobFilter';
 import { INDIAN_STATES, DESIGNATIONS, INSTITUTE_TYPES } from '@/components/FacetedFilter';
 import type { AlertFrequency, Job, JobAlert, JobSearchFilters } from '@/types';
-import { Bell, BellOff, BellPlus, Pencil, Trash2, Mail, Search } from 'lucide-react';
+import { AlertTriangle, Bell, BellOff, BellPlus, Pencil, Trash2, Mail, Search } from 'lucide-react';
 
 const input = 'w-full px-3 py-2.5 rounded-xl bg-white border border-slate-300 text-sm text-slate-900 focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100';
 
@@ -21,6 +21,7 @@ function AlertForm({ draft, onCancel, onSaved }: { draft: Draft; onCancel?: () =
   const setF = (patch: Partial<JobSearchFilters>) => setD({ ...d, filters: { ...f, ...patch } });
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!alertHasKeywords(f)) { setErr(ALERT_NEEDS_KEYWORDS); return; }
     const r = StorageService.saveJobAlert({ ...d, name: d.name || nameFromFilters(f) });
     if (!r.success) { setErr(r.error || 'Could not save.'); return; }
     onSaved(d.id ? 'Alert updated.' : 'Alert created. New matching vacancies will be emailed to you.');
@@ -28,8 +29,9 @@ function AlertForm({ draft, onCancel, onSaved }: { draft: Draft; onCancel?: () =
   };
   return (
     <form onSubmit={submit} className="grid sm:grid-cols-2 gap-3">
-      <label className="block space-y-1 sm:col-span-2"><span className="text-xs font-semibold text-slate-700">Keywords (subject, department, institute or specialisation)</span>
-        <div className="relative"><Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" /><input className={`${input} pl-9`} value={f.search} maxLength={100} placeholder="e.g. Computer Science, VLSI, IIT" onChange={e => setF({ search: e.target.value })} /></div>
+      <label className="block space-y-1 sm:col-span-2"><span className="text-xs font-semibold text-slate-700">Keywords <span className="text-crimson-700">(required)</span> · subject, department, institute or specialisation</span>
+        <div className="relative"><Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" /><input className={`${input} pl-9`} value={f.search} maxLength={150} required aria-required="true" placeholder="e.g. Computer Science, VLSI, Physics" onChange={e => { setF({ search: e.target.value }); setErr(null); }} /></div>
+        <span className="block text-xs text-slate-500">Separate keywords with commas. You get an email only for new vacancies that contain at least one keyword{alertKeywords(f).length > 1 ? ` (${alertKeywords(f).length} keywords)` : ''}.</span>
       </label>
       <label className="block space-y-1"><span className="text-xs font-semibold text-slate-700">Designation</span>
         <select className={input} value={f.designation} onChange={e => setF({ designation: e.target.value })}>{DESIGNATIONS.map(x => <option key={x}>{x}</option>)}</select>
@@ -65,14 +67,14 @@ export default function AlertsPage() {
   const jobs = useStorageValue<Job[]>(() => StorageService.getPublishedJobs().filter(j => !isDeadlinePassed(j)), []);
   const [editing, setEditing] = useState<string | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
-  const counts = useMemo(() => Object.fromEntries(alerts.map(a => [a.id, jobs.filter(j => matchesFilters(j, a.filters)).length])), [alerts, jobs]);
+  const counts = useMemo(() => Object.fromEntries(alerts.map(a => [a.id, jobs.filter(j => matchesAlert(j, a.filters)).length])), [alerts, jobs]);
   if (!user) return null;
 
   return (
     <div className="w-full max-w-4xl mx-auto px-4 sm:px-8 py-10 space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-brand-800 flex items-center gap-2"><Bell className="w-7 h-7 text-gold-500" /> Job alerts</h1>
-        <p className="text-sm text-slate-600 mt-1">Save a search and we email you new vacancies that match it. You can keep up to 10 alerts.</p>
+        <p className="text-sm text-slate-600 mt-1">Save keywords and we email you only the new vacancies that match them. No keywords, no email. You can keep up to 10 alerts.</p>
       </div>
 
       {user.emailVerified === false && (
@@ -93,6 +95,9 @@ export default function AlertsPage() {
                     <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${a.active ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-slate-50 text-slate-500 border-slate-200'}`}>{a.active ? `On · ${a.frequency}` : 'Paused'}</span>
                   </div>
                   {describeFilters(a.filters) !== a.name && nameFromFilters(a.filters) !== a.name && <div className="text-xs text-slate-500 mt-1">{describeFilters(a.filters)}</div>}
+                  {!alertHasKeywords(a.filters) && (
+                    <div className="mt-2 text-xs text-gold-900 bg-gold-50 border border-gold-200 rounded-lg px-2.5 py-1.5 flex items-start gap-1.5"><AlertTriangle className="w-3.5 h-3.5 mt-px shrink-0" /><span>This alert has no keywords, so no emails are sent. <button className="font-semibold underline" onClick={() => setEditing(a.id)}>Add keywords</button></span></div>
+                  )}
                   <div className="text-xs text-slate-500 mt-1">{counts[a.id] ?? 0} open {counts[a.id] === 1 ? 'vacancy matches' : 'vacancies match'} now{a.lastSentAt ? ` · last email ${new Date(a.lastSentAt).toLocaleDateString('en-IN')} (${a.lastSentCount} new)` : ''}</div>
                 </div>
                 <div className="flex gap-2 shrink-0">

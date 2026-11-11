@@ -7,9 +7,11 @@ import { notify } from './notifications';
 import type { AcademicEvent, Job, UserAccount } from '@/types';
 
 /*
- * "New on AcadeXMatch" email to every candidate when the administrator approves new posts: vacancies (from the
- * FacultyTick and college-website scrapers, or added by the administrator) and FDP / workshop / seminar /
+ * "New on AcadeXMatch" email to candidates when the administrator approves new FDP / workshop / seminar /
  * conference listings.
+ *
+ * Vacancies are NOT sent to everyone: a new vacancy reaches a candidate only through a job alert with keywords that
+ * the vacancy matches (lib/server/jobAlerts.ts). Vacancy approvals reported here are ignored.
  *
  * Approvals made close together are sent as ONE email: the email goes out once no new approval has arrived for
  * QUIET_MINUTES, and not more often than every minGapHours (later approvals wait for the next email). Each
@@ -44,12 +46,13 @@ export const DEFAULT_DIGEST_SETTINGS: DigestSettings = { enabled: true, quietMin
 
 const stateOf = (db: Record<string, unknown>): DigestState => {
   const s = (db[KEY] as Partial<DigestState>) || {};
-  return { settings: { ...DEFAULT_DIGEST_SETTINGS, ...(s.settings || {}) }, pending: s.pending || [], lastSentAt: s.lastSentAt, history: s.history || [] };
+  return { settings: { ...DEFAULT_DIGEST_SETTINGS, ...(s.settings || {}) }, pending: (s.pending || []).filter(p => p.type === 'event'), lastSentAt: s.lastSentAt, history: s.history || [] };
 };
 
 /** Records newly approved posts for the next email. Call after the approval has been saved. */
 export async function recordApproved(items: { type: 'job' | 'event'; id: string }[]): Promise<void> {
-  const fresh = items.filter(i => i.id);
+  // Vacancies go out only through candidates' own keyword alerts, never to everyone.
+  const fresh = items.filter(i => i.id && i.type === 'event');
   if (!fresh.length) return;
   await withDb(null, (db, c) => {
     const s = stateOf(db);
@@ -106,7 +109,8 @@ export function maybeSendDigest(opts: { force?: boolean } = {}): Promise<DigestR
       const s = stateOf(db);
       if (!s.pending.length) return null;
       if (!opts.force && (!s.settings.enabled || (nextSendTime(s) ?? Infinity) > Date.now())) return null;
-      const jobIds = new Set(s.pending.filter(p => p.type === 'job').map(p => p.id));
+      // Vacancies are never broadcast (see the note at the top); only events are announced.
+      const jobIds = new Set<string>();
       const eventIds = new Set(s.pending.filter(p => p.type === 'event').map(p => p.id));
       // Only what is still open: closed, expired or removed posts are not announced.
       const jobs = ((db[STORAGE_KEYS.JOBS] as Job[]) || []).filter(j => jobIds.has(j.id) && j.status === 'published' && !isDeadlinePassed(j));
@@ -153,7 +157,7 @@ export function maybeSendDigest(opts: { force?: boolean } = {}): Promise<DigestR
         ],
         items: [...jobItems, ...eventItems],
         button: jobs.length ? { label: 'See all vacancies', url: `${base}/jobs` } : { label: 'See all events', url: `${base}/events` },
-        footer: 'You get this email because you have a candidate account on AcadeXMatch. Turn it off any time in your notification settings.',
+        footer: 'You get this email because you have a candidate account on AcadeXMatch. New vacancies come only through your job alerts. Turn this email off any time in your notification settings.',
         ref: { label: parts },
       }).catch(() => null);
       if (r && r.status === 'queued') queued++; else skipped++;

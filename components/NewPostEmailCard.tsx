@@ -14,7 +14,7 @@ const btn = 'inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded
 const input = 'px-3 py-2 rounded-lg bg-white border border-slate-300 text-sm text-slate-900 w-24';
 const when = (t?: number | string) => (t ? new Date(t).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }) : '—');
 
-/** Admin: the email every candidate gets when new vacancies or events are approved. */
+/** Admin: the email candidates get when new FDPs / conferences are approved (vacancies go only through keyword alerts). */
 export default function NewPostEmailCard() {
   const [s, setS] = useState<Status | null>(null);
   const [busy, setBusy] = useState(false);
@@ -41,10 +41,10 @@ export default function NewPostEmailCard() {
     <section className="p-5 sm:p-6 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-4">
       <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
         <div className="max-w-2xl">
-          <h2 className="font-serif text-lg font-bold text-slate-900 inline-flex items-center gap-2"><BellRing className="w-5 h-5 text-gold-600" />New-post email to candidates</h2>
+          <h2 className="font-serif text-lg font-bold text-slate-900 inline-flex items-center gap-2"><BellRing className="w-5 h-5 text-gold-600" />New FDP &amp; conference email to candidates</h2>
           <p className="text-sm text-slate-600 mt-1">
-            When you approve vacancies (FacultyTick, Job scraping, or added by you) or event listings, all {s.candidates.toLocaleString('en-IN')} candidates get one email listing them.
-            Approvals made close together go in the same email. Candidates can turn it off in their notification settings or with the link in the email; unconfirmed and bounced addresses are skipped.
+            When you approve FDP, workshop, seminar or conference listings, candidates ({s.candidates.toLocaleString('en-IN')}) get one email listing them. Approvals made close together go in the same email.
+            <strong className="text-slate-800"> New vacancies are never emailed to everyone:</strong> a candidate gets a vacancy only when it matches the keywords of one of their job alerts. Candidates can turn it off in their notification settings or with the link in the email; unconfirmed and bounced addresses are skipped.
           </p>
         </div>
         <label className="flex items-center gap-2 text-sm font-semibold text-slate-800 shrink-0">
@@ -56,7 +56,7 @@ export default function NewPostEmailCard() {
       <div className="grid sm:grid-cols-3 gap-3 text-sm">
         <div className="p-3 rounded-xl bg-ivory border border-slate-200">
           <div className="text-xs text-slate-500">Waiting for the next email</div>
-          <div className="font-bold text-slate-900 mt-0.5">{jobs} {jobs === 1 ? 'vacancy' : 'vacancies'}{events ? `, ${events} ${events === 1 ? 'event' : 'events'}` : ''}</div>
+          <div className="font-bold text-slate-900 mt-0.5">{events} {events === 1 ? 'event' : 'events'}</div>
           {s.nextAfter && <div className="text-xs text-slate-500 mt-0.5">{s.settings.enabled ? `Goes out after ${when(s.nextAfter)}` : 'Automatic sending is off'}</div>}
         </div>
         <div className="p-3 rounded-xl bg-ivory border border-slate-200">
@@ -72,7 +72,7 @@ export default function NewPostEmailCard() {
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <button className={`${btn} bg-brand-900 hover:bg-brand-800 text-white`} disabled={busy || !s.pending.length} onClick={() => { if (confirm(`Email ${jobs ? `${jobs} vacancies` : ''}${jobs && events ? ' and ' : ''}${events ? `${events} events` : ''} to all candidates now?`)) act({ action: 'send' }, 'Email queued for all candidates.'); }}>
+        <button className={`${btn} bg-brand-900 hover:bg-brand-800 text-white`} disabled={busy || !s.pending.length} onClick={() => { if (confirm(`Email ${events} ${events === 1 ? 'event' : 'events'} to candidates now?`)) act({ action: 'send' }, 'Email queued for candidates.'); }}>
           {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}Send now
         </button>
         <button className={`${btn} bg-white border border-slate-300 text-slate-700`} disabled={busy || !s.pending.length} onClick={() => { if (confirm('Remove the waiting posts from the next email? They stay published.')) act({ action: 'discard' }, 'Cleared. These posts will not be emailed.'); }}>Don&apos;t email these</button>

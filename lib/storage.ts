@@ -32,7 +32,7 @@ import { INITIAL_INSTITUTES, INITIAL_JOBS } from './data';
 import { calculateMatchScore, withDerivedProfileFields } from './scoring';
 import { pbkdf2Sha256 } from './pbkdf2';
 import { passwordProblem } from './passwordPolicy';
-import { cleanFilters, nameFromFilters } from './jobFilter';
+import { cleanFilters, nameFromFilters, alertHasKeywords, ALERT_NEEDS_KEYWORDS } from './jobFilter';
 
 // v3: accounts with hashed passwords; no seeded demo users / applications.
 export const STORAGE_KEYS = {
@@ -756,6 +756,7 @@ export const StorageService = {
     const mine = all.filter(a => a.userId === user.id);
     const name = (input.name || '').trim().slice(0, 80) || nameFromFilters(cleanFilters(input.filters)).slice(0, 80);
     const frequency: AlertFrequency = input.frequency === 'weekly' ? 'weekly' : input.frequency === 'instant' ? 'instant' : 'daily';
+    if (!alertHasKeywords(input.filters || { search: '' })) return { success: false, error: ALERT_NEEDS_KEYWORDS };
     if (input.id) {
       const cur = mine.find(a => a.id === input.id);
       if (!cur) return { success: false, error: 'Alert not found.' };

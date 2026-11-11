@@ -38,7 +38,7 @@ export default function EmailsPanel() {
     const r = await fetch('/api/admin/alerts', { method: 'POST', credentials: 'same-origin' });
     const d = await r.json().catch(() => ({}));
     setBusy(false);
-    setAlertNote(r.ok ? `Checked ${d.checked} alert(s): ${d.emails} email(s) with ${d.vacancies} new vacancies${d.skippedUnverified ? `; ${d.skippedUnverified} skipped (email not confirmed)` : ''}; ${d.reminders} deadline reminder email(s).` : (d.error || 'Could not run the alerts.'));
+    setAlertNote(r.ok ? `Checked ${d.checked} alert(s): ${d.emails} email(s) with ${d.vacancies} new vacancies${d.skippedUnverified ? `; ${d.skippedUnverified} skipped (email not confirmed)` : ''}${d.skippedNoKeywords ? `; ${d.skippedNoKeywords} alert(s) without keywords skipped` : ''}; ${d.reminders} deadline reminder email(s).` : (d.error || 'Could not run the alerts.'));
     await load(); await loadAlerts();
   };
 

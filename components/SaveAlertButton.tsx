@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { StorageService } from '@/lib/storage';
 import { useCurrentUser } from '@/lib/useAuth';
-import { describeFilters, nameFromFilters } from '@/lib/jobFilter';
+import { describeFilters, nameFromFilters, alertHasKeywords, ALERT_NEEDS_KEYWORDS } from '@/lib/jobFilter';
 import type { AlertFrequency, JobSearchFilters } from '@/types';
 import { BellPlus, Check, X } from 'lucide-react';
 
@@ -13,6 +13,7 @@ export default function SaveAlertButton({ filters }: { filters: JobSearchFilters
   const { user, ready } = useCurrentUser();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
+  const [keywords, setKeywords] = useState('');
   const [frequency, setFrequency] = useState<AlertFrequency>('daily');
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
@@ -24,7 +25,9 @@ export default function SaveAlertButton({ filters }: { filters: JobSearchFilters
 
   const save = (e: React.FormEvent) => {
     e.preventDefault();
-    const r = StorageService.saveJobAlert({ name: name || nameFromFilters(filters), filters, frequency });
+    const f = { ...filters, search: keywords.trim() };
+    if (!alertHasKeywords(f)) { setMsg({ ok: false, text: ALERT_NEEDS_KEYWORDS }); return; }
+    const r = StorageService.saveJobAlert({ name: name || nameFromFilters(f), filters: f, frequency });
     setMsg(r.success ? { ok: true, text: 'Alert saved.' } : { ok: false, text: r.error || 'Could not save the alert.' });
     if (r.success) { setOpen(false); setName(''); }
   };
@@ -34,7 +37,7 @@ export default function SaveAlertButton({ filters }: { filters: JobSearchFilters
       {msg?.ok ? (
         <span className="inline-flex items-center gap-1.5 text-emerald-800 font-semibold" role="status"><Check className="w-3.5 h-3.5" /> {msg.text} <Link href="/candidate/alerts" className="underline">Manage alerts</Link></span>
       ) : (
-        <button onClick={() => { setOpen(o => !o); setMsg(null); }} aria-expanded={open} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-900 hover:bg-brand-800 text-white font-semibold">
+        <button onClick={() => { setOpen(o => !o); setMsg(null); setKeywords(filters.search || ''); }} aria-expanded={open} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-900 hover:bg-brand-800 text-white font-semibold">
           <BellPlus className="w-3.5 h-3.5" /> Email me new matches
         </button>
       )}
@@ -47,6 +50,10 @@ export default function SaveAlertButton({ filters }: { filters: JobSearchFilters
             </div>
             <button type="button" onClick={() => setOpen(false)} aria-label="Close" className="text-slate-400 hover:text-slate-700"><X className="w-4 h-4" /></button>
           </div>
+          <label className="block space-y-1"><span className="text-xs font-semibold text-slate-700">Keywords <span className="text-crimson-700">(required)</span></span>
+            <input value={keywords} onChange={e => { setKeywords(e.target.value); setMsg(null); }} required maxLength={150} placeholder="e.g. Computer Science, VLSI" className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100" />
+            <span className="block text-[11px] text-slate-500">Separate with commas. Only new vacancies containing a keyword are emailed.</span>
+          </label>
           <label className="block space-y-1"><span className="text-xs font-semibold text-slate-700">Alert name</span>
             <input value={name} onChange={e => setName(e.target.value)} maxLength={80} placeholder={nameFromFilters(filters).slice(0, 60)} className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100" />
           </label>

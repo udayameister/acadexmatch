@@ -41,7 +41,7 @@ export const PREF_DEFAULTS: Required<NotificationPrefs> = {
 
 export const CATEGORY_LABEL: Record<Category, string> = {
   security: 'Account security', account: 'Account', applications: 'Applications', statusUpdates: 'Application status',
-  interviews: 'Interviews', jobAlerts: 'Job alerts', newVacancies: 'New vacancies and events', deadlineReminders: 'Deadline reminders', recruiter: 'Recruiter',
+  interviews: 'Interviews', jobAlerts: 'Job alerts', newVacancies: 'New FDPs and conferences', deadlineReminders: 'Deadline reminders', recruiter: 'Recruiter',
   announcements: 'Announcements', marketing: 'News and offers',
 };
 
