@@ -7,7 +7,8 @@ import { useCurrentUser } from '@/lib/useAuth';
 import { DPDPDataRequest } from '@/types';
 import { BrandLogo } from './Navbar';
 import VisitCounter from './VisitCounter';
-import { CONTACT_EMAIL, CONTACT_MAILTO } from '@/lib/contact';
+import { CONTACT_EMAIL, CONTACT_MAILTO, SOCIAL_LINKS } from '@/lib/contact';
+import { SocialIcon } from './SocialSection';
 import { Shield, CheckCircle2, Send, Download, X, Mail } from 'lucide-react';
 
 type RequestType = DPDPDataRequest['requestType'];
@@ -99,6 +100,16 @@ export default function Footer() {
             <a href={CONTACT_MAILTO} className="flex items-center gap-2 text-sm font-medium text-white hover:text-gold-300 transition w-fit">
               <Mail className="w-4 h-4 text-gold-300" /> {CONTACT_EMAIL}
             </a>
+            {SOCIAL_LINKS.length > 0 && (
+              <div className="flex items-center gap-2 pt-1" aria-label="AcadeXMatch on social media">
+                {SOCIAL_LINKS.map(l => (
+                  <a key={l.url} href={l.url} target="_blank" rel="noopener noreferrer" aria-label={`AcadeXMatch on ${l.label}`} title={`AcadeXMatch on ${l.label}`}
+                    className="w-9 h-9 rounded-full bg-white/10 hover:bg-white hover:text-brand-950 text-white grid place-items-center transition">
+                    <SocialIcon network={l.network} className="w-4 h-4" />
+                  </a>
+                ))}
+              </div>
+            )}
           </div>
 
           {columns.map(col => (

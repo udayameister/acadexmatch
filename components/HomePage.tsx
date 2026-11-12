@@ -10,6 +10,7 @@ import HeroMatchPreview from '@/components/HeroMatchPreview';
 import HomeEventSections from '@/components/HomeEventSections';
 import DonationSection from '@/components/DonationSection';
 import HomeEventPosters from '@/components/HomeEventPosters';
+import SocialSection from '@/components/SocialSection';
 import { Reveal, CountUp, RotatingText, ServiceMarquee, type MarqueeItem } from '@/components/HomeMotion';
 import { StorageService, isDeadlinePassed, institutionFreeActive, eventsFreeActive } from '@/lib/storage';
 import { payLabel, orNS, NOT_SPECIFIED } from '@/lib/display';
@@ -497,6 +498,9 @@ export default function HomePage() {
 
       {/* ───────────────────────── Our customers ───────────────────────── */}
       <OurCustomers />
+
+      {/* ───────────────────────── Social media ───────────────────────── */}
+      <SocialSection />
 
       <FounderSection />
 

@@ -10,7 +10,7 @@ import JsonLd from '@/components/JsonLd';
 import Script from 'next/script';
 import { withDb, buildSnapshot } from '@/lib/server/db';
 import { SITE_URL, SITE_NAME, DEFAULT_TITLE, DEFAULT_DESCRIPTION } from '@/lib/site';
-import { CONTACT_EMAIL } from '@/lib/contact';
+import { CONTACT_EMAIL, SOCIAL_LINKS } from '@/lib/contact';
 
 const dmSans = DM_Sans({
   subsets: ['latin'],
@@ -57,6 +57,7 @@ const ORGANIZATION = {
       url: SITE_URL,
       logo: `${SITE_URL}/brand/acadexmatch-logo-512.png`,
       email: CONTACT_EMAIL,
+      ...(SOCIAL_LINKS.length ? { sameAs: SOCIAL_LINKS.map(l => l.url) } : {}),
       founder: [{ '@type': 'Person', name: 'Udayakumar Palanivelu' }, { '@type': 'Person', name: 'Dr. M. Indhumathi' }],
     },
     {
