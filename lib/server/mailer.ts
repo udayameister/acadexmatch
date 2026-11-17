@@ -40,7 +40,7 @@ export function smtpConfigured(): boolean {
  * Email over HTTPS instead of SMTP, for hosts that block outgoing mail ports (465/587):
  * EMAIL_API=zeptomail, brevo or resend, EMAIL_API_KEY=… and MAIL_FROM="AcadeXMatch <info@acadexmatch.com>".
  * ZeptoMail (Zoho): EMAIL_API_KEY is the "Send Mail token" of a Mail Agent (with or without its "Zoho-enczapikey "
- * prefix); the India data centre (api.zeptomail.in) is used unless EMAIL_API_URL says otherwise.
+ * prefix); the India data centre of Zoho CPaaS, which now hosts ZeptoMail (cpaas.zoho.in), is used unless EMAIL_API_URL says otherwise.
  */
 type ApiProvider = 'zeptomail' | 'brevo' | 'resend';
 const API_NAMES: Record<ApiProvider, string> = { zeptomail: 'ZeptoMail', brevo: 'Brevo', resend: 'Resend' };
@@ -90,7 +90,7 @@ function parseFrom(from: string): { name?: string; email: string } {
 async function zeptoFetch(msg: { to: string; subject: string; text: string; html?: string; headers?: Record<string, string> }, signal: AbortSignal, withHeaders = true): Promise<Response> {
   const from = parseFrom(process.env.MAIL_FROM || process.env.SMTP_USER || '');
   const key = (process.env.EMAIL_API_KEY || '').trim().replace(/^Zoho-enczapikey\s+/i, '');
-  return fetch(`${(process.env.EMAIL_API_URL || 'https://api.zeptomail.in').replace(/\/$/, '')}/v1.1/email`, {
+  return fetch(`${(process.env.EMAIL_API_URL || 'https://cpaas.zoho.in').replace(/\/$/, '')}/v1.1/email`, {
     method: 'POST', signal,
     headers: { Authorization: `Zoho-enczapikey ${key}`, 'Content-Type': 'application/json', Accept: 'application/json' },
     body: JSON.stringify({
