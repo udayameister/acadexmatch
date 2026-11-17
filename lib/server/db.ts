@@ -9,6 +9,7 @@ import type { AcademicEvent, Announcement, Application, CandidateProfile, Interv
 import { isPremiumUser } from '@/lib/storage';
 import { isEventLive } from '@/lib/events';
 import { openStore, deleteBlobPrefix, deleteJson, DATA_DIR as PERSIST_DATA_DIR, type Db } from './persist';
+import { eraseUserMessages, resetMessages } from './messages';
 import { digest } from './security'; // also installs the scrypt password hasher
 
 /*
@@ -80,11 +81,14 @@ export function withDb<T>(userId: string | null, fn: (db: Db, c: StoreContext) =
             removeUserDocuments(db, id);
             // Private resume checker data (analyses, extracted text, builder drafts) goes with the account.
             deleteJson(`resume-${id.replace(/[^A-Za-z0-9_-]/g, '')}`).catch(() => undefined);
+            // So do their conversations with the AcadeXMatch team.
+            eraseUserMessages(id).catch(() => undefined);
             dirty = true;
           },
           resetAll: () => {
             for (const k of Object.keys(db)) if (k !== SESSIONS_KEY) delete db[k];
             deleteBlobPrefix('documents/').catch(() => undefined);
+            resetMessages().catch(() => undefined);
             seed(db);
             dirty = true;
           },

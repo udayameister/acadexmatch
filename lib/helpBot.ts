@@ -99,9 +99,9 @@ export const HELP_ARTICLES: HelpArticle[] = [
   },
   {
     id: 'contact', for: 'all', title: 'Contacting the AcadeXMatch team',
-    keywords: ['contact', 'support', 'change email', 'change my email', 'wrong email', 'help desk', 'human', 'talk to someone', 'customer care', 'phone number', 'email you', 'complaint', 'agent', 'call'],
-    answer: `Email ${SUPPORT_EMAIL} from your registered email address and describe the problem (the page and what you clicked). Do not include your password or any code.`,
-    links: [{ label: `Email ${SUPPORT_EMAIL}`, href: `mailto:${SUPPORT_EMAIL}` }],
+    keywords: ['contact', 'support', 'change email', 'change my email', 'wrong email', 'help desk', 'human', 'talk to someone', 'customer care', 'phone number', 'email you', 'complaint', 'agent', 'call', 'message', 'messages', 'inbox', 'chat with admin', 'message admin'],
+    answer: `Signed in? Open Messages (in your account menu) and write to the team; we reply there and email you when we do. Or email ${SUPPORT_EMAIL} from your registered email address and describe the problem (the page and what you clicked). Do not include your password or any code.`,
+    links: [{ label: 'Messages', href: '/messages' }, { label: `Email ${SUPPORT_EMAIL}`, href: `mailto:${SUPPORT_EMAIL}` }],
   },
   {
     id: 'salary', for: 'all', title: 'Salary calculator',

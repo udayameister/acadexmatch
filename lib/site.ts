@@ -18,7 +18,7 @@ export function isPublicPath(pathname: string | null | undefined): boolean {
 
 /** Routes that must never appear in search results (also sent as X-Robots-Tag, see next.config.mjs). */
 export const PRIVATE_PREFIXES = [
-  '/admin', '/candidate', '/institute', '/account', '/invoice', '/offer', '/scraper',
+  '/admin', '/candidate', '/institute', '/account', '/messages', '/invoice', '/offer', '/scraper',
   '/login', '/register', '/forgot-password', '/reset-password', '/verify-email', '/api', '/unsubscribe', '/events/post',
 ];
 

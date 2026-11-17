@@ -6,10 +6,11 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { StorageService } from '@/lib/storage';
 import { useCurrentUser, homePathForRole } from '@/lib/useAuth';
+import { useUnreadMessages } from '@/components/MessageCenter';
 import { UserRole } from '@/types';
 import { useProfilePhoto } from '@/lib/documents';
 import { PlanPill } from './Premium';
-import { Crown, KeyRound, ChevronDown, LogOut, Menu, X, LayoutDashboard, UserCircle, Bell, CalendarClock, Mic, Calculator, Megaphone, FileSearch, Heart } from 'lucide-react';
+import { Crown, KeyRound, ChevronDown, LogOut, Menu, X, LayoutDashboard, UserCircle, Bell, CalendarClock, Mic, Calculator, Megaphone, FileSearch, Heart, MessagesSquare } from 'lucide-react';
 
 interface NavLinkItem {
   href: string;
@@ -106,6 +107,7 @@ export default function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
   const { user, ready } = useCurrentUser();
+  const unreadMessages = useUnreadMessages(!!user, user?.role === 'super_admin');
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -163,7 +165,10 @@ export default function Navbar() {
                 className="flex items-center gap-2 pl-1.5 pr-2.5 py-1.5 rounded-xl hover:bg-slate-100 transition"
                 aria-expanded={menuOpen}
               >
-                <UserBadge userId={user.role === 'candidate' ? user.id : undefined} name={user.name} />
+                <span className="relative">
+                  <UserBadge userId={user.role === 'candidate' ? user.id : undefined} name={user.name} />
+                  {unreadMessages > 0 && <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-crimson-600 text-white text-[10px] font-bold grid place-items-center ring-2 ring-white" aria-label={`${unreadMessages} unread messages`}>{unreadMessages > 9 ? '9+' : unreadMessages}</span>}
+                </span>
                 <span className="hidden sm:block text-left">
                   <span className="flex items-center gap-1 text-sm font-medium text-slate-900"><span className="max-w-[140px] truncate">{user.name}</span>{user.role === 'candidate' && <CandidateTick userId={user.id} size={14} />}</span>
                   <span className="block text-xs text-slate-500 -mt-0.5">{ROLE_LABEL[user.role]}</span>
@@ -180,6 +185,10 @@ export default function Navbar() {
                   </div>
                   <Link href={homePathForRole(user.role)} className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50">
                     <LayoutDashboard className="w-4 h-4 text-slate-400" /> Dashboard
+                  </Link>
+                  <Link href={user.role === 'super_admin' ? '/admin?tab=messages' : '/messages'} className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50">
+                    <MessagesSquare className="w-4 h-4 text-slate-400" /> Messages
+                    {unreadMessages > 0 && <span className="ml-auto px-1.5 min-w-[20px] h-5 rounded-full bg-crimson-600 text-white text-[11px] font-bold grid place-items-center">{unreadMessages}</span>}
                   </Link>
                   {user.role === 'candidate' && (
                     <Link href="/candidate/profile" className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50">

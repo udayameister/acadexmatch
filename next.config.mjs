@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 
 // Private areas: never indexed, even if a link to them leaks (see also lib/site.ts and app/robots.ts).
-const NOINDEX = ['/admin/:path*', '/admin', '/candidate/:path*', '/institute/:path*', '/account', '/account/:path*', '/unsubscribe', '/invoice/:path*', '/offer/:path*',
+const NOINDEX = ['/admin/:path*', '/admin', '/candidate/:path*', '/institute/:path*', '/account', '/account/:path*', '/messages', '/unsubscribe', '/invoice/:path*', '/offer/:path*',
   '/scraper', '/events/post', '/login', '/register', '/forgot-password', '/reset-password', '/verify-email', '/api/:path*'];
 
 const nextConfig = {

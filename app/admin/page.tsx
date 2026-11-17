@@ -15,6 +15,7 @@ import NewPostEmailCard from '@/components/NewPostEmailCard';
 import { useStorageValue } from '@/lib/useAuth';
 import type { AcademicEvent } from '@/types';
 import CustomersPanel from '@/components/CustomersPanel';
+import MessageCenter, { useUnreadMessages } from '@/components/MessageCenter';
 import EmailsPanel from '@/components/EmailsPanel';
 import GrowthPanel from '@/components/GrowthPanel';
 import QualityPanel from '@/components/QualityPanel';
@@ -46,9 +47,9 @@ import {
   Library,
   Rss,
   Newspaper,
-  CalendarDays, FileSearch, UsersRound, Send } from 'lucide-react';
+  CalendarDays, FileSearch, UsersRound, Send, MessagesSquare } from 'lucide-react';
 
-type AdminTab = 'growth' | 'quality' | 'announcements' | 'partners' | 'advisory' | 'outreach' | 'users' | 'institutions' | 'customers' | 'vacancies' | 'scraping' | 'facultytick' | 'facultyplus' | 'events' | 'resume' | 'applications' | 'premium' | 'verification' | 'dpdp' | 'audit' | 'emails' | 'site' | 'directory';
+type AdminTab = 'growth' | 'quality' | 'announcements' | 'partners' | 'advisory' | 'outreach' | 'users' | 'institutions' | 'customers' | 'vacancies' | 'scraping' | 'facultytick' | 'facultyplus' | 'events' | 'resume' | 'applications' | 'premium' | 'verification' | 'dpdp' | 'audit' | 'emails' | 'site' | 'directory' | 'messages';
 
 export default function AdminCompliancePage() {
   const [institutes, setInstitutes] = useState<Institute[]>([]);
@@ -58,8 +59,11 @@ export default function AdminCompliancePage() {
   // Links such as /admin?tab=outreach (e.g. from the outreach approval email) open that tab.
   useEffect(() => {
     const t = new URLSearchParams(window.location.search).get('tab');
-    if (t === 'outreach' || t === 'emails' || t === 'verification' || t === 'premium' || t === 'site' || t === 'quality' || t === 'users' || t === 'facultyplus') setActiveTab(t);
+    if (t === 'outreach' || t === 'emails' || t === 'verification' || t === 'premium' || t === 'site' || t === 'quality' || t === 'users' || t === 'facultyplus' || t === 'messages') setActiveTab(t);
+    setOpenThread(new URLSearchParams(window.location.search).get('thread'));
   }, []);
+  const [openThread, setOpenThread] = useState<string | null>(null);
+  const msgUnread = useUnreadMessages(true, true);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [jobCount, setJobCount] = useState(0);
@@ -195,6 +199,7 @@ export default function AdminCompliancePage() {
       <div className="flex flex-wrap items-center gap-2 text-xs" role="tablist" aria-label="Admin sections">
         {([
           ['growth', TrendingUp, 'Growth'],
+          ['messages', MessagesSquare, `Messages${msgUnread ? ` (${msgUnread} unread)` : ''}`],
           ['users', Users, `Users (${users.length})`],
           ['institutions', Building2, `Institutions (${institutes.length})`],
           ['customers', Award, 'Our customers'],
@@ -235,6 +240,7 @@ export default function AdminCompliancePage() {
         ))}
       </div>
 
+      {activeTab === 'messages' && <MessageCenter mode="admin" initialThreadId={openThread} />}
       {activeTab === 'growth' && <GrowthPanel />}
       {activeTab === 'quality' && <QualityPanel />}
       {activeTab === 'announcements' && <AnnouncementsPanel />}

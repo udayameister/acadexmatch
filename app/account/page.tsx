@@ -67,7 +67,10 @@ function AccountInner() {
           <h2 className="font-bold text-slate-900 flex items-center gap-2"><Bell className="w-4 h-4 text-brand-700" /> Email notifications</h2>
           <p className="text-sm text-slate-600 mt-1">Choose which emails you receive and see the messages we have sent you.</p>
         </div>
-        <Link href="/account/notifications" className="px-4 py-2 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-sm font-semibold text-slate-800">Notification settings</Link>
+        <div className="flex flex-wrap gap-2">
+          <Link href="/messages" className="px-4 py-2 rounded-xl bg-brand-900 hover:bg-brand-800 text-sm font-semibold text-white">Messages with our team</Link>
+          <Link href="/account/notifications" className="px-4 py-2 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-sm font-semibold text-slate-800">Notification settings</Link>
+        </div>
       </section>
 
       <h2 className="text-xl font-bold text-brand-800 pt-2">Security</h2>
