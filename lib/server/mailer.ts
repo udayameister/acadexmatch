@@ -38,11 +38,15 @@ export function smtpConfigured(): boolean {
 
 /**
  * Email over HTTPS instead of SMTP, for hosts that block outgoing mail ports (465/587):
- * EMAIL_API=brevo or resend, EMAIL_API_KEY=… and MAIL_FROM="AcadeXMatch <info@acadexmatch.com>".
+ * EMAIL_API=zeptomail, brevo or resend, EMAIL_API_KEY=… and MAIL_FROM="AcadeXMatch <info@acadexmatch.com>".
+ * ZeptoMail (Zoho): EMAIL_API_KEY is the "Send Mail token" of a Mail Agent (with or without its "Zoho-enczapikey "
+ * prefix); the India data centre (api.zeptomail.in) is used unless EMAIL_API_URL says otherwise.
  */
-function emailApi(): 'brevo' | 'resend' | null {
+type ApiProvider = 'zeptomail' | 'brevo' | 'resend';
+const API_NAMES: Record<ApiProvider, string> = { zeptomail: 'ZeptoMail', brevo: 'Brevo', resend: 'Resend' };
+function emailApi(): ApiProvider | null {
   const p = (process.env.EMAIL_API || '').toLowerCase();
-  return (p === 'brevo' || p === 'resend') && process.env.EMAIL_API_KEY ? p : null;
+  return (p === 'zeptomail' || p === 'brevo' || p === 'resend') && process.env.EMAIL_API_KEY ? p : null;
 }
 
 export function emailConfigured(): boolean {
@@ -52,7 +56,7 @@ export function emailConfigured(): boolean {
 export function mailSettingsSummary() {
   return {
     configured: emailConfigured(),
-    host: emailApi() ? `${emailApi() === 'brevo' ? 'Brevo' : 'Resend'} email API` : process.env.SMTP_HOST || null,
+    host: emailApi() ? `${API_NAMES[emailApi()!]} email API` : process.env.SMTP_HOST || null,
     user: process.env.SMTP_USER || null,
     from: process.env.MAIL_FROM || process.env.SMTP_USER || null,
     appUrl: process.env.APP_URL || null,
@@ -82,11 +86,43 @@ function parseFrom(from: string): { name?: string; email: string } {
   return m ? { name: m[1].trim() || undefined, email: m[2].trim() } : { email: from.trim() };
 }
 
-async function sendViaApi(provider: 'brevo' | 'resend', msg: { to: string; subject: string; text: string; html?: string; headers?: Record<string, string> }): Promise<string | undefined> {
+/** ZeptoMail's send-mail API (https://www.zoho.com/zeptomail/help/api/email-sending.html). */
+async function zeptoFetch(msg: { to: string; subject: string; text: string; html?: string; headers?: Record<string, string> }, signal: AbortSignal, withHeaders = true): Promise<Response> {
+  const from = parseFrom(process.env.MAIL_FROM || process.env.SMTP_USER || '');
+  const key = (process.env.EMAIL_API_KEY || '').trim().replace(/^Zoho-enczapikey\s+/i, '');
+  return fetch(`${(process.env.EMAIL_API_URL || 'https://api.zeptomail.in').replace(/\/$/, '')}/v1.1/email`, {
+    method: 'POST', signal,
+    headers: { Authorization: `Zoho-enczapikey ${key}`, 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify({
+      from: { address: from.email, ...(from.name ? { name: from.name } : {}) },
+      to: [{ email_address: { address: msg.to } }],
+      subject: msg.subject,
+      textbody: msg.text,
+      ...(msg.html ? { htmlbody: msg.html } : {}),
+      ...(withHeaders && msg.headers && Object.keys(msg.headers).length ? { mime_headers: msg.headers } : {}),
+    }),
+  });
+}
+
+async function sendViaApi(provider: ApiProvider, msg: { to: string; subject: string; text: string; html?: string; headers?: Record<string, string> }): Promise<string | undefined> {
   const from = process.env.MAIL_FROM || process.env.SMTP_USER || '';
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 20000);
   try {
+    if (provider === 'zeptomail') {
+      let r = await zeptoFetch(msg, ctrl.signal);
+      let d = await r.json().catch(() => ({})) as { request_id?: string; data?: { additional_info?: unknown }[]; error?: { code?: string; message?: string; details?: { message?: string; target?: string }[] } };
+      // If ZeptoMail refuses one of our extra headers (e.g. List-Unsubscribe), send once more without them.
+      if (r.status === 400 && msg.headers && /header/i.test(JSON.stringify(d.error || {}))) {
+        r = await zeptoFetch(msg, ctrl.signal, false);
+        d = await r.json().catch(() => ({}));
+      }
+      if (!r.ok) {
+        const why = d.error?.details?.map(x => x.message).filter(Boolean).join('; ') || d.error?.message || r.statusText;
+        throw Object.assign(new Error(`ZeptoMail ${r.status}: ${why}`), { permanent: r.status >= 400 && r.status < 500 && r.status !== 429 });
+      }
+      return d.request_id;
+    }
     const r = provider === 'brevo'
       ? await fetch(`${(process.env.EMAIL_API_URL || 'https://api.brevo.com').replace(/\/$/, '')}/v3/smtp/email`, {
         method: 'POST', signal: ctrl.signal,
