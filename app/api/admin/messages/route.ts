@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { STORAGE_KEYS } from '@/lib/storage';
 import { withDb } from '@/lib/server/db';
 import { requireAdmin, sameOrigin } from '@/lib/server/auth';
-import { notify } from '@/lib/server/notifications';
-import { appUrl } from '@/lib/server/mailer';
 import {
   MessageError, adminMarkRead, adminReply, adminSetStatus, adminStart, allThreads, summary, threadById, unreadForAdmin, type Thread,
 } from '@/lib/server/messages';
@@ -53,22 +51,6 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ threads: threads.map(summary), unread: threads.reduce((n, t) => n + t.unreadAdmin, 0) }, { headers: noStore });
 }
 
-/** Emails the user when a conversation gets its first unread reply from the team (not for every message). */
-async function tellUser(t: Thread, started: boolean) {
-  if (t.unreadUser !== 1) return;
-  const u = (await users()).find(x => x.id === t.userId);
-  if (!u?.email) return;
-  const last = t.messages[t.messages.length - 1];
-  await notify({
-    key: `msg-user:${last.id}`, category: 'account', kind: 'message_from_admin', user: u,
-    subject: started ? `Message from AcadeXMatch: ${t.subject}` : `Reply from AcadeXMatch: ${t.subject}`,
-    heading: started ? 'You have a new message from the AcadeXMatch team' : 'The AcadeXMatch team replied to your message',
-    paragraphs: [`About: “${t.subject}”.`, 'Sign in and open Messages to read it and reply.'],
-    button: { label: 'Open messages', url: `${appUrl()}/messages?thread=${encodeURIComponent(t.id)}` },
-    ref: { label: t.subject },
-  }).catch(() => undefined);
-}
-
 type Body =
   | { action: 'reply'; threadId: string; body: string }
   | { action: 'read'; threadId: string }
@@ -85,7 +67,6 @@ export async function POST(req: NextRequest) {
     switch (b.action) {
       case 'reply':
         t = await adminReply(b.threadId, b.body);
-        await tellUser(t, false);
         break;
       case 'read':
         t = await adminMarkRead(b.threadId);
@@ -98,7 +79,6 @@ export async function POST(req: NextRequest) {
         const u = (await users()).find(x => x.id === b.userId);
         if (!u) return NextResponse.json({ error: 'User not found.' }, { status: 404 });
         t = await adminStart({ id: u.id, name: u.name || u.email, email: u.email, role: u.role }, b.subject, b.body);
-        await tellUser(t, true);
         break;
       }
       default:

@@ -186,7 +186,7 @@ export default function Navbar() {
                   <Link href={homePathForRole(user.role)} className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50">
                     <LayoutDashboard className="w-4 h-4 text-slate-400" /> Dashboard
                   </Link>
-                  <Link href={user.role === 'super_admin' ? '/admin?tab=messages' : '/messages'} className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50">
+                  <Link href="/messages" className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50">
                     <MessagesSquare className="w-4 h-4 text-slate-400" /> Messages
                     {unreadMessages > 0 && <span className="ml-auto px-1.5 min-w-[20px] h-5 rounded-full bg-crimson-600 text-white text-[11px] font-bold grid place-items-center">{unreadMessages}</span>}
                   </Link>

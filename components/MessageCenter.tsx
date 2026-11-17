@@ -157,9 +157,9 @@ export default function MessageCenter({ mode, initialThreadId }: { mode: Side; i
 
       {error && <p role="alert" className="mx-4 mt-3 p-3 rounded-xl bg-crimson-50 border border-crimson-100 text-sm text-crimson-700 flex items-center gap-2"><AlertCircle className="w-4 h-4 shrink-0" />{error}</p>}
 
-      <div className="grid md:grid-cols-[minmax(260px,340px)_1fr] min-h-[540px] md:h-[min(72vh,760px)]">
+      <div className="grid md:grid-cols-[minmax(260px,340px)_1fr] md:grid-rows-[minmax(0,1fr)] min-h-[540px] md:h-[min(72vh,760px)] md:min-h-[480px]">
         {/* ---------------- list */}
-        <aside className={`${showConversation ? 'hidden md:flex' : 'flex'} flex-col min-w-0 border-r border-slate-200`} aria-label="Conversations">
+        <aside className={`${showConversation ? 'hidden md:flex' : 'flex'} flex-col min-w-0 min-h-0 border-r border-slate-200`} aria-label="Conversations">
           <div className="p-3 space-y-2 border-b border-slate-100">
             <label className="relative block">
               <span className="sr-only">Search conversations</span>
@@ -176,7 +176,7 @@ export default function MessageCenter({ mode, initialThreadId }: { mode: Side; i
               ))}
             </div>
           </div>
-          <ul className="flex-1 overflow-y-auto divide-y divide-slate-100">
+          <ul className="flex-1 min-h-0 overflow-y-auto divide-y divide-slate-100">
             {threads === null ? (
               <li className="p-6 text-sm text-slate-500 flex items-center gap-2"><Spinner /> Loading…</li>
             ) : visible.length === 0 ? (
@@ -214,7 +214,7 @@ export default function MessageCenter({ mode, initialThreadId }: { mode: Side; i
         </aside>
 
         {/* ---------------- conversation / composer */}
-        <section className={`${showConversation ? 'flex' : 'hidden md:flex'} flex-col min-w-0`} aria-label="Conversation">
+        <section className={`${showConversation ? 'flex' : 'hidden md:flex'} flex-col min-w-0 min-h-0`} aria-label="Conversation">
           {composing ? (
             <NewConversation admin={admin} api={api} onCancel={() => setComposing(false)} onSent={t => { setComposing(false); upsert(t); }} />
           ) : openId && !open ? (
@@ -227,7 +227,7 @@ export default function MessageCenter({ mode, initialThreadId }: { mode: Side; i
                 <div className="w-12 h-12 rounded-2xl bg-brand-50 text-brand-800 grid place-items-center mx-auto"><Inbox className="w-6 h-6" /></div>
                 <p className="font-semibold text-slate-800">{admin ? 'Choose a conversation' : 'Talk to the AcadeXMatch team'}</p>
                 <p className="text-sm text-slate-500">
-                  {admin ? 'Pick a conversation on the left, or start one with any user.' : 'Ask about your account, payments, vacancies or anything else. We reply here and send you an email when we do.'}
+                  {admin ? 'Pick a conversation on the left, or start one with any user.' : 'Ask about your account, payments, vacancies or anything else. Our replies appear right here, with a red badge on your account menu.'}
                 </p>
               </div>
             </div>
@@ -266,7 +266,7 @@ function Conversation({ admin, api, mine, thread, onBack, onChange }: { admin: b
 
   return (
     <>
-      <header className="flex items-start gap-3 px-4 sm:px-5 py-3 border-b border-slate-200">
+      <header className="shrink-0 flex items-start gap-3 px-4 sm:px-5 py-3 border-b border-slate-200">
         <button type="button" onClick={onBack} className="md:hidden p-1.5 -ml-1 rounded-lg text-slate-500 hover:bg-slate-100" aria-label="Back to conversations"><ArrowLeft className="w-5 h-5" /></button>
         <div className="min-w-0 flex-1">
           <h3 className="font-bold text-slate-900 break-words">{thread.subject}</h3>
@@ -282,7 +282,7 @@ function Conversation({ admin, api, mine, thread, onBack, onChange }: { admin: b
         )}
       </header>
 
-      <div className="flex-1 overflow-y-auto px-3 sm:px-5 py-4 space-y-3 bg-[linear-gradient(180deg,#fbfaf9,#ffffff)]" aria-live="polite">
+      <div className="flex-1 min-h-0 overflow-y-auto px-3 sm:px-5 py-4 space-y-3 bg-[linear-gradient(180deg,#fbfaf9,#ffffff)]" aria-live="polite">
         {msgs.map(m => {
           const own = m.from === mine;
           return (
@@ -300,7 +300,7 @@ function Conversation({ admin, api, mine, thread, onBack, onChange }: { admin: b
         <div ref={end} />
       </div>
 
-      <div className="border-t border-slate-200 p-3 sm:p-4 space-y-2">
+      <div className="shrink-0 border-t border-slate-200 p-3 sm:p-4 space-y-2 bg-white">
         {thread.status === 'closed' && (
           <p className="text-xs text-emerald-800 flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5" />{admin ? 'Marked resolved. Replying re-opens it.' : 'The team marked this resolved. Write again to re-open it.'}</p>
         )}
@@ -400,8 +400,8 @@ function NewConversation({ admin, api, onCancel, onSent }: { admin: boolean; api
           className="w-full resize-y px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-200" />
         <span className="block text-[11px] text-slate-400 text-right">{body.length}/{MAX_BODY}</span>
       </label>
-      {!admin && <p className="text-xs text-slate-500">The team usually replies within one working day. You will get an email when they do. Never share passwords or OTP codes.</p>}
-      {admin && <p className="text-xs text-slate-500">The user sees this in their Messages and gets an email telling them to sign in and read it.</p>}
+      {!admin && <p className="text-xs text-slate-500">The team usually replies within one working day. Replies appear here, with a red badge on your account menu. Never share passwords or OTP codes.</p>}
+      {admin && <p className="text-xs text-slate-500">The user sees this in Messages on the site, with an unread badge on their account menu. No email is sent.</p>}
       {err && <p role="alert" className="text-sm text-crimson-700 flex items-center gap-1.5"><AlertCircle className="w-4 h-4" />{err}</p>}
       <div className="flex items-center gap-2">
         <button type="button" onClick={send} disabled={busy || !subject.trim() || !body.trim() || (admin && !to)}
