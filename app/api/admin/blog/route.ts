@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin, sameOrigin } from '@/lib/server/auth';
 import { BlogError, deletePost, listPosts, savePost, type PostInput } from '@/lib/server/blog';
+import { submitSoon } from '@/lib/server/indexnow';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -22,7 +23,11 @@ export async function POST(req: NextRequest) {
   if (no) return no;
   const b = await req.json().catch(() => null) as { action?: string; post?: PostInput; id?: string } | null;
   try {
-    if (b?.action === 'save' && b.post && typeof b.post === 'object') return NextResponse.json({ post: await savePost(b.post) });
+    if (b?.action === 'save' && b.post && typeof b.post === 'object') {
+      const post = await savePost(b.post);
+      if (post.status === 'published') submitSoon('Blog post published or updated'); // scheduled posts go out with the hourly run
+      return NextResponse.json({ post });
+    }
     if (b?.action === 'delete' && typeof b.id === 'string') {
       return (await deletePost(b.id)) ? NextResponse.json({ ok: true }) : NextResponse.json({ error: 'Post not found.' }, { status: 404 });
     }

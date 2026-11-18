@@ -26,6 +26,7 @@ export const dynamic = 'force-dynamic';
 export async function generateMetadata(): Promise<Metadata> {
   const google = process.env.GOOGLE_SITE_VERIFICATION;
   const bing = process.env.BING_SITE_VERIFICATION;
+  const yandex = process.env.YANDEX_SITE_VERIFICATION;
   return {
     metadataBase: new URL(SITE_URL),
     title: { default: DEFAULT_TITLE, template: '%s | AcadeXMatch' },
@@ -34,7 +35,8 @@ export async function generateMetadata(): Promise<Metadata> {
     robots: { index: true, follow: true, googleBot: { index: true, follow: true, 'max-image-preview': 'large', 'max-snippet': -1 } },
     openGraph: { type: 'website', siteName: SITE_NAME, locale: 'en_IN', url: SITE_URL, title: DEFAULT_TITLE, description: DEFAULT_DESCRIPTION, images: [{ url: '/opengraph-image.png', width: 1200, height: 630, alt: 'AcadeXMatch — academic jobs and faculty recruitment in India' }] },
     twitter: { card: 'summary_large_image', title: DEFAULT_TITLE, description: DEFAULT_DESCRIPTION, images: ['/opengraph-image.png'] },
-    ...(google || bing ? { verification: { ...(google ? { google } : {}), ...(bing ? { other: { 'msvalidate.01': bing } } : {}) } } : {}),
+    // Ownership codes from Google Search Console, Bing Webmaster Tools and Yandex Webmaster (set as secrets).
+    ...(google || bing || yandex ? { verification: { ...(google ? { google } : {}), ...(yandex ? { yandex } : {}), ...(bing ? { other: { 'msvalidate.01': bing } } : {}) } } : {}),
   };
 }
 

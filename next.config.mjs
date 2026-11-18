@@ -24,7 +24,7 @@ const nextConfig = {
     ];
   },
   async rewrites() {
-    // IndexNow key file must live at the site root: /<key>.txt (served only when it matches INDEXNOW_KEY).
+    // IndexNow key file at the site root: /<key>.txt (served only for the site's own key, see lib/server/indexnow.ts).
     return [{ source: '/:key([a-zA-Z0-9-]{8,128}).txt', destination: '/api/indexnow-key/:key' }];
   },
 };

@@ -7,7 +7,8 @@ export default function robots(): MetadataRoute.Robots {
     rules: [
       {
         userAgent: '*',
-        allow: '/',
+        // Blog cover images and white-paper PDFs live under /api/blog/files and should be crawlable.
+        allow: ['/', '/api/blog/files/'],
         disallow: ['/admin', '/candidate/', '/institute/', '/account', '/messages', '/invoice/', '/offer/', '/scraper', '/api/', '/verify-email', '/reset-password'],
       },
     ],

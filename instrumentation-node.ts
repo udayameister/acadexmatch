@@ -63,4 +63,14 @@ if (process.env.ACAD_DISABLE_SCHEDULER !== '1' && !g.__acadScheduler) {
   const prune = () => { pruneOldResumeData().catch(err => console.error('[AcadeXMatch] Resume retention error', err)); };
   setTimeout(prune, 5 * 60_000);
   setInterval(prune, 24 * 3600_000);
+  // Search engines (IndexNow: Bing, Yahoo, DuckDuckGo, Yandex, Seznam, Naver, Yep): send new or changed public pages
+  // hourly (new vacancies, events, institutions, blog posts that just went live). Only the live site submits.
+  const searchEngines = () => {
+    import('./lib/server/indexnow')
+      .then(m => m.sync({ reason: 'Hourly check' }))
+      .then(r => { if (r.submitted) console.log(`[AcadeXMatch] IndexNow: submitted ${r.submitted} page(s)`); })
+      .catch(err => console.error('[AcadeXMatch] IndexNow error', err));
+  };
+  setTimeout(searchEngines, 3 * 60_000);
+  setInterval(searchEngines, 60 * 60_000);
 }
