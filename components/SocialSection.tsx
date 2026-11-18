@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { FACEBOOK_URL, SOCIAL_LINKS, type SocialLink } from '@/lib/contact';
+import { FACEBOOK_URL, SOCIAL_LINKS, X_HANDLE, X_URL, type SocialLink } from '@/lib/contact';
 import { SITE_URL } from '@/lib/site';
 import { Reveal } from '@/components/HomeMotion';
 import { ArrowRight, BellRing, CalendarDays, Megaphone, Newspaper, Share2 } from 'lucide-react';
@@ -122,9 +122,30 @@ export default function SocialSection() {
             </div>
           )}
 
-          {SOCIAL_LINKS.length > 1 && (
+          {X_URL && (
+            <div className="relative overflow-hidden p-5 rounded-2xl bg-[#0f1419] text-white shadow-lg shadow-black/20">
+              <div className="absolute -right-6 -top-6 w-32 h-32 rounded-full bg-white/[0.06]" aria-hidden="true" />
+              <div className="relative flex items-center gap-3">
+                <span className="w-12 h-12 rounded-full bg-white text-[#0f1419] grid place-items-center shrink-0"><SocialIcon network="x" className="w-6 h-6" /></span>
+                <div>
+                  <div className="font-bold text-lg leading-tight">AcadeXMatch on X</div>
+                  <div className="text-sm text-white/75">@{X_HANDLE} · quick updates on new vacancies and deadlines</div>
+                </div>
+              </div>
+              <div className="relative flex flex-wrap gap-2 mt-4">
+                <a href={X_URL} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white text-[#0f1419] text-sm font-bold hover:bg-slate-100 transition">
+                  Follow @{X_HANDLE} <ArrowRight className="w-4 h-4" />
+                </a>
+                <a href={`https://x.com/intent/post?text=${encodeURIComponent('Find faculty jobs, FDPs and conferences across India on @' + X_HANDLE + ' ')}&url=${encodeURIComponent(SITE_URL)}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-white/30 text-white text-sm font-semibold hover:bg-white/10 transition">
+                  <Share2 className="w-4 h-4" /> Post about us
+                </a>
+              </div>
+            </div>
+          )}
+
+          {SOCIAL_LINKS.some(l => l.network !== 'facebook' && l.network !== 'x') && (
             <div className="flex flex-wrap gap-2">
-              {SOCIAL_LINKS.filter(l => l.network !== 'facebook').map(l => (
+              {SOCIAL_LINKS.filter(l => l.network !== 'facebook' && l.network !== 'x').map(l => (
                 <a key={l.url} href={l.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-white border border-slate-200 text-sm font-semibold text-slate-700 hover:border-brand-300 transition">
                   <SocialIcon network={l.network} /> {l.label}
                 </a>

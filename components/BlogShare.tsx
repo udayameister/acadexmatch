@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Check, Link2 } from 'lucide-react';
 import { SocialIcon } from '@/components/SocialSection';
+import { X_HANDLE } from '@/lib/contact';
 
 /** Share a post: LinkedIn, Facebook, X, WhatsApp, or copy the link. */
 export default function ShareButtons({ url, title }: { url: string; title: string }) {
@@ -11,7 +12,7 @@ export default function ShareButtons({ url, title }: { url: string; title: strin
   const links = [
     { n: 'linkedin' as const, label: 'LinkedIn', href: `https://www.linkedin.com/sharing/share-offsite/?url=${u}` },
     { n: 'facebook' as const, label: 'Facebook', href: `https://www.facebook.com/sharer/sharer.php?u=${u}` },
-    { n: 'x' as const, label: 'X', href: `https://twitter.com/intent/tweet?url=${u}&text=${t}` },
+    { n: 'x' as const, label: 'X', href: `https://x.com/intent/post?url=${u}&text=${t}${X_HANDLE ? `&via=${X_HANDLE}` : ''}` },
     { n: 'whatsapp' as const, label: 'WhatsApp', href: `https://wa.me/?text=${encodeURIComponent(`${title} ${url}`)}` },
   ];
   return (

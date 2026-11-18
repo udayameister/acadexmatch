@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { livePostBySlug } from '@/lib/server/blog';
 import { fileUrl, postUrl } from '@/lib/blog';
 import { SITE_URL } from '@/lib/site';
+import { X_HANDLE } from '@/lib/contact';
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -23,7 +24,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       publishedTime: p.publishAt, modifiedTime: p.updatedAt, authors: [p.author], tags: p.tags,
       ...(image ? { images: [{ url: image, alt: p.coverAlt || p.title }] } : {}),
     },
-    twitter: { card: image ? 'summary_large_image' : 'summary', title: p.title, description: p.summary, ...(image ? { images: [image] } : {}) },
+    twitter: { card: image ? 'summary_large_image' : 'summary', title: p.title, description: p.summary, ...(image ? { images: [image] } : {}), ...(X_HANDLE ? { site: `@${X_HANDLE}` } : {}) },
   };
 }
 
