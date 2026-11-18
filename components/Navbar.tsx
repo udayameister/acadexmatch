@@ -22,7 +22,7 @@ const LINKS: Record<'public' | UserRole, NavLinkItem[]> = {
     { href: '/jobs', label: 'Find Jobs' },
     { href: '/institutes', label: 'Institutions' },
     { href: '/events', label: 'Events' },
-    { href: '/#how-it-works', label: 'How it works' },
+    { href: '/blog', label: 'Blog' },
     { href: '/premium', label: 'Plans' },
     { href: '/#for-institutions', label: 'For Institutions' },
     { href: '/about', label: 'About' },
@@ -145,7 +145,7 @@ export default function Navbar() {
             <Link
               key={item.href}
               href={item.href}
-              className={`px-3.5 py-2 rounded-lg text-sm font-medium transition ${
+              className={`px-3 xl:px-3.5 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition ${
                 isActive(item.href) ? 'text-brand-900 bg-brand-50' : 'text-brand-800/85 hover:text-brand-900 hover:bg-brand-50'
               }`}
             >

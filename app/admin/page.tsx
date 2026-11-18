@@ -16,6 +16,7 @@ import { useStorageValue } from '@/lib/useAuth';
 import type { AcademicEvent } from '@/types';
 import CustomersPanel from '@/components/CustomersPanel';
 import MessageCenter, { useUnreadMessages } from '@/components/MessageCenter';
+import BlogPanel from '@/components/BlogPanel';
 import EmailsPanel from '@/components/EmailsPanel';
 import GrowthPanel from '@/components/GrowthPanel';
 import QualityPanel from '@/components/QualityPanel';
@@ -47,9 +48,9 @@ import {
   Library,
   Rss,
   Newspaper,
-  CalendarDays, FileSearch, UsersRound, Send, MessagesSquare } from 'lucide-react';
+  CalendarDays, FileSearch, UsersRound, Send, MessagesSquare, PenLine } from 'lucide-react';
 
-type AdminTab = 'growth' | 'quality' | 'announcements' | 'partners' | 'advisory' | 'outreach' | 'users' | 'institutions' | 'customers' | 'vacancies' | 'scraping' | 'facultytick' | 'facultyplus' | 'events' | 'resume' | 'applications' | 'premium' | 'verification' | 'dpdp' | 'audit' | 'emails' | 'site' | 'directory' | 'messages';
+type AdminTab = 'growth' | 'quality' | 'announcements' | 'partners' | 'advisory' | 'outreach' | 'users' | 'institutions' | 'customers' | 'vacancies' | 'scraping' | 'facultytick' | 'facultyplus' | 'events' | 'resume' | 'applications' | 'premium' | 'verification' | 'dpdp' | 'audit' | 'emails' | 'site' | 'directory' | 'messages' | 'blog';
 
 export default function AdminCompliancePage() {
   const [institutes, setInstitutes] = useState<Institute[]>([]);
@@ -59,7 +60,7 @@ export default function AdminCompliancePage() {
   // Links such as /admin?tab=outreach (e.g. from the outreach approval email) open that tab.
   useEffect(() => {
     const t = new URLSearchParams(window.location.search).get('tab');
-    if (t === 'outreach' || t === 'emails' || t === 'verification' || t === 'premium' || t === 'site' || t === 'quality' || t === 'users' || t === 'facultyplus' || t === 'messages') setActiveTab(t);
+    if (t === 'outreach' || t === 'emails' || t === 'verification' || t === 'premium' || t === 'site' || t === 'quality' || t === 'users' || t === 'facultyplus' || t === 'messages' || t === 'blog') setActiveTab(t);
     setOpenThread(new URLSearchParams(window.location.search).get('thread'));
   }, []);
   const [openThread, setOpenThread] = useState<string | null>(null);
@@ -200,6 +201,7 @@ export default function AdminCompliancePage() {
         {([
           ['growth', TrendingUp, 'Growth'],
           ['messages', MessagesSquare, `Messages${msgUnread ? ` (${msgUnread} unread)` : ''}`],
+          ['blog', PenLine, 'Blog'],
           ['users', Users, `Users (${users.length})`],
           ['institutions', Building2, `Institutions (${institutes.length})`],
           ['customers', Award, 'Our customers'],
@@ -241,6 +243,7 @@ export default function AdminCompliancePage() {
       </div>
 
       {activeTab === 'messages' && <MessageCenter mode="admin" initialThreadId={openThread} />}
+      {activeTab === 'blog' && <BlogPanel />}
       {activeTab === 'growth' && <GrowthPanel />}
       {activeTab === 'quality' && <QualityPanel />}
       {activeTab === 'announcements' && <AnnouncementsPanel />}

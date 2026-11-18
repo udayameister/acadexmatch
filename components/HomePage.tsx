@@ -11,6 +11,7 @@ import HomeEventSections from '@/components/HomeEventSections';
 import DonationSection from '@/components/DonationSection';
 import HomeEventPosters from '@/components/HomeEventPosters';
 import SocialSection from '@/components/SocialSection';
+import LatestPosts from '@/components/LatestPosts';
 import { Reveal, CountUp, RotatingText, ServiceMarquee, type MarqueeItem } from '@/components/HomeMotion';
 import { StorageService, isDeadlinePassed, institutionFreeActive, eventsFreeActive } from '@/lib/storage';
 import { payLabel, orNS, NOT_SPECIFIED } from '@/lib/display';
@@ -500,6 +501,7 @@ export default function HomePage() {
       <OurCustomers />
 
       {/* ───────────────────────── Social media ───────────────────────── */}
+      <LatestPosts />
       <SocialSection />
 
       <FounderSection />

@@ -69,6 +69,7 @@ export default function Footer() {
       links: [
         { href: '/about', label: 'About us' },
         { href: '/about#contact', label: 'Contact us' },
+        { href: '/blog', label: 'Blog & white papers' },
         { href: '/#how-it-works', label: 'How it works' },
         { href: '/#faq', label: 'FAQ' },
         { href: '/premium', label: 'Plans & Premium' },
