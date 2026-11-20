@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { CalendarDays, MapPin, Monitor, Megaphone } from 'lucide-react';
 import { EVENT_KIND_SHORT, formatEventDates, posterUrl } from '@/lib/events';
 import type { AcademicEvent } from '@/types';
+import { EventViewsBadge } from '@/components/EventViews';
 
 /** One advertised event (FDP, workshop, seminar or conference). Works in server and client components. */
 export default function EventCard({ event: e, compact = false }: { event: AcademicEvent; compact?: boolean }) {
@@ -21,7 +22,10 @@ export default function EventCard({ event: e, compact = false }: { event: Academ
         <span className={`font-bold px-2 py-0.5 rounded ${conf ? 'bg-gold-400 text-brand-950' : 'bg-brand-50 text-brand-800 border border-brand-100'}`}>
           {EVENT_KIND_SHORT[e.kind]}{conf && e.scope ? ` · ${e.scope === 'international' ? 'International' : 'National'}` : ''}
         </span>
-        <span className={`inline-flex items-center gap-1 ${conf ? 'text-gold-200/80' : 'text-slate-400'}`}><Megaphone className="w-3.5 h-3.5" aria-hidden="true" />{e.addedByAdmin ? 'Featured' : 'Sponsored'}</span>
+        <span className="inline-flex items-center gap-1.5">
+          <EventViewsBadge eventId={e.id} dark={conf} />
+          <span className={`inline-flex items-center gap-1 ${conf ? 'text-gold-200/80' : 'text-slate-400'}`}><Megaphone className="w-3.5 h-3.5" aria-hidden="true" />{e.addedByAdmin ? 'Featured' : 'Sponsored'}</span>
+        </span>
       </div>
       <h3 className={`font-serif text-lg font-bold mt-3 leading-snug line-clamp-2 ${conf ? 'text-white' : 'text-slate-900 group-hover:text-brand-800'}`}>{e.title}</h3>
       <p className={`text-sm mt-1 line-clamp-1 ${conf ? 'text-gold-100/90' : 'text-slate-600'}`}>{e.organizer}{e.department ? ` · ${e.department}` : ''}</p>

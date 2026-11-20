@@ -8,6 +8,7 @@ import { StorageService } from '@/lib/storage';
 import { useCurrentUser, useStorageValue } from '@/lib/useAuth';
 import { EVENT_KIND_LABEL, EVENT_MODE_LABEL, EVENT_STATUS_LABEL, formatEventDates, isEventLive, posterUrl } from '@/lib/events';
 import type { AcademicEvent } from '@/types';
+import { EventViewsPanel, trackEventLink, useRecordEventView } from '@/components/EventViews';
 
 const fmt = (iso?: string | null) => (iso ? new Date(`${iso}T00:00:00`).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : null);
 
@@ -16,6 +17,7 @@ export default function EventPage() {
   const { user, ready } = useCurrentUser();
   const events = useStorageValue<AcademicEvent[]>(() => StorageService.getEvents(), []);
   const e = events.find(x => x.id === id);
+  useRecordEventView(e?.id);
 
   if (!e) {
     return (
@@ -50,6 +52,8 @@ export default function EventPage() {
         </div>
       )}
 
+      <EventViewsPanel eventId={e.id} />
+
       <header className={`p-6 sm:p-8 rounded-3xl border ${conf ? 'bg-brand-950 border-brand-900 text-white' : 'bg-white border-slate-200'}`}>
         <div className="flex flex-wrap items-center gap-2 text-xs">
           <span className={`font-bold px-2 py-0.5 rounded ${conf ? 'bg-gold-400 text-brand-950' : 'bg-brand-50 text-brand-800 border border-brand-100'}`}>{EVENT_KIND_LABEL[e.kind]}</span>
@@ -59,8 +63,8 @@ export default function EventPage() {
         <h1 className={`font-serif text-2xl sm:text-4xl font-bold mt-3 leading-tight ${conf ? 'text-white' : 'text-slate-900'}`}>{e.title}</h1>
         <p className={`mt-2 text-base ${conf ? 'text-gold-100' : 'text-slate-600'}`}>Organised by <strong>{e.organizer}</strong>{e.department ? `, ${e.department}` : ''}</p>
         <div className="mt-5 flex flex-wrap gap-2">
-          {e.registrationLink && <a href={e.registrationLink} target="_blank" rel="noopener noreferrer nofollow" className={`inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-sm font-semibold ${conf ? 'bg-gold-400 text-brand-950 hover:bg-gold-300' : 'bg-brand-900 text-white hover:bg-brand-800'}`}>Register <ExternalLink className="w-4 h-4" /></a>}
-          {e.brochureLink && <a href={e.brochureLink} target="_blank" rel="noopener noreferrer nofollow" className={`inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-sm font-semibold border ${conf ? 'border-white/30 text-white hover:bg-white/10' : 'border-slate-300 text-slate-800 hover:bg-slate-50'}`}>Brochure <ExternalLink className="w-4 h-4" /></a>}
+          {e.registrationLink && <a href={e.registrationLink} onClick={() => trackEventLink(e.id, 'register')} target="_blank" rel="noopener noreferrer nofollow" className={`inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-sm font-semibold ${conf ? 'bg-gold-400 text-brand-950 hover:bg-gold-300' : 'bg-brand-900 text-white hover:bg-brand-800'}`}>Register <ExternalLink className="w-4 h-4" /></a>}
+          {e.brochureLink && <a href={e.brochureLink} onClick={() => trackEventLink(e.id, 'brochure')} target="_blank" rel="noopener noreferrer nofollow" className={`inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-sm font-semibold border ${conf ? 'border-white/30 text-white hover:bg-white/10' : 'border-slate-300 text-slate-800 hover:bg-slate-50'}`}>Brochure <ExternalLink className="w-4 h-4" /></a>}
         </div>
       </header>
 

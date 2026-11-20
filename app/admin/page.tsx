@@ -61,7 +61,7 @@ export default function AdminCompliancePage() {
   // Links such as /admin?tab=outreach (e.g. from the outreach approval email) open that tab.
   useEffect(() => {
     const t = new URLSearchParams(window.location.search).get('tab');
-    if (t === 'outreach' || t === 'emails' || t === 'verification' || t === 'premium' || t === 'site' || t === 'quality' || t === 'users' || t === 'facultyplus' || t === 'messages' || t === 'blog' || t === 'search') setActiveTab(t);
+    if (t === 'outreach' || t === 'emails' || t === 'verification' || t === 'premium' || t === 'site' || t === 'quality' || t === 'users' || t === 'facultyplus' || t === 'messages' || t === 'blog' || t === 'search' || t === 'events') setActiveTab(t);
     setOpenThread(new URLSearchParams(window.location.search).get('thread'));
   }, []);
   const [openThread, setOpenThread] = useState<string | null>(null);
