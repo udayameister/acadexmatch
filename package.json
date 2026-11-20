@@ -14,7 +14,8 @@
     "scrape:daily": "tsx scripts/daily-scrape.ts",
     "test:seo": "node tests/seo-check.mjs",
     "test:notice": "tsx tests/notice-parser.ts",
-    "test:aishe": "tsx tests/aishe.ts && tsx tests/help-assistant.ts && tsx tests/facultytick.ts && tsx tests/events.ts"
+    "test:aishe": "tsx tests/aishe.ts && tsx tests/help-assistant.ts && tsx tests/facultytick.ts && tsx tests/events.ts",
+    "test:outreach-send": "tsx tests/outreach-send.ts"
   },
   "dependencies": {
     "canvas-confetti": "^1.9.4",

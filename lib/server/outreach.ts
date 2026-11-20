@@ -79,6 +79,16 @@ export interface Campaign {
   auto?: boolean;
   createdAt: string; startedAt?: string; finishedAt?: string; approvedAt?: string;
   queue: string[]; sent: number; failed: number; skipped: number; lastError?: string;
+  /** Why it is paused: the administrator, or Brevo refusing (key, IP, account) — the latter resumes by itself once Brevo accepts again. */
+  pausedBy?: 'admin' | 'sender';
+}
+/** Health of the outreach Brevo account, checked without sending anything. */
+export interface SenderHealth {
+  ok: boolean; checkedAt?: string; problem?: string;
+  /** Server addresses Brevo refused (GoDaddy's outgoing address changes, so a single address is not enough). */
+  refusedIps: string[];
+  /** Failed automatic resumes in a row (spaces out the next try). */
+  strikes: number; nextCheckAt?: string;
 }
 /**
  * Automatic mode: every day (from startHour IST) visit the next colleges' websites, then prepare a batch of
@@ -91,7 +101,7 @@ export interface AutoSettings {
   enabledAt?: string; lastFinderDate?: string; lastBatchDate?: string; note?: string;
 }
 const AUTO_DEFAULTS: AutoSettings = { enabled: false, subject: '', body: '', audience: {}, perCollege: 1, visitPerDay: 300, batchSize: 100, startHour: 9 };
-interface State { settings: OutreachSettings; finder: FinderState; campaigns: Campaign[]; day: { date: string; sent: number }; auto: AutoSettings }
+interface State { settings: OutreachSettings; finder: FinderState; campaigns: Campaign[]; day: { date: string; sent: number }; auto: AutoSettings; sender: SenderHealth }
 
 const todayIst = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
 const blankFinder = (): FinderState => ({ running: false, filter: {}, queue: [], done: 0, total: 0, found: 0, skipped: 0 });
@@ -99,7 +109,7 @@ const blankFinder = (): FinderState => ({ running: false, filter: {}, queue: [],
 let stateChain: Promise<unknown> = Promise.resolve();
 async function readState(): Promise<State> {
   const s = await readJson<Partial<State>>('outreach-state');
-  return { settings: { ...DEFAULTS, ...(s?.settings || {}) }, finder: { ...blankFinder(), ...(s?.finder || {}) }, campaigns: s?.campaigns || [], day: s?.day || { date: todayIst(), sent: 0 }, auto: { ...AUTO_DEFAULTS, ...(s?.auto || {}) } };
+  return { settings: { ...DEFAULTS, ...(s?.settings || {}) }, finder: { ...blankFinder(), ...(s?.finder || {}) }, campaigns: s?.campaigns || [], day: s?.day || { date: todayIst(), sent: 0 }, auto: { ...AUTO_DEFAULTS, ...(s?.auto || {}) }, sender: { ok: true, refusedIps: [], strikes: 0, ...(s?.sender || {}) } };
 }
 function updateState<T>(fn: (s: State) => T | Promise<T>): Promise<T> {
   const run = stateChain.then(async () => { const s = await readState(); const out = await fn(s); await writeJson('outreach-state', s); return out; });
@@ -317,7 +327,8 @@ export async function outreachSummary() {
     // Automatic mode; until a message is saved, it starts from the launch-offer template.
     auto: s.auto.subject ? s.auto : { ...s.auto, ...(await launchOfferTemplate()) },
     // A Brevo key/IP/account refusal pauses sending: say so plainly at the top.
-    senderProblem: s.campaigns.find(c => c.status === 'paused' && /\b40[13]\b|unrecognised IP|not authori[sz]ed|key/i.test(c.lastError || ''))?.lastError || null,
+    senderProblem: (!s.sender.ok && s.sender.problem) || s.campaigns.find(c => c.status === 'paused' && pausedBySender(c))?.lastError || null,
+    senderHealth: { ...s.sender, range: ipRange(s.sender.refusedIps), waiting: s.campaigns.filter(c => c.status === 'paused' && pausedBySender(c)).reduce((n, c) => n + c.queue.length, 0) },
   };
 }
 
@@ -449,6 +460,8 @@ export async function startCampaign(cid: string): Promise<Campaign> {
     if (cur.status === 'awaiting') cur.approvedAt = new Date().toISOString();
     if (cur.status === 'draft' || cur.status === 'awaiting') { cur.queue = queue; cur.startedAt = new Date().toISOString(); }
     cur.status = 'sending';
+    cur.pausedBy = undefined;
+    cur.lastError = undefined;
     return cur;
   });
   void sendDue();
@@ -456,7 +469,7 @@ export async function startCampaign(cid: string): Promise<Campaign> {
 }
 
 export async function pauseCampaign(cid: string): Promise<void> {
-  await updateState(s => { const c = s.campaigns.find(x => x.id === cid); if (c?.status === 'sending') c.status = 'paused'; });
+  await updateState(s => { const c = s.campaigns.find(x => x.id === cid); if (c?.status === 'sending' || c?.status === 'paused') { c.status = 'paused'; c.pausedBy = 'admin'; } });
 }
 
 // ------------------------------------------------------------------ sending
@@ -587,16 +600,101 @@ function parseFrom(from: string): { name?: string; email: string } {
   return m ? { name: m[1].trim() || undefined, email: m[2].trim() } : { email: from.trim() };
 }
 
+const AUTH_TEXT = /\b40[13]\b|unrecognised IP|unrecognized IP|not authori[sz]ed|api[- ]?key|unauthori[sz]ed/i;
+/** Paused because Brevo refused (not by the administrator). Older campaigns have no pausedBy: judge by the error. */
+export const pausedBySender = (c: Campaign) => c.pausedBy === 'sender' || (!c.pausedBy && AUTH_TEXT.test(c.lastError || ''));
+const ipIn = (text: string) => text.match(/\b\d{1,3}(?:\.\d{1,3}){3}\b/)?.[0];
+
+/**
+ * The smallest IPv4 range (CIDR) covering every refused address, for Brevo → Security → Authorized IPs.
+ * GoDaddy's servers send from changing addresses in the same block, so one address stops working the next day.
+ */
+export function ipRange(ips: string[]): string | null {
+  const nums = ips.map(ip => ip.split('.').map(Number)).filter(o => o.length === 4 && o.every(n => n >= 0 && n <= 255)).map(o => ((o[0] << 24) >>> 0) + (o[1] << 16) + (o[2] << 8) + o[3]);
+  if (!nums.length) return null;
+  let bits = 32;
+  const all = (mask: number) => nums.every(n => ((n & mask) >>> 0) === ((nums[0] & mask) >>> 0));
+  while (bits > 0 && !all(bits === 32 ? 0xffffffff : (0xffffffff << (32 - bits)) >>> 0)) bits--;
+  // Never narrower than /16 once more than one address was seen: the next address is likely elsewhere in the block.
+  if (nums.length > 1 && bits > 16) bits = 16;
+  if (bits < 16) return null; // too wide to recommend safely
+  const mask = bits === 32 ? 0xffffffff : (0xffffffff << (32 - bits)) >>> 0;
+  const base = (nums[0] & mask) >>> 0;
+  return `${[base >>> 24, (base >>> 16) & 255, (base >>> 8) & 255, base & 255].join('.')}/${bits}`;
+}
+
+const brevoBase = () => (process.env.OUTREACH_EMAIL_API_URL || 'https://api.brevo.com').replace(/\/$/, '');
+
+/** Asks Brevo whether the outreach key works from this server — sends no email. */
+export async function checkSender(): Promise<SenderHealth> {
+  if (!outreachSenderConfigured()) return { ok: false, problem: 'Outreach sender not configured.', refusedIps: [], strikes: 0 };
+  let ok = false, problem = '';
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 15000);
+    const r = await fetch(`${brevoBase()}/v3/account`, { headers: { 'api-key': process.env.OUTREACH_EMAIL_API_KEY!, accept: 'application/json' }, signal: ctrl.signal }).finally(() => clearTimeout(t));
+    const d = await r.json().catch(() => ({})) as { message?: string };
+    ok = r.ok;
+    if (!r.ok) problem = `Brevo ${r.status}: ${d.message || r.statusText}`;
+  } catch (e) { problem = `Could not reach Brevo: ${(e as Error).message}`; }
+  return updateState(s => {
+    const ip = ipIn(problem);
+    if (ip && !s.sender.refusedIps.includes(ip)) s.sender.refusedIps = [...s.sender.refusedIps, ip].slice(-20);
+    s.sender = { ...s.sender, ok, problem: ok ? undefined : problem.slice(0, 300), checkedAt: new Date().toISOString() };
+    return s.sender;
+  });
+}
+
+/** Records a refusal seen while sending (keeps the refused address for the range advice). */
+function noteRefusal(s: State, message: string) {
+  const ip = ipIn(message);
+  if (ip && !s.sender.refusedIps.includes(ip)) s.sender.refusedIps = [...s.sender.refusedIps, ip].slice(-20);
+  s.sender.ok = false;
+  s.sender.problem = message.slice(0, 300);
+  s.sender.checkedAt = new Date().toISOString();
+  // Space out automatic retries: 10 min, 20, 40 … up to 6 hours.
+  s.sender.strikes = (s.sender.strikes || 0) + 1;
+  s.sender.nextCheckAt = new Date(Date.now() + Math.min(6 * 3600_000, 10 * 60_000 * 2 ** (s.sender.strikes - 1))).toISOString();
+}
+
+/**
+ * When campaigns were paused because Brevo refused, check (without sending) whether Brevo accepts again and, if so,
+ * continue the oldest one. Campaigns the administrator paused stay paused. Returns true when one was resumed.
+ */
+export async function resumeIfSenderFixed(opts: { force?: boolean; checked?: SenderHealth } = {}): Promise<boolean> {
+  const s0 = await readState();
+  if (s0.campaigns.some(c => c.status === 'sending')) return false;
+  const waiting = s0.campaigns.filter(c => c.status === 'paused' && pausedBySender(c) && c.queue.length);
+  if (!waiting.length) return false;
+  if (!opts.force && s0.sender.nextCheckAt && Date.parse(s0.sender.nextCheckAt) > Date.now()) return false;
+  const h = opts.checked || await checkSender();
+  if (!h.ok) {
+    await updateState(s => { noteRefusal(s, h.problem || 'Brevo refused'); });
+    return false;
+  }
+  return updateState(s => {
+    if (s.campaigns.some(c => c.status === 'sending')) return false;
+    const next = s.campaigns.filter(c => c.status === 'paused' && pausedBySender(c) && c.queue.length).sort((a, b) => (a.startedAt || a.createdAt).localeCompare(b.startedAt || b.createdAt))[0];
+    if (!next) return false;
+    next.status = 'sending';
+    next.pausedBy = undefined;
+    next.lastError = undefined;
+    return true;
+  });
+}
+
 /** Sends through the separate outreach Brevo account. */
 export async function sendOutreachEmail(to: string, msg: { subject: string; text: string; html: string; headers: Record<string, string> }): Promise<string | undefined> {
   const key = process.env.OUTREACH_EMAIL_API_KEY;
   if (!key) throw new Error('Outreach sender not configured.');
   const replyTo = process.env.OUTREACH_REPLY_TO || CONTACT_EMAIL;
-  const r = await fetch(`${(process.env.OUTREACH_EMAIL_API_URL || 'https://api.brevo.com').replace(/\/$/, '')}/v3/smtp/email`, {
-    method: 'POST',
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 20000);
+  const r = await fetch(`${brevoBase()}/v3/smtp/email`, {
+    method: 'POST', signal: ctrl.signal,
     headers: { 'api-key': key, 'Content-Type': 'application/json', accept: 'application/json' },
     body: JSON.stringify({ sender: parseFrom(process.env.OUTREACH_MAIL_FROM!), replyTo: { email: replyTo }, to: [{ email: to }], subject: msg.subject, textContent: msg.text, htmlContent: msg.html, headers: msg.headers, tags: ['outreach'] }),
-  });
+  }).finally(() => clearTimeout(t));
   const d = await r.json().catch(() => ({})) as { message?: string; messageId?: string };
   if (!r.ok) throw Object.assign(new Error(`Brevo ${r.status}: ${d.message || r.statusText}`), { status: r.status });
   return d.messageId;
@@ -616,6 +714,8 @@ export async function sendDue(): Promise<{ sent: number }> {
   g.__sender = true;
   let sent = 0;
   try {
+    // Campaigns paused because Brevo refused continue by themselves once it accepts again.
+    await resumeIfSenderFixed().catch(() => false);
     for (let round = 0; round < 10; round++) {
       const job = await updateState(s => {
         if (s.day.date !== todayIst()) s.day = { date: todayIst(), sent: 0 };
@@ -631,12 +731,14 @@ export async function sendDue(): Promise<{ sent: number }> {
       if (!job) break;
       const p = await db();
       const supp = await suppressedSet();
+      const reg = await registered();
       const results: { email: string; ok: boolean; skip?: boolean; err?: string }[] = [];
-      let authError = '';
+      let authError = '', transient = '';
       for (const email of job.emails) {
         const domain = email.split('@')[1];
         const [[row]] = await p.query<RowDataPacket[]>('SELECT email, college, aishe_code, status, source_url FROM acx_outreach_contacts WHERE email = ?', [email]) as unknown as [[{ college: string; aishe_code: string; status: string; source_url: string | null } | undefined]];
-        if (!row || row.status === 'unsubscribed' || row.status === 'removed' || supp.has(email) || supp.has(`@${domain}`)) { results.push({ email, ok: false, skip: true }); continue; }
+        // Skip anyone who unsubscribed, was removed, or whose college joined AcadeXMatch since the list was made.
+        if (!row || row.status === 'unsubscribed' || row.status === 'removed' || supp.has(email) || supp.has(`@${domain}`) || reg.codes.has(String(row.aishe_code)) || reg.domains.has(baseDomain(domain))) { results.push({ email, ok: false, skip: true }); continue; }
         try {
           await sendOutreachEmail(email, renderOutreach(job.campaign, { email, college: row.college, aishe: row.aishe_code, imported: (row.source_url || '').startsWith(IMPORT_SOURCE) }));
           await p.query("UPDATE acx_outreach_contacts SET status = 'sent', sends = sends + 1, last_sent_at = NOW(), last_campaign = ? WHERE email = ?", [job.campaign.id, email]);
@@ -646,6 +748,8 @@ export async function sendDue(): Promise<{ sent: number }> {
           const status = (e as { status?: number }).status;
           // Key, IP or account problem: stop and put this address back (it was never delivered).
           if (status === 401 || status === 403) { authError = (e as Error).message; break; }
+          // Rate limit, Brevo outage or network trouble: nothing was delivered — put it back and try again on the next run.
+          if (!status || status === 429 || status >= 500) { transient = (e as Error).message; break; }
           if (status === 400) await p.query("UPDATE acx_outreach_contacts SET status = 'failed' WHERE email = ?", [email]);
           results.push({ email, ok: false, err: (e as Error).message });
         }
@@ -662,11 +766,13 @@ export async function sendDue(): Promise<{ sent: number }> {
         const attempted = new Set(results.map(r => r.email));
         const notTried = job.emails.filter(e => !attempted.has(e));
         s.day.sent -= notTried.length + results.filter(r => r.skip).length;
-        if (notTried.length) { c.queue.unshift(...notTried); c.status = 'paused'; }
+        if (notTried.length) c.queue.unshift(...notTried);
         if (failed.length) c.lastError = failed[failed.length - 1].err?.slice(0, 200);
-        if (authError) { c.status = 'paused'; c.lastError = authError.slice(0, 300); }
+        if (transient) c.lastError = `Will retry: ${transient}`.slice(0, 200);
+        if (authError) { c.status = 'paused'; c.pausedBy = 'sender'; c.lastError = authError.slice(0, 300); noteRefusal(s, authError); }
+        else if (results.some(r => r.ok)) { s.sender.ok = true; s.sender.problem = undefined; s.sender.strikes = 0; s.sender.nextCheckAt = undefined; }
       });
-      if (authError) break;
+      if (authError || transient) break;
     }
   } finally { g.__sender = false; }
   return { sent };

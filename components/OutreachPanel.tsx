@@ -3,13 +3,14 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { AlertTriangle, Ban, Bot, CheckCircle2, ClipboardCheck, ExternalLink, X, Wrench, Download, Loader2, Mail, Pause, Play, Search, Send, Square, Trash2, Globe, Save, Upload, Image as ImageIcon } from 'lucide-react';
 
-interface Campaign { id: string; name: string; subject: string; body: string; audience: { state?: string; category?: string }; perCollege: 1 | 2; status: 'draft' | 'awaiting' | 'sending' | 'paused' | 'done' | 'rejected'; auto?: boolean; approvedAt?: string; createdAt: string; startedAt?: string; finishedAt?: string; queued: number; sent: number; failed: number; skipped: number; lastError?: string }
+interface Campaign { pausedBy?: 'admin' | 'sender'; id: string; name: string; subject: string; body: string; audience: { state?: string; category?: string }; perCollege: 1 | 2; status: 'draft' | 'awaiting' | 'sending' | 'paused' | 'done' | 'rejected'; auto?: boolean; approvedAt?: string; createdAt: string; startedAt?: string; finishedAt?: string; queued: number; sent: number; failed: number; skipped: number; lastError?: string }
 interface Summary {
   withWebsite: number; senderConfigured: boolean; sender: string | null; contacts: Record<string, number>; colleges: number; visited: number; visitedWithEmail: number; suppressed: number;
   settings: { dailyLimit: number; perCollege: 1 | 2; gapDays: number };
   finder: { running: boolean; filter: { state?: string; category?: string }; done: number; total: number; found: number; skipped: number; queued: number; startedAt?: string; finishedAt?: string; lastError?: string };
   campaigns: Campaign[]; sentToday: number; states: string[]; categories: string[]; template: { subject: string; body: string };
   auto: Auto; senderProblem: string | null;
+  senderHealth?: { ok: boolean; checkedAt?: string; problem?: string; refusedIps: string[]; range: string | null; waiting: number; nextCheckAt?: string };
 }
 interface Auto { enabled: boolean; subject: string; body: string; audience: { state?: string; category?: string }; perCollege: 1 | 2; visitPerDay: number; batchSize: number; startHour: number; enabledAt?: string; lastFinderDate?: string; lastBatchDate?: string; note?: string }
 interface Recipient { email: string; college: string; state: string | null; role: string | null; source: string | null }
@@ -60,7 +61,7 @@ export default function OutreachPanel() {
       {msg && <p className="text-sm text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2" role="status">{msg}</p>}
       {err && <p className="text-sm text-crimson-700 bg-crimson-50 border border-crimson-100 rounded-lg px-3 py-2" role="alert">{err}</p>}
 
-      <SenderCard s={s} />
+      <SenderCard s={s} onCheck={() => run(async () => { const d = await api({ action: 'checkSender' }); if (!d.ok) throw new Error(`Brevo still refuses: ${d.problem || 'unknown reason'}`); flash(d.resumed ? 'Brevo accepts again — sending has resumed.' : 'Brevo accepts the outreach key from this server.'); })} />
       {s.campaigns.filter(c => c.status === 'awaiting').map(c => <ApprovalCard key={c.id} c={c} s={s} run={run} flash={flash} setErr={setErr} />)}
       <AutoCard s={s} run={run} flash={flash} setErr={setErr} />
 
@@ -218,20 +219,34 @@ function AutoCard({ s, run, flash, setErr }: { s: Summary; run: (fn: () => Promi
   );
 }
 
-function SenderCard({ s }: { s: Summary }) {
+function SenderCard({ s, onCheck }: { s: Summary; onCheck: () => Promise<void> }) {
+  const [checking, setChecking] = useState(false);
+  const check = async () => { setChecking(true); try { await onCheck(); } finally { setChecking(false); } };
+  const when = (iso?: string) => (iso ? new Date(iso).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '');
   if (s.senderConfigured && s.senderProblem) {
-    const ip = s.senderProblem.match(/\b\d{1,3}(?:\.\d{1,3}){3}\b/)?.[0];
+    const ips = s.senderHealth?.refusedIps?.length ? s.senderHealth.refusedIps : [s.senderProblem.match(/\b\d{1,3}(?:\.\d{1,3}){3}\b/)?.[0]].filter(Boolean) as string[];
+    const range = s.senderHealth?.range;
     return (
-      <section role="alert" className="p-5 rounded-2xl bg-crimson-50 border border-crimson-200 text-sm text-crimson-900 space-y-2">
+      <section role="alert" className="p-5 rounded-2xl bg-crimson-50 border border-crimson-200 text-sm text-crimson-900 space-y-3">
         <h3 className="font-semibold flex items-center gap-2"><AlertTriangle className="w-5 h-5" /> Sending is paused: Brevo refused the emails</h3>
         <p className="break-words">Brevo said: “{s.senderProblem}”</p>
+        {s.senderHealth && s.senderHealth.waiting > 0 && <p><strong>{s.senderHealth.waiting.toLocaleString('en-IN')}</strong> colleges are waiting. Nobody was skipped or emailed twice.</p>}
         {/IP/i.test(s.senderProblem) ? (
-          <ol className="list-decimal pl-5 space-y-1">
-            <li>Sign in to the <strong>outreach</strong> Brevo account and open <a className="font-semibold underline inline-flex items-center gap-1" href="https://app.brevo.com/security/authorised_ips" target="_blank" rel="noreferrer">Security → Authorized IPs <ExternalLink className="w-3 h-3" /></a>.</li>
-            <li>Either click <strong>Authorize IP address</strong> and add {ip ? <code className="bg-white px-1 rounded">{ip}</code> : 'the address above'} (the website server), or click <strong>Deactivate for API keys</strong>.</li>
-            <li>Come back here and click <strong>Resume</strong> (or approve the batch again). Nobody was skipped: unsent colleges stay in the queue.</li>
-          </ol>
-        ) : <p>Check the outreach Brevo API key in GoDaddy (OUTREACH_EMAIL_API_KEY) and that the account is active, then click Resume. Unsent colleges stay in the queue.</p>}
+          <>
+            <p>The website server&apos;s outgoing address changes from time to time (Brevo has refused {ips.map((ip, i) => <React.Fragment key={ip}>{i ? ', ' : ''}<code className="bg-white px-1 rounded">{ip}</code></React.Fragment>)}), so authorising one address only works until the next change.</p>
+            <ol className="list-decimal pl-5 space-y-1">
+              <li>Sign in to the <strong>outreach</strong> Brevo account and open <a className="font-semibold underline inline-flex items-center gap-1" href="https://app.brevo.com/security/authorised_ips" target="_blank" rel="noreferrer">Security → Authorized IPs <ExternalLink className="w-3 h-3" /></a>.</li>
+              {range
+                ? <li>Click <strong>Authorize IP address</strong>, choose <strong>IPv4 range (CIDR format)</strong> and enter <code className="bg-white px-1 rounded select-all">{range}</code> (the hosting provider&apos;s block). Or click <strong>Deactivate blocking</strong> to allow any address.</li>
+                : <li>Click <strong>Deactivate blocking</strong>, or authorise each address above.</li>}
+              <li>Then click <strong>Check connection now</strong> below. Sending also resumes on its own within the hour once Brevo accepts.</li>
+            </ol>
+          </>
+        ) : <p>Check the outreach Brevo API key in GoDaddy (OUTREACH_EMAIL_API_KEY) and that the Brevo account is active, then click Check connection now. Sending resumes on its own once Brevo accepts.</p>}
+        <div className="flex flex-wrap items-center gap-3">
+          <button className={ghost} onClick={check} disabled={checking}>{checking ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />} Check connection now</button>
+          <span className="text-xs text-crimson-800">Checks with Brevo without sending any email.{s.senderHealth?.checkedAt ? ` Last checked ${when(s.senderHealth.checkedAt)}.` : ''}{s.senderHealth?.nextCheckAt ? ` Next automatic check ${when(s.senderHealth.nextCheckAt)}.` : ''}</span>
+        </div>
       </section>
     );
   }
@@ -508,7 +523,7 @@ function CampaignsCard({ s, run, flash, setErr }: { s: Summary; run: (fn: () => 
           {s.campaigns.map(c => (
             <li key={c.id} className="p-3 rounded-xl border border-slate-200 flex flex-col sm:flex-row sm:items-center gap-3">
               <div className="flex-1 min-w-0">
-                <div className="font-semibold text-sm text-slate-900 break-words">{c.name} <span className="ml-1 text-xs font-normal text-slate-500">· {STATUS[c.status]}</span></div>
+                <div className="font-semibold text-sm text-slate-900 break-words">{c.name} <span className="ml-1 text-xs font-normal text-slate-500">· {STATUS[c.status]}{c.status === 'paused' ? (c.pausedBy === 'admin' ? ' by you' : c.lastError && /40[13]|IP|key/i.test(c.lastError) ? ' (Brevo refused — resumes by itself once fixed)' : '') : ''}</span></div>
                 <div className="text-xs text-slate-500 break-words">{c.subject}</div>
                 <div className="text-xs text-slate-600 mt-0.5">Sent {c.sent} · waiting {c.queued} · failed {c.failed} · skipped {c.skipped}{c.audience.state ? ` · ${c.audience.state}` : ''}{c.lastError ? ` · last problem: ${c.lastError}` : ''}</div>
               </div>

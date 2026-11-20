@@ -3,6 +3,7 @@ import { requireAdmin, sameOrigin } from '@/lib/server/auth';
 import {
   outreachSummary, listContacts, finderPreview, startFinder, stopFinder, saveSettings, suppress, saveCampaign, deleteCampaign,
   campaignPreviewCount, sendTest, startCampaign, pauseCampaign, launchOfferTemplate, saveAuto, runAutopilot, rejectBatch, removeFromBatch, batchRecipients,
+  resumeIfSenderFixed, checkSender, sendDue,
 } from '@/lib/server/outreach';
 import { aisheStats } from '@/lib/server/aishe';
 import { withDb, accountOf } from '@/lib/server/db';
@@ -58,6 +59,13 @@ export async function POST(req: NextRequest) {
         if (!me?.email) return NextResponse.json({ error: 'No email address on your account.' }, { status: 400 });
         await sendTest(b.campaign || {}, me.email);
         return NextResponse.json({ ok: true, to: me.email });
+      }
+      case 'checkSender': {
+        // Ask Brevo (no email sent); if it accepts again, continue the campaign it had paused.
+        const health = await checkSender();
+        const resumed = health.ok && await resumeIfSenderFixed({ force: true, checked: health });
+        if (resumed) void sendDue();
+        return NextResponse.json({ ok: health.ok, resumed, problem: health.ok ? null : health.problem || null });
       }
       case 'startCampaign': return NextResponse.json({ campaign: await startCampaign(String(b.id || '')) });
       case 'pauseCampaign': await pauseCampaign(String(b.id || '')); return NextResponse.json({ ok: true });
