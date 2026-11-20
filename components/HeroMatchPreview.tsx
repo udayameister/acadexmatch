@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { TiltCard, useMotionOK } from '@/components/HomeInteractive';
 import Link from 'next/link';
 import {
   MapPin, IndianRupee, CalendarDays, GraduationCap, CheckCircle2, AlertCircle, Sparkles, BookOpen, FlaskConical,
@@ -52,16 +53,17 @@ export default function HeroMatchPreview({ jobs, institutes, user }: { jobs: Job
   const open = useMemo(() => jobs.filter(j => j.status === 'published' && !isDeadlinePassed(j)), [jobs]);
   const instOf = (j: Job) => institutes.find(i => i.id === j.instituteId);
 
-  const pick = useMemo((): { job: Job; match: MatchBreakdown | null } | null => {
-    if (!open.length) return null;
+  // Signed-in candidates see their single best match; everyone else sees the five best-documented open vacancies in turn.
+  const picks = useMemo((): { job: Job; match: MatchBreakdown | null }[] => {
+    if (!open.length) return [];
     if (profileReady && profile) {
       const scored = open.map(job => ({ job, match: calculateMatchScore(profile, job) }))
         .sort((a, b) => b.match.overallScore - a.match.overallScore || detailScore(b.job, instOf(b.job)) - detailScore(a.job, instOf(a.job)));
-      return scored[0];
+      return [scored[0]];
     }
-    const best = [...open].sort((a, b) =>
-      detailScore(b, instOf(b)) - detailScore(a, instOf(a)) || promotionRank(b) - promotionRank(a) || b.postedAt.localeCompare(a.postedAt))[0];
-    return { job: best, match: null };
+    return [...open].sort((a, b) =>
+      detailScore(b, instOf(b)) - detailScore(a, instOf(a)) || promotionRank(b) - promotionRank(a) || b.postedAt.localeCompare(a.postedAt))
+      .slice(0, 5).map(job => ({ job, match: null }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, institutes, profileReady, profile]);
 
@@ -70,6 +72,17 @@ export default function HeroMatchPreview({ jobs, institutes, user }: { jobs: Job
     .filter(a => a.interviewSlot && a.interviewSlot.date >= new Date().toISOString().slice(0, 10) && a.status !== 'rejected')
     .sort((a, b) => a.interviewSlot!.date.localeCompare(b.interviewSlot!.date))[0];
   const verifiedCount = institutes.filter(i => i.verificationStatus === 'verified').length;
+
+  const motion = useMotionOK();
+  const [idx, setIdx] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const CYCLE_MS = 6500;
+  useEffect(() => {
+    if (!motion || paused || picks.length < 2) return;
+    const t = setInterval(() => setIdx(i => (i + 1) % picks.length), CYCLE_MS);
+    return () => clearInterval(t);
+  }, [motion, paused, picks.length]);
+  const pick = picks.length ? picks[idx % picks.length] : null;
 
   if (!pick) {
     return (
@@ -116,7 +129,9 @@ export default function HeroMatchPreview({ jobs, institutes, user }: { jobs: Job
     <div className="relative mx-auto max-w-lg">
       <div className="absolute -inset-6 rounded-[2.5rem] bg-gradient-to-tr from-brand-200/60 via-white to-gold-200/70 blur-2xl opacity-80" aria-hidden="true" />
 
-      <Link href={`/jobs/${job.id}`} className="group relative block rounded-3xl bg-white border border-brand-100 shadow-2xl shadow-brand-900/15 overflow-hidden acx-rise focus:outline-none focus-visible:ring-4 focus-visible:ring-brand-200">
+      <div onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)} onFocusCapture={() => setPaused(true)} onBlurCapture={() => setPaused(false)}>
+      <TiltCard>
+      <Link key={job.id} href={`/jobs/${job.id}`} className={`group relative block rounded-3xl bg-white border border-brand-100 shadow-2xl shadow-brand-900/15 overflow-hidden focus:outline-none focus-visible:ring-4 focus-visible:ring-brand-200 ${idx === 0 ? 'acx-rise' : 'acx-card-in'}`}>
         {/* Header band */}
         <div className="relative bg-gradient-to-br from-brand-950 via-brand-900 to-brand-700 px-6 pt-6 pb-8 text-white">
           <svg className="absolute right-0 top-0 h-full w-48 text-gold-300/20" viewBox="0 0 200 200" fill="none" aria-hidden="true">
@@ -221,6 +236,19 @@ export default function HeroMatchPreview({ jobs, institutes, user }: { jobs: Job
           </div>
         </div>
       </Link>
+      </TiltCard>
+      {picks.length > 1 && (
+        <div className="relative mt-3 flex items-center justify-end gap-1.5 pr-3" role="group" aria-label="More open vacancies">
+          {picks.map((p, i) => (
+            <button key={p.job.id} type="button" onClick={() => setIdx(i)} aria-label={`Show vacancy ${i + 1} of ${picks.length}: ${p.job.title}`} aria-current={i === idx % picks.length ? 'true' : undefined}
+              className={`relative h-2 rounded-full overflow-hidden transition-all duration-500 ${i === idx % picks.length ? 'w-8 bg-brand-200' : 'w-2 bg-brand-200/70 hover:bg-brand-300'}`}>
+              {i === idx % picks.length && motion && !paused && <span key={idx} className="absolute inset-0 bg-brand-800 origin-left" style={{ animation: `acx-fill ${CYCLE_MS}ms linear both` }} />}
+              {i === idx % picks.length && (!motion || paused) && <span className="absolute inset-0 bg-brand-800" />}
+            </button>
+          ))}
+        </div>
+      )}
+      </div>
 
       {/* Floating cards — only when there is real data for them */}
       {apiScore !== null && (

@@ -13,6 +13,7 @@ import HomeEventPosters from '@/components/HomeEventPosters';
 import SocialSection from '@/components/SocialSection';
 import LatestPosts from '@/components/LatestPosts';
 import { Reveal, CountUp, RotatingText, ServiceMarquee, type MarqueeItem } from '@/components/HomeMotion';
+import { HeroBackdropFx, HeroHeadline, JourneySwitcher, LiveVacancyToast, PointerEffects, ScoreWeights, ScrollProgress, useTypedPlaceholder } from '@/components/HomeInteractive';
 import { StorageService, isDeadlinePassed, institutionFreeActive, eventsFreeActive } from '@/lib/storage';
 import { payLabel, orNS, NOT_SPECIFIED } from '@/lib/display';
 import { useCurrentUser, useStorageValue, homePathForRole } from '@/lib/useAuth';
@@ -114,12 +115,6 @@ const MARQUEE: MarqueeItem[] = [
 
 const WHATS_NEW = ['AI resume builder', 'Verified green-tick profiles', 'Fresh vacancies every day', 'Job alerts by e-mail', 'Free FDP & conference listings'];
 
-const STEPS = [
-  { icon: Upload, title: 'Build your profile', text: 'Import your CV or add degrees, NET/SLET, publications and experience.' },
-  { icon: Sparkles, title: 'See where you fit', text: 'Every vacancy shows your match score with a full breakdown.' },
-  { icon: Send, title: 'Apply and track', text: 'Follow each application from screening to interview and offer.' },
-];
-
 const FAQS = [
   {
     q: 'Is AcadeXMatch free for candidates?',
@@ -188,6 +183,8 @@ export default function HomePage() {
   const jobs = useStorageValue<Job[]>(() => StorageService.getPublishedJobs(), []);
   const institutes = useStorageValue<Institute[]>(() => StorageService.getInstitutes(), []);
   const [query, setQuery] = useState('');
+  const [searchFocused, setSearchFocused] = useState(false);
+  const placeholder = useTypedPlaceholder('Designation, department or institution', !searchFocused && !query);
   const [openFaq, setOpenFaq] = useState<number | null>(0);
   const plan = useStorageValue<PlanSettings>(() => StorageService.getPlanSettings(), StorageService.getPlanSettings());
   const instFree = institutionFreeActive(plan);
@@ -210,9 +207,12 @@ export default function HomePage() {
 
   return (
     <div className="w-full">
+      <ScrollProgress />
+      <PointerEffects />
       {/* ───────────────────────── Hero ───────────────────────── */}
       <section className="relative overflow-hidden border-b border-slate-200 hero-backdrop">
         <div className="absolute inset-0 hero-pattern" />
+        <HeroBackdropFx />
         <svg className="absolute -right-32 top-6 w-[42rem] h-[42rem] text-gold-400/40 pointer-events-none hidden md:block" viewBox="0 0 600 600" fill="none" aria-hidden="true">
           <circle cx="300" cy="300" r="240" stroke="currentColor" strokeWidth="1" />
           <circle cx="300" cy="300" r="180" stroke="currentColor" strokeWidth="1" strokeDasharray="2 8" />
@@ -220,32 +220,32 @@ export default function HomePage() {
         </svg>
 
         <div className="relative max-w-7xl mx-auto px-4 sm:px-8 pt-8 pb-10 lg:pt-12 lg:pb-14 grid lg:grid-cols-12 gap-8 lg:gap-12 items-center">
-          <div className="lg:col-span-6 space-y-5">
+          <div className="lg:col-span-6 space-y-5 min-w-0">
             <span className="inline-flex items-center gap-2 pl-1.5 pr-3 py-1 rounded-full bg-brand-50 border border-brand-100 text-xs font-medium text-brand-800">
               <span className="px-2 py-0.5 rounded-full bg-brand-900 text-white text-[11px] font-semibold tracking-wide">What&apos;s new</span>
               <RotatingText items={WHATS_NEW} className="min-w-[12rem]" />
             </span>
 
-            <h1 className="font-serif text-[2.1rem] sm:text-5xl lg:text-[3.3rem] font-bold text-brand-800 leading-[1.08] tracking-[-0.02em]">
-              Where India&apos;s next generation of <span className="relative whitespace-nowrap text-brand-900">faculty<svg className="absolute left-0 -bottom-2 w-full h-3 text-gold-400" viewBox="0 0 200 12" preserveAspectRatio="none" aria-hidden="true"><path d="M2 9 C 60 2, 140 2, 198 8" stroke="currentColor" strokeWidth="3" fill="none" strokeLinecap="round" /></svg></span> gets hired.
-            </h1>
+            <HeroHeadline />
 
             <p className="text-base sm:text-lg text-slate-600 leading-relaxed max-w-xl">
               One platform for scholars and institutions: UGC- and AICTE-aware vacancies, explainable matching, and a complete selection workflow from posting to offer.
             </p>
 
-            <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-2 p-1.5 rounded-2xl bg-white border border-slate-200 shadow-lg shadow-brand-900/5 max-w-xl focus-within:border-brand-400 transition">
+            <form onSubmit={handleSearch} className="acx-glow flex flex-col sm:flex-row gap-2 p-1.5 rounded-2xl bg-white border border-slate-200 shadow-lg shadow-brand-900/5 max-w-xl focus-within:border-brand-400 transition">
               <div className="flex-1 flex items-center gap-2.5 px-3">
                 <Search className="w-5 h-5 text-slate-400 shrink-0" />
                 <input
                   value={query}
                   onChange={e => setQuery(e.target.value)}
-                  placeholder="Designation, department or institution"
-                  aria-label="Search vacancies"
+                  onFocus={() => setSearchFocused(true)}
+                  onBlur={() => setSearchFocused(false)}
+                  placeholder={placeholder}
+                  aria-label="Search vacancies by designation, department or institution"
                   className="w-full py-2.5 bg-transparent text-sm text-slate-900 placeholder-slate-400 focus:outline-none"
                 />
               </div>
-              <button type="submit" className="px-6 py-2.5 rounded-xl bg-brand-900 hover:bg-brand-800 text-white text-sm font-semibold flex items-center justify-center gap-2 transition shadow-sm hover:-translate-y-px">
+              <button type="submit" className="acx-magnet px-6 py-2.5 rounded-xl bg-brand-900 hover:bg-brand-800 text-white text-sm font-semibold flex items-center justify-center gap-2 transition shadow-sm hover:-translate-y-px">
                 Search jobs <ArrowRight className="w-4 h-4" />
               </button>
             </form>
@@ -258,21 +258,24 @@ export default function HomePage() {
                 { href: '/events', label: 'FDPs & workshops', icon: Presentation },
                 { href: '/conferences', label: 'Conferences', icon: GraduationCap },
               ].map(c => (
-                <Link key={c.href} href={c.href} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/80 border border-slate-200 text-slate-700 hover:border-brand-300 hover:text-brand-900 transition">
+                <Link key={c.href} href={c.href} className="acx-lift inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/80 border border-slate-200 text-slate-700 hover:border-brand-300 hover:text-brand-900 hover:shadow-sm transition">
                   <c.icon className="w-3.5 h-3.5 text-brand-700" aria-hidden="true" />{c.label}
                 </Link>
               ))}
             </div>
 
+            <LiveVacancyToast jobs={openJobs} variant="strip" />
+
             <dl className="grid grid-cols-4 gap-3 pt-4 border-t border-slate-200 max-w-xl">
               {[
                 { value: openJobs.length, label: 'Open vacancies' },
-                { value: verifiedInstitutes.length, label: 'Verified institutions' },
+                // Until institutions are verified, show how many are listed rather than a zero.
+                verifiedInstitutes.length > 0 ? { value: verifiedInstitutes.length, label: 'Verified institutions' } : { value: institutes.length, label: 'Institutions' },
                 { value: departments, label: 'Departments' },
                 { value: states, label: 'States' },
               ].map(s => (
-                <div key={s.label}>
-                  <dd className="font-serif text-2xl sm:text-3xl font-bold text-slate-900"><CountUp value={s.value} /></dd>
+                <div key={s.label} className="acx-lift group">
+                  <dd className="font-serif text-2xl sm:text-3xl font-bold text-slate-900 group-hover:text-brand-800 transition-colors"><CountUp value={s.value} /></dd>
                   <dt className="text-[11px] sm:text-xs text-slate-500 leading-tight">{s.label}</dt>
                 </div>
               ))}
@@ -280,7 +283,7 @@ export default function HomePage() {
           </div>
 
           {/* Product preview */}
-          <div className="lg:col-span-6 relative">
+          <div className="lg:col-span-6 relative min-w-0">
             <HeroMatchPreview jobs={jobs} institutes={institutes} user={user} />
             {/* Floating service badges (decorative; the services are listed in full below). */}
             <div aria-hidden="true" className="hidden xl:block">
@@ -289,9 +292,6 @@ export default function HomePage() {
               </span>
               <span className="acx-bob absolute -right-6 top-[46%] inline-flex items-center gap-2 pl-1.5 pr-3 py-1.5 rounded-full bg-white border border-slate-200 shadow-lg text-xs font-semibold text-slate-800" style={{ animationDelay: '1.4s', ['--acx-tilt' as string]: '3deg' }}>
                 <span className="w-6 h-6 rounded-full bg-brand-900 text-white grid place-items-center"><Wand2 className="w-3.5 h-3.5" /></span>AI resume ready
-              </span>
-              <span className="acx-bob absolute right-8 -bottom-6 inline-flex items-center gap-2 pl-1.5 pr-3 py-1.5 rounded-full bg-white border border-slate-200 shadow-lg text-xs font-semibold text-slate-800" style={{ animationDelay: '2.6s', ['--acx-tilt' as string]: '-2deg' }}>
-                <span className="w-6 h-6 rounded-full bg-gold-400 text-brand-950 grid place-items-center"><Bell className="w-3.5 h-3.5" /></span>New vacancy alert
               </span>
             </div>
           </div>
@@ -316,7 +316,7 @@ export default function HomePage() {
 
           <div className="grid lg:grid-cols-2 gap-5 mt-6">
             {/* Candidates */}
-            <Reveal className="relative overflow-hidden rounded-3xl bg-ivory border border-slate-200 p-4 sm:p-5 flex flex-col">
+            <Reveal className="acx-spot relative overflow-hidden rounded-3xl bg-ivory border border-slate-200 p-4 sm:p-5 flex flex-col">
               <div className="acx-sheen absolute inset-x-0 top-0 h-1 bg-[linear-gradient(90deg,#800000,#c6a15b,#800000,#c6a15b)]" aria-hidden="true" />
               <div className="flex items-center gap-3 px-1">
                 <span className="w-11 h-11 rounded-2xl bg-brand-900 text-white grid place-items-center shadow-sm"><GraduationCap className="w-5 h-5" aria-hidden="true" /></span>
@@ -339,7 +339,7 @@ export default function HomePage() {
             </Reveal>
 
             {/* Institutions */}
-            <div id="for-institutions" className="scroll-mt-20 relative overflow-hidden rounded-3xl bg-brand-950 text-white p-4 sm:p-5 flex flex-col">
+            <div id="for-institutions" className="acx-spot scroll-mt-20 relative overflow-hidden rounded-3xl bg-brand-950 text-white p-4 sm:p-5 flex flex-col">
               <div className="absolute inset-0 opacity-[0.06] bg-[radial-gradient(circle_at_1px_1px,white_1px,transparent_0)] [background-size:22px_22px]" aria-hidden="true" />
               <div className="absolute -right-20 -top-20 w-72 h-72 rounded-full bg-brand-600/30 blur-3xl" aria-hidden="true" />
               <div className="relative flex items-center gap-3 px-1">
@@ -396,7 +396,7 @@ export default function HomePage() {
                 <Reveal key={job.id} delay={idx * 70} className="min-w-0 flex">
                 <Link
                   href={`/jobs/${job.id}`}
-                  className="group w-full min-w-0 flex flex-col p-4 rounded-2xl bg-white border border-slate-200 hover:border-brand-200 hover:shadow-lg hover:shadow-brand-900/5 hover:-translate-y-0.5 transition"
+                  className="acx-spot group w-full min-w-0 flex flex-col p-4 rounded-2xl bg-white border border-slate-200 hover:border-brand-200 hover:shadow-lg hover:shadow-brand-900/5 hover:-translate-y-0.5 transition"
                 >
                   <div className="flex items-center justify-between gap-3 text-xs">
                     <span className="font-medium text-brand-700 truncate">{job.instituteShortName}{promotionRank(job) >= 2 && <span className="ml-2 text-[11px] font-bold text-gold-800 bg-gold-50 border border-gold-200 px-1.5 py-0.5 rounded">Featured</span>}{promotionRank(job) % 2 === 1 && <span className="ml-1 text-[11px] font-bold text-crimson-700 bg-crimson-50 border border-crimson-100 px-1.5 py-0.5 rounded">Urgent</span>}</span>
@@ -429,47 +429,14 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-8 py-10 lg:py-14 grid lg:grid-cols-2 gap-8 lg:gap-12 items-start">
           <div>
             <Eyebrow>How it works</Eyebrow>
-            <h2 className="font-serif text-2xl sm:text-3xl font-bold text-slate-900 mt-1.5">From CV to campus interview, in three steps.</h2>
-            <Reveal as="div" className="relative mt-5">
-            <span className="acx-draw absolute left-[2.45rem] top-6 bottom-6 w-0.5 bg-gradient-to-b from-brand-700 via-gold-400 to-emerald-500 rounded-full" aria-hidden="true" />
-            <ol className="relative space-y-3">
-              {STEPS.map((s, i) => (
-                <li key={s.title} className="acx-tile flex gap-4 p-4 rounded-2xl bg-white/80 border border-brand-100 hover:bg-white hover:shadow-md transition">
-                  <span className="acx-tile-icon relative w-10 h-10 rounded-xl bg-brand-50 text-brand-700 grid place-items-center shrink-0 ring-4 ring-blush">
-                    <s.icon className="w-5 h-5" aria-hidden="true" />
-                    <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-gold-400 text-brand-950 text-[11px] font-bold grid place-items-center">{i + 1}</span>
-                  </span>
-                  <div>
-                    <h3 className="font-semibold text-slate-900">{s.title}</h3>
-                    <p className="text-sm text-slate-600 mt-0.5">{s.text}</p>
-                  </div>
-                </li>
-              ))}
-            </ol>
-            </Reveal>
+            <div className="mt-3"><JourneySwitcher /></div>
           </div>
 
           <div>
             <Eyebrow>Explainable by design</Eyebrow>
             <h2 className="font-serif text-2xl sm:text-3xl font-bold text-slate-900 mt-1.5">A match score you can actually read.</h2>
             <div className="mt-5 p-5 rounded-2xl bg-white border border-slate-200 shadow-sm">
-              <div className="flex h-2.5 rounded-full overflow-hidden gap-0.5">
-                {MATCH_WEIGHTS.map(w => <div key={w.label} className={w.color} style={{ width: `${w.weight}%` }} />)}
-              </div>
-              <div className="mt-4 grid sm:grid-cols-2 gap-x-6 gap-y-3">
-                {MATCH_WEIGHTS.map(w => (
-                  <div key={w.label} className="flex items-start gap-3">
-                    <span className={`mt-1.5 w-2.5 h-2.5 rounded-full shrink-0 ${w.color}`} />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-baseline justify-between gap-2">
-                        <span className="font-semibold text-sm text-slate-900">{w.label}</span>
-                        <span className="font-serif text-lg font-bold text-slate-900">{w.weight}%</span>
-                      </div>
-                      <p className="text-xs text-slate-500">{w.detail}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <ScoreWeights weights={MATCH_WEIGHTS} />
               <ul className="mt-4 pt-4 border-t border-slate-100 space-y-1.5 text-sm text-slate-700">
                 {['Missing a mandatory Ph.D. or NET caps the score', 'Strengths and gaps in plain language', 'The same published formula for every candidate'].map(t => (
                   <li key={t} className="flex gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" /> <span>{t}</span></li>
