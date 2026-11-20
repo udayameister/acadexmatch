@@ -779,6 +779,14 @@ function JobForm({ job, institutes, onClose, onDone }: { job: Job | null; instit
   const isNew = !job;
   const [f, setF] = useState({
     instituteId: job?.instituteId || institutes[0]?.id || '',
+    // Institution not registered on AcadeXMatch (e.g. one that emailed us its advertisement to promote).
+    extName: '', extShort: '', extCity: '', extState: '', extWebsite: '',
+    applyEmail: job?.details?.applyEmails?.[0]?.email || '',
+    applySubject: job?.details?.applyEmails?.[0]?.note?.replace(/^Subject:\s*/i, '') || '',
+    howToApply: job?.details?.howToApply || '',
+    qualifications: (job?.details?.qualifications || []).map(q => (q.post ? `${q.post}: ${q.text}` : q.text)).join('\n'),
+    preferred: (job?.details?.preferredQualifications || []).map(q => (q.post ? `${q.post}: ${q.text}` : q.text)).join('\n'),
+    lastDateText: job?.details?.lastDateText || '',
     title: job?.title || '',
     designation: isNew ? DESIGNATIONS[0] : (job.designation || ''),
     department: job?.department || '',
@@ -807,17 +815,41 @@ function JobForm({ job, institutes, onClose, onDone }: { job: Job | null; instit
     : institutes;
   const num = (v: string) => (v.trim() === '' ? null : Math.max(0, Number(v) || 0));
 
+  const [initial] = useState(() => ({ applyEmail: f.applyEmail, applySubject: f.applySubject, howToApply: f.howToApply, qualifications: f.qualifications, preferred: f.preferred, lastDateText: f.lastDateText }));
+  const changed = (k: keyof typeof initial) => f[k] !== initial[k];
+  const external = f.instituteId === '__external';
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     const inst = institutes.find(i => i.id === f.instituteId);
     const keepSourceInstitute = !!job && f.instituteId === job.instituteId && !inst;
-    if (!inst && !keepSourceInstitute) return setError('Choose an institute.');
+    if (!inst && !keepSourceInstitute && !external) return setError('Choose an institute.');
+    if (external && !f.extName.trim()) return setError('Enter the institution\'s name.');
     if (!f.title.trim()) return setError('Title is required.');
+    const email = f.applyEmail.trim().toLowerCase();
+    if (email && !/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(email)) return setError('Enter a valid application e-mail address.');
+    if (external && !email && !f.externalApplyUrl.trim() && !f.extWebsite.trim()) return setError('Add how to apply: an application e-mail, an application link or the institution\'s website.');
     const pay = f.pay ? payOptions.find(p => p.value === f.pay) : undefined;
     const tags = f.tags.split(',').map(s => s.trim()).filter(Boolean);
+    const extSlug = f.extName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 50);
     const instFields: Partial<Job> = inst
       ? { instituteId: inst.id, instituteName: inst.name, instituteShortName: inst.shortName, instituteType: inst.type, instituteLogo: inst.logo, location: { city: inst.location.city || null, state: inst.location.state || null } }
-      : {};
+      : external
+        ? { instituteId: `inst-ext-${extSlug}`, instituteName: f.extName.trim(), instituteShortName: f.extShort.trim() || f.extName.trim(), instituteType: null, instituteLogo: '', location: { city: f.extCity.trim() || null, state: f.extState.trim() || null }, isClaimedByInstitute: false }
+        : {};
+    const lines = (v: string) => v.split('\n').map(x => x.trim()).filter(Boolean).map(x => { const m = x.match(/^([^:]{2,60}):\s+(.+)$/); return m ? { post: m[1].trim(), text: m[2].trim() } : { post: null, text: x }; });
+    const details = {
+      ...(job?.details || {}),
+      ...(external ? { hiringOrganization: f.extName.trim(), officialWebsite: f.extWebsite.trim() || null, locationText: [f.extCity.trim(), f.extState.trim()].filter(Boolean).join(', ') || null } : {}),
+      // Only fields changed in this form are rewritten, so other details (several e-mails, imported text) stay as they were.
+      ...(changed('applyEmail') || changed('applySubject') ? {
+        applyEmails: email ? [{ email, note: f.applySubject.trim() ? `Subject: ${f.applySubject.trim()}` : null }, ...(job?.details?.applyEmails || []).filter(x => x.email.toLowerCase() !== email && x.email.toLowerCase() !== initial.applyEmail.toLowerCase())] : (job?.details?.applyEmails || []).slice(1),
+        applyModes: email ? Array.from(new Set([...(job?.details?.applyModes || []), 'email' as const])) : job?.details?.applyModes,
+      } : {}),
+      ...(changed('howToApply') ? { howToApply: f.howToApply.trim() || null } : {}),
+      ...(changed('qualifications') ? { qualifications: lines(f.qualifications) } : {}),
+      ...(changed('preferred') ? { preferredQualifications: lines(f.preferred) } : {}),
+      ...(changed('lastDateText') ? { lastDateText: f.lastDateText.trim() || null } : {}),
+    };
     const patch: Partial<Job> = {
       ...instFields,
       title: f.title.trim(), designation: (f.designation || null) as DesignationType | null, department: f.department.trim() || null,
@@ -842,7 +874,9 @@ function JobForm({ job, institutes, onClose, onDone }: { job: Job | null; instit
       responsibilities: f.responsibilities.split('\n').map(s => s.trim()).filter(Boolean),
       status: f.status as Job['status'],
       isPremium: f.premium,
-      externalApplyUrl: f.externalApplyUrl.trim() || undefined,
+      externalApplyUrl: f.externalApplyUrl.trim() || (external ? f.extWebsite.trim() : '') || undefined,
+      details,
+      deadlineText: changed('lastDateText') ? (f.lastDateText.trim() || null) : (job?.deadlineText ?? null),
     };
     if (job) {
       StorageService.updateJob(job.id, patch);
@@ -850,7 +884,7 @@ function JobForm({ job, institutes, onClose, onDone }: { job: Job | null; instit
     } else {
       const newJob: Job = {
         id: `job-${Date.now().toString(36)}`,
-        isClaimedByInstitute: true,
+        isClaimedByInstitute: !external,
         screeningQuestions: [],
         selectionProcess: ['Screening', 'Shortlisting', 'Interview', 'Selection committee'],
         benefits: [],
@@ -866,7 +900,17 @@ function JobForm({ job, institutes, onClose, onDone }: { job: Job | null; instit
   return (
     <Modal title={job ? 'Edit vacancy' : 'Add vacancy'} onClose={onClose} wide>
       <form onSubmit={submit} className="grid sm:grid-cols-2 gap-4">
-        <Field label="Institute" className="sm:col-span-2"><select className={inputCls} value={f.instituteId} onChange={set('instituteId')}>{instOptions.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}</select></Field>
+        <Field label="Institute" className="sm:col-span-2"><select className={inputCls} value={f.instituteId} onChange={set('instituteId')}>{instOptions.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}{!job && <option value="__external">Institution not on AcadeXMatch (enter details)…</option>}</select></Field>
+        {external && (
+          <div className="sm:col-span-2 grid sm:grid-cols-2 gap-4 p-4 rounded-xl bg-slate-50 border border-slate-200">
+            <p className="sm:col-span-2 text-xs text-slate-600">For an institution that is not registered here (for example one that sent its advertisement to promote). Candidates apply directly to the institution, by e-mail or on its website; nothing is sent through AcadeXMatch.</p>
+            <Field label="Institution name" className="sm:col-span-2"><input className={inputCls} value={f.extName} onChange={set('extName')} placeholder="New Age Makers' Institute of Technology (NAMTECH)" /></Field>
+            <Field label="Short name"><input className={inputCls} value={f.extShort} onChange={set('extShort')} placeholder="NAMTECH" /></Field>
+            <Field label="Website"><input type="text" inputMode="url" autoCapitalize="none" spellCheck={false} className={inputCls} value={f.extWebsite} onChange={set('extWebsite')} placeholder="https://www.example.ac.in" /></Field>
+            <Field label="City"><input className={inputCls} value={f.extCity} onChange={set('extCity')} /></Field>
+            <Field label="State"><input className={inputCls} value={f.extState} onChange={set('extState')} /></Field>
+          </div>
+        )}
         <Field label="Title" className="sm:col-span-2"><input required className={inputCls} value={f.title} onChange={set('title')} /></Field>
         <Field label="Designation"><select className={inputCls} value={f.designation} onChange={set('designation')}><option value="">Not specified</option>{DESIGNATIONS.map(d => <option key={d}>{d}</option>)}</select></Field>
         <Field label="Department"><input className={inputCls} value={f.department} onChange={set('department')} /></Field>
@@ -881,6 +925,12 @@ function JobForm({ job, institutes, onClose, onDone }: { job: Job | null; instit
         <Field label="NET / SLET mandatory"><select className={inputCls} value={f.net} onChange={set('net')}><option value="">Not specified</option><option value="yes">Yes</option><option value="no">No</option></select></Field>
         <label className="sm:col-span-2 flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" checked={f.premium} onChange={e => setF({ ...f, premium: e.target.checked })} className="accent-brand-900" /> <Crown className="w-4 h-4 text-gold-500" /> Premium vacancy (only Premium candidates can apply)</label>
         <Field label="External application link (used by Free candidates)" className="sm:col-span-2"><input type="text" inputMode="url" autoCapitalize="none" spellCheck={false} className={inputCls} value={f.externalApplyUrl} onChange={set('externalApplyUrl')} placeholder="https://institute.ac.in/careers/apply — leave blank to use the institute website" /></Field>
+        <Field label="Apply by e-mail (address)"><input type="email" autoCapitalize="none" spellCheck={false} className={inputCls} value={f.applyEmail} onChange={set('applyEmail')} placeholder="hr@institute.ac.in" /></Field>
+        <Field label="E-mail subject to use"><input className={inputCls} value={f.applySubject} onChange={set('applySubject')} placeholder="Application – Assistant Professor – CSE" /></Field>
+        <Field label="Last date as written (optional)"><input className={inputCls} value={f.lastDateText} onChange={set('lastDateText')} placeholder="e.g. 30 November 2026, or Open until filled" /></Field>
+        <Field label="How to apply (optional)"><input className={inputCls} value={f.howToApply} onChange={set('howToApply')} placeholder="Send your updated CV…" /></Field>
+        <Field label="Qualifications (one per line; “Post: requirement” allowed)" className="sm:col-span-2"><textarea rows={3} className={inputCls} value={f.qualifications} onChange={set('qualifications')} /></Field>
+        <Field label="Desirable qualifications (one per line)" className="sm:col-span-2"><textarea rows={2} className={inputCls} value={f.preferred} onChange={set('preferred')} /></Field>
         <Field label="Specialisations (comma separated)" className="sm:col-span-2"><input className={inputCls} value={f.tags} onChange={set('tags')} /></Field>
         <Field label="Description" className="sm:col-span-2"><textarea rows={3} className={inputCls} value={f.description} onChange={set('description')} /></Field>
         <Field label="Responsibilities (one per line)" className="sm:col-span-2"><textarea rows={3} className={inputCls} value={f.responsibilities} onChange={set('responsibilities')} /></Field>

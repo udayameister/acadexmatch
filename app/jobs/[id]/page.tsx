@@ -30,6 +30,7 @@ import {
   ChevronRight,
   FileCheck,
   ExternalLink,
+  Mail,
 } from 'lucide-react';
 
 export default function JobDetailPage() {
@@ -80,6 +81,18 @@ export default function JobDetailPage() {
   const isPremium = isPremiumUser(user);
   const matchBreakdown = isPremium && candidateProfile && candidateProfile.aiMatchingConsent !== false ? calculateMatchScore(candidateProfile, job) : null;
   const externalUrl = externalApplyLink(job, institute);
+  // Institutions not registered on AcadeXMatch that ask for applications by e-mail.
+  const applyEmail = job.isClaimedByInstitute === false ? job.details?.applyEmails?.[0] : undefined;
+  const applySubject = applyEmail?.note?.match(/^Subject:\s*(.+)$/i)?.[1] || `Application – ${job.title}`;
+  const applyEmailCard = applyEmail ? (
+    <div className="space-y-2">
+      <a href={`mailto:${applyEmail.email}?subject=${encodeURIComponent(applySubject)}`} className="w-full inline-flex justify-center items-center gap-2 px-4 py-3 rounded-xl bg-brand-900 hover:bg-brand-800 text-white font-semibold text-sm">
+        <Mail className="w-4 h-4" /> Apply by e-mail
+      </a>
+      <p className="text-xs text-slate-600 break-words">Send your updated CV to <a className="font-semibold text-brand-800 underline" href={`mailto:${applyEmail.email}`}>{applyEmail.email}</a> with the subject <strong className="text-slate-900">“{applySubject}”</strong>.</p>
+      {externalUrl && <a href={externalUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs font-semibold text-brand-700 hover:underline">Institution website <ExternalLink className="w-3 h-3" /></a>}
+    </div>
+  ) : null;
   const closed = job.status !== 'published' || isDeadlinePassed(job);
 
   const handleApply = (e: React.FormEvent) => {
@@ -429,15 +442,15 @@ export default function JobDetailPage() {
                 <div className="space-y-4 py-2">
                   <div>
                     <h4 className="font-serif font-bold text-slate-900 text-lg">Apply for this position</h4>
-                    <p className="text-xs text-slate-600 mt-1">On the Free plan you apply directly on {job.instituteShortName}&apos;s website{job.advertisementNumber ? <> quoting advertisement no. <strong className="text-slate-900">{job.advertisementNumber}</strong></> : ''}.</p>
+                    <p className="text-xs text-slate-600 mt-1">{applyEmail ? <>{job.instituteShortName} accepts applications by e-mail.</> : <>On the Free plan you apply directly on {job.instituteShortName}&apos;s website{job.advertisementNumber ? <> quoting advertisement no. <strong className="text-slate-900">{job.advertisementNumber}</strong></> : ''}.</>}</p>
                   </div>
-                  {externalUrl ? (
+                  {applyEmailCard ? applyEmailCard : externalUrl ? (
                     <a href={externalUrl} target="_blank" rel="noopener noreferrer" className="w-full inline-flex justify-center items-center gap-2 px-4 py-3 rounded-xl bg-brand-900 hover:bg-brand-800 text-white font-semibold text-sm">
                       Apply on institution website <ExternalLink className="w-4 h-4" />
                     </a>
                   ) : null}
                   {externalUrl && <TrackJobPanel job={job} external />}
-                  {externalUrl ? null : (
+                  {externalUrl || applyEmail ? null : (
                     <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700">
                       No application link has been published yet.{institute?.contactEmail && <> Contact <a className="font-semibold text-brand-800 underline" href={`mailto:${institute.contactEmail}`}>{institute.contactEmail}</a>.</>}
                     </div>
@@ -445,6 +458,15 @@ export default function JobDetailPage() {
                   {job.isClaimedByInstitute !== false && <PremiumLock title="Apply in one click with Premium" text="Send your verified profile and documents straight to the selection committee, see your match score and track every stage." />}
                 </div>
               )
+            ) : !job.isClaimedByInstitute && applyEmailCard ? (
+              <div className="space-y-4 py-2">
+                {job.isPremium && <PremiumBadge label="Premium vacancy" />}
+                <div>
+                  <h4 className="font-serif font-bold text-slate-900 text-lg">Apply for this position</h4>
+                  <p className="text-xs text-slate-600 mt-1">{job.instituteShortName} accepts applications directly by e-mail.</p>
+                </div>
+                {applyEmailCard}
+              </div>
             ) : !job.isClaimedByInstitute && externalUrl ? (
               <div className="space-y-4 py-2">
                 {job.isPremium && <PremiumBadge label="Premium vacancy" />}
