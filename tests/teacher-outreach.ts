@@ -51,7 +51,7 @@ const FACULTY = `<html><head><title>Faculty | Department of Computer Science and
       while ((i = buf.indexOf('\r\n')) >= 0) {
         const line = buf.slice(0, i); buf = buf.slice(i + 2);
         if (inData) {
-          if (line === '.') { inData = false; got.push({ to: rcpt, data: (sock as unknown as { _d: string })._d }); sock.write('250 OK queued\r\n'); }
+          if (line === '.') { inData = false; got.push({ to: rcpt, data: (sock as unknown as { _d: string })._d.replace(/=\n/g, '').replace(/=3D/g, '=') }); sock.write('250 OK queued\r\n'); }
           else (sock as unknown as { _d: string })._d += line + '\n';
           continue;
         }
