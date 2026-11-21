@@ -62,6 +62,8 @@ async function tables(): Promise<void> {
   return g.__outreachTables;
 }
 const db = async () => { await tables(); return sqlPool(); };
+/** Shared with the teacher invitations (same database, same do-not-email list). */
+export const outreachDb = db;
 
 // ------------------------------------------------------------------ settings and state
 
@@ -123,7 +125,7 @@ export function outreachSenderConfigured(): boolean {
 
 // ------------------------------------------------------------------ registered institutions (never contacted)
 
-async function registered(): Promise<{ codes: Set<string>; domains: Set<string> }> {
+export async function registered(): Promise<{ codes: Set<string>; domains: Set<string> }> {
   return withDb(null, d => {
     const insts = (d[STORAGE_KEYS.INSTITUTES] as Institute[]) || [];
     const codes = new Set(insts.map(i => normaliseAisheCode(i.aisheCode || '')).filter(Boolean));
@@ -140,7 +142,7 @@ async function registered(): Promise<{ codes: Set<string>; domains: Set<string> 
 
 // ------------------------------------------------------------------ contact finder
 
-async function fetchText(url: string, ms = 12000): Promise<{ ok: boolean; status: number; text: string; url: string }> {
+export async function fetchText(url: string, ms = 12000): Promise<{ ok: boolean; status: number; text: string; url: string }> {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), ms);
   try {
@@ -155,7 +157,7 @@ async function fetchText(url: string, ms = 12000): Promise<{ ok: boolean; status
 }
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
-function siteUrl(website: string): string | null {
+export function siteUrl(website: string): string | null {
   const w = (website || '').trim();
   if (!w || /^(na|n\/a|nil|none|-)$/i.test(w)) return null;
   try { const u = new URL(/^https?:\/\//i.test(w) ? w : `http://${w}`); return /\./.test(u.hostname) ? u.origin + (u.pathname === '/' ? '/' : u.pathname) : null; } catch { return null; }
@@ -279,7 +281,7 @@ export function runFinder(): Promise<void> {
 
 // ------------------------------------------------------------------ contacts and do-not-email list
 
-async function suppressedSet(): Promise<Set<string>> {
+export async function suppressedSet(): Promise<Set<string>> {
   const p = await db();
   const [rows] = await p.query<RowDataPacket[]>('SELECT value FROM acx_outreach_suppress');
   return new Set(rows.map(r => String(r.value)));
@@ -292,6 +294,8 @@ export async function suppress(value: string, reason: string): Promise<void> {
   await p.query('INSERT INTO acx_outreach_suppress (value, reason) VALUES (?,?) ON DUPLICATE KEY UPDATE reason = VALUES(reason)', [v, reason.slice(0, 60)]);
   if (v.startsWith('@')) await p.query("UPDATE acx_outreach_contacts SET status = 'unsubscribed' WHERE email LIKE ?", [`%${v}`]);
   else await p.query("UPDATE acx_outreach_contacts SET status = 'unsubscribed' WHERE email = ?", [v]);
+  // Teacher invitations share the do-not-email list (the table exists once that tool has been used).
+  await p.query(v.startsWith('@') ? "UPDATE acx_teacher_contacts SET status = 'unsubscribed' WHERE email LIKE ? AND status <> 'sent'" : "UPDATE acx_teacher_contacts SET status = 'unsubscribed' WHERE email = ?", [v.startsWith('@') ? `%${v}` : v]).catch(() => undefined);
 }
 
 export interface ContactRow { email: string; aishe_code: string; college: string; state: string | null; category: string | null; role: string | null; score: number; source_url: string | null; status: string; sends: number; last_sent_at: string | null }

@@ -10,6 +10,7 @@ import LaunchOffersCard from '@/components/LaunchOffersCard';
 import AiResumeAdminCard from '@/components/AiResumeAdminCard';
 import AdvisoryBoardPanel from '@/components/AdvisoryBoardPanel';
 import OutreachPanel from '@/components/OutreachPanel';
+import TeacherOutreachPanel from '@/components/TeacherOutreachPanel';
 import EventsAdminPanel from '@/components/EventsAdminPanel';
 import NewPostEmailCard from '@/components/NewPostEmailCard';
 import { useStorageValue } from '@/lib/useAuth';
@@ -49,9 +50,9 @@ import {
   Library,
   Rss,
   Newspaper,
-  CalendarDays, FileSearch, UsersRound, Send, MessagesSquare, PenLine, Globe2 } from 'lucide-react';
+  CalendarDays, FileSearch, UsersRound, Send, MessagesSquare, PenLine, Globe2, GraduationCap } from 'lucide-react';
 
-type AdminTab = 'growth' | 'quality' | 'announcements' | 'partners' | 'advisory' | 'outreach' | 'users' | 'institutions' | 'customers' | 'vacancies' | 'scraping' | 'facultytick' | 'facultyplus' | 'events' | 'resume' | 'applications' | 'premium' | 'verification' | 'dpdp' | 'audit' | 'emails' | 'site' | 'directory' | 'messages' | 'blog' | 'search';
+type AdminTab = 'growth' | 'quality' | 'announcements' | 'partners' | 'advisory' | 'outreach' | 'teachers' | 'users' | 'institutions' | 'customers' | 'vacancies' | 'scraping' | 'facultytick' | 'facultyplus' | 'events' | 'resume' | 'applications' | 'premium' | 'verification' | 'dpdp' | 'audit' | 'emails' | 'site' | 'directory' | 'messages' | 'blog' | 'search';
 
 export default function AdminCompliancePage() {
   const [institutes, setInstitutes] = useState<Institute[]>([]);
@@ -61,7 +62,7 @@ export default function AdminCompliancePage() {
   // Links such as /admin?tab=outreach (e.g. from the outreach approval email) open that tab.
   useEffect(() => {
     const t = new URLSearchParams(window.location.search).get('tab');
-    if (t === 'outreach' || t === 'emails' || t === 'verification' || t === 'premium' || t === 'site' || t === 'quality' || t === 'users' || t === 'facultyplus' || t === 'messages' || t === 'blog' || t === 'search' || t === 'events') setActiveTab(t);
+    if (t === 'outreach' || t === 'teachers' || t === 'emails' || t === 'verification' || t === 'premium' || t === 'site' || t === 'quality' || t === 'users' || t === 'facultyplus' || t === 'messages' || t === 'blog' || t === 'search' || t === 'events') setActiveTab(t);
     setOpenThread(new URLSearchParams(window.location.search).get('thread'));
   }, []);
   const [openThread, setOpenThread] = useState<string | null>(null);
@@ -225,6 +226,7 @@ export default function AdminCompliancePage() {
           ['advisory', UsersRound, 'Advisory board'],
           ['emails', Mail, 'Emails'],
           ['outreach', Send, 'Email outreach'],
+          ['teachers', GraduationCap, 'Teacher invitations'],
           ['site', Settings2, 'Site & visits'],
         ] as [AdminTab, typeof Users, string][]).map(([key, Icon, label]) => (
           <button
@@ -266,6 +268,7 @@ export default function AdminCompliancePage() {
       {activeTab === 'customers' && <CustomersPanel />}
       {activeTab === 'emails' && <div className="space-y-5"><NewPostEmailCard /><EmailsPanel /></div>}
       {activeTab === 'outreach' && <OutreachPanel />}
+      {activeTab === 'teachers' && <TeacherOutreachPanel />}
       {activeTab === 'premium' && <div className="space-y-6"><LaunchOffersCard /><AiResumeAdminCard /><PremiumPanel /></div>}
 
       {/* TAB 1: AISHE & NAAC Verification Queue */}
