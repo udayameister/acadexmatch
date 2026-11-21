@@ -1,7 +1,7 @@
 import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Award, GraduationCap, BookOpen, ArrowRight, UserRound, Code2 } from 'lucide-react';
+import { Award, GraduationCap, BookOpen, ArrowRight } from 'lucide-react';
 
 /** Founder details shown on the home page and the About page. Edit here to update both. */
 export const FOUNDER = {
@@ -15,10 +15,8 @@ export const FOUNDER = {
   ],
   note:
     'After more than fifteen years in classrooms and research labs, I have seen how hard faculty hiring is on both sides: candidates chase scattered notices and unclear eligibility rules, and institutions sift through hundreds of applications by hand. AcadeXMatch brings every vacancy, every UGC and AICTE norm and every step of selection into one transparent place — so the right teacher reaches the right classroom.',
-  links: [
-    { icon: UserRound, label: 'LinkedIn', href: 'https://www.linkedin.com/in/udayakumar-palanivelu-934bb941' },
-    { icon: Code2, label: 'GitHub', href: 'https://github.com/udayameister' },
-  ],
+  /** Personal profile links shown under the founder's card (none at the founder's request). */
+  links: [] as { icon: React.ComponentType<{ className?: string }>; label: string; href: string }[],
 };
 
 /** Co-founder details (only the highest qualification is shown). */
