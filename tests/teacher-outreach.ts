@@ -57,6 +57,20 @@ const FACULTY = `<html><head><title>Faculty | Department of Computer Science and
   assert(r2.some(x => x.email === 'raman@abc.ac.in' && x.reason === 'non-teaching staff'));
   assert(r2.some(x => x.email === 'hodcse@abc.ac.in' && /office/.test(x.reason)));
 
+  // MCC-style cards: a plain name above the address, no title or designation, on a teachers' list.
+  const mcc = `<h1>English Faculty (Aided)</h1><div class="personnel"><h3><a href="/personnel/g-udhayaraj/">G. Udhayaraj</a></h3><div><i class="fa fa-envelope"></i>udhayaraj@mcc.edu.in</div><a href="/personnel/g-udhayaraj/">More Detail</a></div>
+<div class="personnel"><h3><a href="/personnel/a-deepa/">A. Deepa Priyadarsini</a></h3><div>deepapriyadarshini@mcc.edu.in</div><a>More Detail</a></div>
+<div class="personnel"><h3>Kavitha Ramesh</h3><div>kavitharamesh84@gmail.com</div></div>
+<div class="personnel"><h3>Office</h3><div>random123@gmail.com</div></div>`;
+  const mt = extractTeachers(mcc, 'https://mcc.edu.in/english-faculty/', { includeFreeMail: true });
+  assert.deepEqual(mt.map(x => [x.email, x.name]), [['udhayaraj@mcc.edu.in', 'G. Udhayaraj'], ['deepapriyadarshini@mcc.edu.in', 'A. Deepa Priyadarsini'], ['kavitharamesh84@gmail.com', 'Kavitha Ramesh']]);
+  assert.equal(extractTeachers(mcc, 'https://mcc.edu.in/english-faculty/').length, 2, 'Gmail only when switched on');
+  // Report pages rank below teachers' lists.
+  const { facultyLinksScored } = await import('../lib/outreach/faculty');
+  const ranked = facultyLinksScored('<a href="/iqac-members.php">IQAC Members</a><a href="/academics-annualreports.php">Annual reports</a><a href="/dept-maths-faculty.php">Maths faculty</a><a href="/departments/">Departments</a>', 'https://www.x.ac.in/').map(l => l.url);
+  assert.equal(ranked[0], 'https://www.x.ac.in/dept-maths-faculty.php');
+  assert(ranked.indexOf('https://www.x.ac.in/departments/') < ranked.indexOf('https://www.x.ac.in/iqac-members.php'));
+
   // A page with no teaching context: addresses alone are not enough.
   assert.equal(extractTeachers('<p>Write to ramesh@abc.ac.in for the fest.</p>', 'https://www.abc.ac.in/events').length, 0);
 

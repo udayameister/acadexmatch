@@ -16,7 +16,7 @@ import { allAisheRecords } from './aishe';
 import { outreachDb, suppressedSet, registered, fetchText, siteUrl, unsubscribeLink } from './outreach';
 import { STORAGE_KEYS } from '@/lib/storage';
 import { robotsAllows } from '@/lib/outreach/extract';
-import { extractTeachers, facultyLinks, type FoundTeacher, type Rejected } from '@/lib/outreach/faculty';
+import { extractTeachers, facultyLinksScored, GUESSED_FACULTY_PATHS, type FoundTeacher, type Rejected } from '@/lib/outreach/faculty';
 import type { AisheRecord, UserAccount } from '@/types';
 
 const KEY = 'teacher-outreach-state';
@@ -111,10 +111,12 @@ export async function findTeachersFor(rec: AisheRecord, opts: { fetcher?: typeof
   const limit = Math.max(2, Math.min(30, opts.pages ?? SETTINGS.pagesPerSite));
   const found = new Map<string, FoundTeacher & { source: string }>();
   const seen = new Set<string>();
-  const queue: { url: string; depth: number }[] = [{ url: start, depth: 0 }];
+  // Best-first: teachers' lists before department pages before anything else; deeper faculty pages beat shallow reports.
+  const queue: { url: string; depth: number; score: number }[] = [{ url: start, depth: 0, score: 100 }];
+  const next = () => { queue.sort((a, b) => b.score - a.score || a.depth - b.depth); return queue.shift()!; };
   let pages = 0;
   while (queue.length && pages < limit) {
-    const { url, depth } = queue.shift()!;
+    const { url, depth } = next();
     if (seen.has(url) || !allowed(url)) continue;
     seen.add(url);
     if (pages) await sleep(opts.delayMs ?? 1000);
@@ -128,11 +130,16 @@ export async function findTeachersFor(rec: AisheRecord, opts: { fetcher?: typeof
     const rejected: Rejected[] = [];
     const here = extractTeachers(page.text, page.url, { includeFreeMail: opts.includeFreeMail, rejects: rejected });
     for (const t of here) if (!found.has(t.email)) found.set(t.email, { ...t, source: page.url });
-    const links = depth < 2 ? facultyLinks(page.text, page.url, depth ? 8 : 12) : [];
-    for (const l of links) if (!seen.has(l)) queue.push({ url: l, depth: depth + 1 });
+    const links = depth < 2 ? facultyLinksScored(page.text, page.url, depth ? 8 : 12) : [];
+    for (const l of links) if (!seen.has(l.url) && !queue.some(q => q.url === l.url)) queue.push({ url: l.url, depth: depth + 1, score: l.score - depth });
+    // A home page with (almost) no faculty links: try the usual addresses of teachers' lists.
+    if (!depth && links.filter(l => l.score >= 6).length < 2) {
+      const o = new URL(page.url).origin;
+      for (const path of GUESSED_FACULTY_PATHS) { const u = o + path; if (!seen.has(u) && !queue.some(q => q.url === u)) queue.push({ url: u, depth: 1, score: 4 }); }
+    }
     opts.report?.push({ url: page.url, status: page.status, teachers: here.length, rejected, links: links.length });
     // A page that only links out (JavaScript site, empty home page) is worth noting.
-    if (!depth && !links.length && !here.length && pages === 1 && page.text.length < 3000) return { teachers: [], pages, note: 'Home page has no links to follow (probably built with JavaScript)' };
+
   }
   const teachers = [...found.values()].slice(0, 300);
   if (teachers.length) return { teachers, pages, note: `${teachers.length} teachers found on ${pages} pages` };

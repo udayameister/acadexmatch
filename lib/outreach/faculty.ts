@@ -48,6 +48,24 @@ export function pageLines(html: string): string[] {
     .filter(Boolean);
 }
 
+/** Indian-style names without a title: "G. Udhayaraj", "A. Deepa Priyadarsini", "Udhayaraj G", "R. K. Sharma". */
+const INITIAL_NAME = /^(?:(?:[A-Z]\.\s*){1,3}[A-Z][A-Za-z'-]+(?:\s+[A-Z][A-Za-z'-]+){0,3}|[A-Z][A-Za-z'-]+(?:\s+[A-Z][A-Za-z'-]+){0,3}\s+(?:[A-Z]\.?\s*){1,3})$/;
+const NOT_A_NAME = /\b(department|college|university|faculty|email|e-mail|phone|mobile|contact|professor|lecturer|head|office|more|detail|profile|qualification|experience|read|view|click|home|about)\b/i;
+/** A short line near the address that is someone's name: initials style, or containing a word of the address itself. */
+function plainName(lines: string[], local: string): string | null {
+  const parts = local.toLowerCase().split(/[._\d-]+/).filter(w => w.length >= 4);
+  for (const raw of lines) {
+    const l = raw.replace(/\s*\|\s*/g, ' ').replace(/[,:;]+$/, '').trim();
+    if (!l || l.length > 60 || /\d|@/.test(l) || NOT_A_NAME.test(l)) continue;
+    const words = l.split(/\s+/);
+    if (words.length < 1 || words.length > 6) continue;
+    if (INITIAL_NAME.test(l)) return l;
+    const lw = l.toLowerCase().replace(/[^a-z\s]/g, ' ');
+    if (parts.some(w => lw.split(/\s+/).some(x => x.length >= 4 && (w.includes(x) || x.includes(w))))) return l;
+  }
+  return null;
+}
+
 const tidy = (s: string) => s.replace(/\s+/g, ' ').replace(/^[\s|,:;–—-]+|[\s|,:;–—-]+$/g, '').trim();
 
 function designationIn(text: string): string | null {
@@ -71,7 +89,7 @@ function designationIn(text: string): string | null {
 /** Does this page look like a list of teachers? (URL or heading) */
 export function isFacultyPage(url: string, lines: string[]): boolean {
   const head = lines.slice(0, 40).join(' ');
-  return /faculty|staff|people|teaching|our-?team|profile|department|dept|members|directory/i.test(url) || /\b(faculty|teaching staff|faculty members|our faculty|staff profile|people)\b/i.test(head);
+  return /faculty|staff|people|personnel|teaching|our-?team|profile|department|dept|members|directory/i.test(url) || /\b(faculty|teaching staff|faculty members|our faculty|staff profile|people)\b/i.test(head);
 }
 
 /**
@@ -93,7 +111,7 @@ export function extractTeachers(html: string, pageUrl: string, opts: { includeFr
   const hasEmail = (l: string) => { EMAIL.lastIndex = 0; const r = EMAIL.test(l); EMAIL.lastIndex = 0; return r; };
 
   // First pass: every address with the teacher details around it.
-  type Cand = FoundTeacher & { local: string; domain: string; nonTeaching: boolean };
+  type Cand = FoundTeacher & { local: string; domain: string; nonTeaching: boolean; nameMatchesAddress: boolean };
   const cands = new Map<string, Cand>();
   lines.forEach((line, i) => {
     for (const m of line.matchAll(EMAIL)) {
@@ -109,10 +127,14 @@ export function extractTeachers(html: string, pageUrl: string, opts: { includeFr
       const card = [...before, sameLine, ...after].join('\n');
       const designation = designationIn(sameLine) || designationIn([...before].reverse().join('\n')) || designationIn(after.join('\n'));
       const nameMatch = sameLine.match(NAME) || [...before].reverse().map(l => l.match(NAME)).find(Boolean) || after.map(l => l.match(NAME)).find(Boolean);
-      const name = nameMatch ? tidy(nameMatch[1]).slice(0, 80) : null;
+      // Titled names first ("Dr. R. Kumar"), then plain names on the line itself or just above / below.
+      const name = nameMatch ? tidy(nameMatch[1]).slice(0, 80)
+        : plainName([sameLine, ...[...before].reverse(), ...after], local)?.slice(0, 80) ?? null;
+      const nameWords = (name || '').toLowerCase().replace(/[^a-z\s]/g, ' ').split(/\s+/).filter(w => w.length >= 4);
+      const nameMatchesAddress = nameWords.some(w => local.toLowerCase().includes(w));
       const dm = card.match(DEPARTMENT)?.[1];
       const department = dm ? tidy(dm) : pageDept ? tidy(pageDept) : null;
-      cands.set(email, { email, name, designation, department: department ? department.slice(0, 80) : null, onCollegeDomain: !!college && baseDomain(domain) === college, freeMail: FREE_MAIL.test(domain), local, domain, nonTeaching: NON_TEACHING.test(card) });
+      cands.set(email, { email, name, designation, department: department ? department.slice(0, 80) : null, onCollegeDomain: !!college && baseDomain(domain) === college, freeMail: FREE_MAIL.test(domain), local, domain, nonTeaching: NON_TEACHING.test(card), nameMatchesAddress });
     }
   });
   // Staff addresses are often on a different domain from the website (site on .edu.in, mail on .ac.in):
@@ -130,17 +152,21 @@ export function extractTeachers(html: string, pageUrl: string, opts: { includeFr
     if (ROLE_LOCAL.test(c.local)) { reject(c.email, 'office or department address'); continue; }
     if (c.nonTeaching) { reject(c.email, 'non-teaching staff'); continue; }
     if (!c.designation && !(facultyPage && c.name)) { reject(c.email, 'no name or designation next to it'); continue; }
-    if (c.freeMail && !c.designation) { reject(c.email, 'no name or designation next to it'); continue; }
+    // Gmail-type: a teaching designation next to it, or (on a teachers' list) a name that matches the address.
+    if (c.freeMail && !c.designation && !(facultyPage && c.nameMatchesAddress)) { reject(c.email, 'no name or designation next to it'); continue; }
     out.push({ email: c.email, name: c.name, designation: c.designation, department: c.department, onCollegeDomain: ownDomain, freeMail: c.freeMail });
   }
   return out;
 }
 
-const FACULTY_HINT = /faculty|staff|people|teaching|our-?team|profiles?|members|directory|departments?|dept|academics?|school-of|schools/i;
+const FACULTY_HINT = /faculty|staff|people|personnel|teaching|our-?team|profiles?|members|directory|departments?|dept|academics?|school-of|schools/i;
 const SKIP_LINK = /student|alumni|admission|result|exam|gallery|event|news|notice|tender|download|syllabus|timetable|calendar|login|wp-login|feedback|placement-record|hostel|canteen|transport|sport/i;
 
 /** Same-site links that probably lead to teachers' lists, best first (at most `max`). */
 export function facultyLinks(html: string, baseUrl: string, max = 8): string[] {
+  return facultyLinksScored(html, baseUrl, max).map(o => o.url);
+}
+export function facultyLinksScored(html: string, baseUrl: string, max = 8): { url: string; score: number }[] {
   let base: URL;
   try { base = new URL(baseUrl); } catch { return []; }
   const site = baseDomain(base.hostname);
@@ -152,10 +178,16 @@ export function facultyLinks(html: string, baseUrl: string, max = 8): string[] {
     if (!/^https?:$/.test(u.protocol) || baseDomain(u.hostname) !== site || /\.(pdf|jpe?g|png|gif|zip|docx?|xlsx?|pptx?|mp4|mp3)$/i.test(u.pathname)) continue;
     const hay = `${u.pathname} ${text}`;
     if (!FACULTY_HINT.test(hay) || SKIP_LINK.test(hay)) continue;
-    const score = (/faculty|teaching staff|our faculty/i.test(hay) ? 10 : 0) + (/staff|people|profiles?|members|directory/i.test(hay) ? 6 : 0) + (/department|dept|school/i.test(hay) ? 3 : 0);
+    const score = (/faculty|teaching staff|our faculty|personnel/i.test(hay) ? 10 : 0) + (/staff|people|profiles?|members|directory/i.test(hay) ? 6 : 0) + (/department|dept|school/i.test(hay) ? 3 : 0)
+      - (/iqac|naac|nirf|annual|report|rules|regulation|programme|program|curriculum|committee|minutes|policy|seed-money|depository|grant|research-centre/i.test(hay) ? 8 : 0);
     u.hash = '';
     if (u.href !== base.href) out.push({ url: u.href, score });
   }
   const seen = new Set<string>();
-  return out.sort((a, b) => b.score - a.score).filter(o => (seen.has(o.url) ? false : (seen.add(o.url), true))).slice(0, max).map(o => o.url);
+  const best = new Map<string, number>();
+  for (const o of out) best.set(o.url, Math.max(best.get(o.url) ?? -99, o.score));
+  return [...best].map(([url, score]) => ({ url, score })).sort((a, b) => b.score - a.score).filter(o => (seen.has(o.url) ? false : (seen.add(o.url), true))).slice(0, max);
 }
+
+/** Usual addresses of teachers' lists, tried when a home page offers no faculty links (menus built by JavaScript). */
+export const GUESSED_FACULTY_PATHS = ['/faculty', '/faculty-members', '/our-faculty', '/faculty/', '/staff', '/teaching-staff', '/departments', '/people'];
