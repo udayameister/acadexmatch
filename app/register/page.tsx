@@ -60,6 +60,20 @@ export default function RegisterPage() {
     if (msg) setTimeout(() => errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 0);
   };
 
+  // Arriving from a "claim your listing" email: institution sign-up, prefilled with the college.
+  const [claim, setClaim] = useState<{ token: string; college: string; count: number } | null>(null);
+  useEffect(() => {
+    const token = new URLSearchParams(window.location.search).get('claim');
+    if (!token) return;
+    setRole('institute_admin');
+    setInstituteMode('new');
+    fetch(`/api/claim/${encodeURIComponent(token)}`).then(r => (r.ok ? r.json() : null)).then(d => {
+      if (!d) return;
+      setClaim({ token, college: d.college, count: d.jobs.length });
+      setNewInst(cur => ({ ...cur, name: cur.name || d.college, city: cur.city || d.city || '', state: cur.state || d.state || '' }));
+    }).catch(() => undefined);
+  }, []);
+
   useEffect(() => {
     const user = StorageService.getCurrentUser();
     if (user) router.replace(homePathForRole(user.role));
@@ -106,6 +120,7 @@ export default function RegisterPage() {
       marketingConsent: marketing,
       instituteId: role === 'institute_admin' && instituteMode === 'existing' ? instituteId : undefined,
       newInstitute: role === 'institute_admin' && instituteMode === 'new' ? newInst : undefined,
+      claimToken: role === 'institute_admin' && claim ? claim.token : undefined,
       });
     } catch {
       res = { success: false as const, error: 'Could not reach the server. Check your internet connection and try again.' };
@@ -182,6 +197,12 @@ export default function RegisterPage() {
 
             <PhoneField id="reg-phone" label="Mobile number" country={country} onCountry={setCountry} value={phone} onChange={setPhone} hint={methods?.sms ? 'We will ask you to confirm it with an SMS code. It can then be used to sign in and to recover your account.' : 'Used by institutions to contact you about applications.'} />
 
+            {role === 'institute_admin' && claim && (
+              <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-sm text-emerald-900 flex gap-2">
+                <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0" />
+                <span>Claiming {claim.count === 1 ? 'the vacancy' : `${claim.count} vacancies`} of <strong>{claim.college}</strong> already on AcadeXMatch. After we check your account, {claim.count === 1 ? 'it moves' : 'they move'} to your institution and applications come to you directly.</span>
+              </div>
+            )}
             {role === 'institute_admin' && (
               <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-4">
                 <div className="flex gap-2 text-sm">

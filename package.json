@@ -16,7 +16,8 @@
     "test:notice": "tsx tests/notice-parser.ts",
     "test:aishe": "tsx tests/aishe.ts && tsx tests/help-assistant.ts && tsx tests/facultytick.ts && tsx tests/events.ts",
     "test:outreach-send": "tsx tests/outreach-send.ts",
-    "test:teacher-outreach": "tsx tests/teacher-outreach.ts"
+    "test:teacher-outreach": "tsx tests/teacher-outreach.ts",
+    "test:claim-outreach": "tsx tests/claim-outreach.ts"
   },
   "dependencies": {
     "canvas-confetti": "^1.9.4",

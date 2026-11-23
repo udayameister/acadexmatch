@@ -6,6 +6,7 @@ import { allow, clientIp } from '@/lib/server/security';
 import { sendVerificationEmail } from '@/lib/server/authEmails';
 import { normalisePhone } from '@/lib/phone';
 import { getAishe, institutionTypeFor, normaliseAisheCode } from '@/lib/server/aishe';
+import { recordClaimRegistration } from '@/lib/server/claimOutreach';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -51,5 +52,7 @@ export async function POST(req: NextRequest) {
   if (!result.success) return NextResponse.json(result, { status: 400 });
   // The account is saved first; the email is queued and retried, so sign-up never depends on it.
   await sendVerificationEmail({ ...result.user, emailVerified: false }, req.nextUrl.origin, { welcome: true }).catch(() => undefined);
+  // Registered from a "claim your listing" email: record it for the administrator to attach the vacancies.
+  if (role === 'institute_admin' && body.claimToken) await recordClaimRegistration(String(body.claimToken).slice(0, 400), { id: result.user.id, name: result.user.name, email: result.user.email, instituteId: result.user.instituteId }).catch(() => undefined);
   return completeSignIn(req, result.user.id, 'new account', true);
 }

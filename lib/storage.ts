@@ -80,6 +80,8 @@ export interface RegisterInput {
   country?: string;
   termsAccepted?: boolean;
   marketingConsent?: boolean;
+  /** Signed link from a "claim your listing" email: the new institution account asks for those vacancies. */
+  claimToken?: string;
 }
 
 /*

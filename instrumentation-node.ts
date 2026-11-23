@@ -4,6 +4,7 @@ import { maybeRunFacultyPlusDaily } from './lib/server/facultyplusEngine';
 import { pruneOldResumeData } from './lib/server/resumes';
 import { runFinder, sendDue, runAutopilot } from './lib/server/outreach';
 import { runTeacherFinder, teacherSendDue } from './lib/server/teacherOutreach';
+import { claimSendDue } from './lib/server/claimOutreach';
 import { maybeSendDigest } from './lib/server/newPostDigest';
 import { smsConfigured, smsProvider } from './lib/server/sms';
 import { configuredProviders } from './lib/server/oidc';
@@ -45,6 +46,8 @@ if (process.env.ACAD_DISABLE_SCHEDULER !== '1' && !g.__acadScheduler) {
     // Teacher invitations: continue the faculty-page finder after a restart; send within the daily limit while switched on.
     runTeacherFinder().catch(err => console.error('[AcadeXMatch] Teacher finder error', err));
     teacherSendDue().catch(err => console.error('[AcadeXMatch] Teacher invitation error', err));
+    // "Claim your listing": colleges whose imported vacancies have been live a few days (when switched on).
+    claimSendDue().catch(err => console.error('[AcadeXMatch] Claim outreach error', err));
     sendRenewalReminders().catch(err => console.error('[AcadeXMatch] Renewal reminder error', err));
     reconcilePayments().catch(err => console.error('[AcadeXMatch] Payment check error', err));
     // Close expired vacancies first so alerts never include them.
