@@ -5,9 +5,9 @@ import { AlertTriangle, CheckCircle2, Download, ExternalLink, Globe, GraduationC
 
 interface Finder { running: boolean; filter: { state?: string; category?: string }; done: number; total: number; found: number; skipped: number; pages: number; queued: number; startedAt?: string; finishedAt?: string; lastError?: string }
 interface Summary {
-  senderConfigured: boolean; sender: string | null; senderKind: 'separate' | 'main' | null; separateSender: string | null; mainMailbox: string | null;
+  senderConfigured: boolean; sender: string | null; senderKind: 'separate' | 'main' | 'api' | 'outreach-api' | null; separateSender: string | null; mainMailbox: string | null; apiSender: string | null; outreachApiSender: string | null;
   whyNone: { reason: string; n: number }[];
-  settings: { dailyLimit: number; includeFreeMail: boolean; pagesPerSite: number; useMainSmtp: boolean };
+  settings: { dailyLimit: number; includeFreeMail: boolean; pagesPerSite: number; useMainSmtp: boolean; useOutreachApi: boolean };
   finder: Finder; template: { subject: string; body: string };
   sending: boolean; sendingSince?: string; lastError: string | null; sentToday: number;
   counts: Record<string, number>; visited: number; visitedWithTeachers: number; pagesRead: number; joined: number;
@@ -127,17 +127,18 @@ export default function TeacherOutreachPanel() {
       <section className={card}>
         <h3 className="font-semibold text-slate-900 flex items-center gap-2"><Mail className="w-4 h-4 text-brand-700" /> Sender</h3>
         {s.senderConfigured
-          ? <p className="text-sm p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 flex items-center gap-2"><CheckCircle2 className="w-4 h-4 shrink-0" /> Invitations are sent from <strong>{s.sender}</strong> {s.senderKind === 'main' ? '(the site’s own mailbox)' : '(separate outreach mailbox)'}.</p>
+          ? <p className="text-sm p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 flex items-center gap-2"><CheckCircle2 className="w-4 h-4 shrink-0" /> Invitations are sent from <strong>{s.sender}</strong> {({ main: '(the site’s own mailbox)', separate: '(separate mailbox)', api: '(separate email-API account)', 'outreach-api': '(the outreach Brevo account)' } as Record<string, string>)[s.senderKind || 'separate']}.</p>
           : <p className="text-sm p-3 rounded-xl bg-crimson-50 border border-crimson-200 text-crimson-900 flex items-center gap-2"><AlertTriangle className="w-4 h-4 shrink-0" /> No mailbox chosen yet — finding teachers works, sending does not.</p>}
-        {!s.separateSender && s.mainMailbox && (
+        {!s.apiSender && s.outreachApiSender && (
           <label className="flex items-start gap-2 text-sm text-slate-800 p-3 rounded-xl border border-slate-200">
-            <input type="checkbox" className="mt-0.5 w-4 h-4" checked={s.settings.useMainSmtp} disabled={busy === 'smtp'}
-              onChange={e => { const on = e.target.checked; if (on && !window.confirm(`Send teacher invitations from ${s.mainMailbox}?\n\nThis is the site's own mailbox. Keep the daily limit low (25 or fewer): many unanswered or reported emails can hurt how other mail from this address is delivered.`)) return; run('smtp', () => api({ action: 'settings', useMainSmtp: on }), on ? `Invitations will be sent from ${s.mainMailbox}.` : 'Stopped using the site mailbox.'); }} />
-            <span>Use the site&apos;s mailbox <strong>{s.mainMailbox}</strong> for invitations <span className="block text-xs text-slate-500 mt-0.5">Quickest way to start. Keep it to about 25 a day; replies come to that mailbox.</span></span>
+            <input type="checkbox" className="mt-0.5 w-4 h-4" checked={s.settings.useOutreachApi} disabled={busy === 'oapi'}
+              onChange={e => { const on = e.target.checked; if (on && !window.confirm(`Send teacher invitations through the outreach Brevo account (${s.outreachApiSender})?\n\nBrevo's rules do not allow addresses collected from websites; if Brevo objects it can suspend this account, which also sends the institution and claim-your-listing emails. A separate Brevo account (TEACHER_EMAIL_API_KEY) avoids that risk.`)) return; run('oapi', () => api({ action: 'settings', useOutreachApi: on }), on ? 'Invitations will go through the outreach Brevo account.' : 'Stopped using the outreach account.'); }} />
+            <span>Use the outreach Brevo account <strong>{s.outreachApiSender}</strong> <span className="block text-xs text-slate-500 mt-0.5">Works now (web API). Risk: Brevo may suspend the account it shares with the institution outreach. Keep it to about 25 a day.</span></span>
           </label>
         )}
+        <p className="text-xs text-slate-500">Mailboxes (SMTP, including info@acadexmatch.com) cannot send from GoDaddy&apos;s Node hosting — it blocks outgoing mail connections. Use an email web API instead: best is a separate free Brevo account just for invitations, added in GoDaddy as <code className="bg-slate-100 px-1 rounded">TEACHER_EMAIL_API_KEY</code> and <code className="bg-slate-100 px-1 rounded">TEACHER_MAIL_FROM</code> (e.g. <code className="bg-slate-100 px-1 rounded">Udayakumar from AcadeXMatch &lt;invite@acadexmatch.com&gt;</code>, with that domain authenticated in Brevo).</p>
         <details className="text-sm text-slate-700">
-          <summary className="cursor-pointer font-semibold">{s.separateSender ? 'Separate outreach mailbox in use' : 'Better: a separate outreach mailbox'}</summary>
+          <summary className="cursor-pointer font-semibold">{s.separateSender ? 'Separate mailbox in use' : 'Other option: a mailbox (SMTP) — blocked on GoDaddy hosting'}</summary>
           <p className="mt-2">A mailbox used only for invitations (for example <code className="bg-slate-100 px-1 rounded">invite@acadexmatch.com</code>, or one on a separate domain) protects the main address. Add these in GoDaddy (Settings → Secrets → Publish) and publish; it then takes over automatically:</p>
           <pre className="bg-slate-50 p-3 rounded-lg text-xs overflow-x-auto mt-2">{`CANDIDATE_SMTP_HOST   e.g. smtp.titan.email
 CANDIDATE_SMTP_PORT   465

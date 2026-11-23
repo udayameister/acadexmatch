@@ -26,6 +26,8 @@ export interface TeacherSettings {
   dailyLimit: number; includeFreeMail: boolean; pagesPerSite: number;
   /** Send through the site's own mailbox (SMTP_*) when no separate CANDIDATE_SMTP_* account is set. Chosen by the administrator. */
   useMainSmtp: boolean;
+  /** Send through the outreach Brevo account (web API) — chosen by the administrator, who accepts Brevo's rules. */
+  useOutreachApi: boolean;
 }
 export interface TeacherFinder {
   running: boolean; stopRequested?: boolean; filter: { state?: string; category?: string };
@@ -38,7 +40,7 @@ interface State {
   sending: boolean; sendingSince?: string; lastError?: string; day: { date: string; sent: number };
 }
 
-const SETTINGS: TeacherSettings = { dailyLimit: 50, includeFreeMail: false, pagesPerSite: 20, useMainSmtp: false };
+const SETTINGS: TeacherSettings = { dailyLimit: 50, includeFreeMail: false, pagesPerSite: 20, useMainSmtp: false, useOutreachApi: false };
 const blankFinder = (): TeacherFinder => ({ running: false, filter: {}, queue: [], total: 0, done: 0, found: 0, skipped: 0, pages: 0 });
 
 export function defaultTemplate(): TeacherTemplate {
@@ -240,12 +242,17 @@ export function runTeacherFinder(): Promise<void> {
 
 // ------------------------------------------------------------------ sender (separate from every other mail)
 
-interface SenderConf { kind: 'separate' | 'main'; host: string; port: number; secure: boolean; user: string; pass: string; from: string; replyTo?: string }
+interface SenderConf { kind: 'separate' | 'main' | 'api' | 'outreach-api'; host: string; port: number; secure: boolean; user: string; pass: string; from: string; replyTo?: string; apiKey?: string; apiUrl?: string }
+const apiReady = () => !!(process.env.TEACHER_EMAIL_API_KEY && process.env.TEACHER_MAIL_FROM);
+const outreachApiReady = () => !!(process.env.OUTREACH_EMAIL_API_KEY && process.env.OUTREACH_MAIL_FROM);
 const separateReady = () => !!(process.env.CANDIDATE_SMTP_HOST && process.env.CANDIDATE_SMTP_USER && process.env.CANDIDATE_SMTP_PASS && process.env.CANDIDATE_MAIL_FROM);
 const mainReady = () => !!(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
 const asAddress = (v?: string) => (v || '').match(/<([^>]+)>/)?.[1] || (v || '').trim();
 /** The mailbox that sends teacher invitations: a separate account if set up, else the site's mailbox if the administrator allowed it. */
 function senderConf(settings: TeacherSettings): SenderConf | null {
+  // Web API first: GoDaddy's Node hosting blocks outgoing SMTP (ports 465/587), so mailboxes cannot send from there.
+  if (apiReady()) return { kind: 'api', host: '', port: 0, secure: true, user: '', pass: '', from: process.env.TEACHER_MAIL_FROM!, replyTo: process.env.TEACHER_REPLY_TO || undefined, apiKey: process.env.TEACHER_EMAIL_API_KEY!, apiUrl: (process.env.TEACHER_EMAIL_API_URL || 'https://api.brevo.com').replace(/\/$/, '') };
+  if (settings.useOutreachApi && outreachApiReady()) return { kind: 'outreach-api', host: '', port: 0, secure: true, user: '', pass: '', from: process.env.OUTREACH_MAIL_FROM!, replyTo: process.env.OUTREACH_REPLY_TO || 'info@acadexmatch.com', apiKey: process.env.OUTREACH_EMAIL_API_KEY!, apiUrl: (process.env.OUTREACH_EMAIL_API_URL || 'https://api.brevo.com').replace(/\/$/, '') };
   if (separateReady()) {
     const port = Number(process.env.CANDIDATE_SMTP_PORT || 587);
     return { kind: 'separate', host: process.env.CANDIDATE_SMTP_HOST!, port, secure: process.env.CANDIDATE_SMTP_SECURE ? process.env.CANDIDATE_SMTP_SECURE === 'true' : port === 465, user: process.env.CANDIDATE_SMTP_USER!, pass: process.env.CANDIDATE_SMTP_PASS!, from: process.env.CANDIDATE_MAIL_FROM!, replyTo: process.env.CANDIDATE_REPLY_TO || undefined };
@@ -305,14 +312,36 @@ ${body.split(/\n{2,}/).map(p => `<p style="margin:0 0 14px">${linkify(p).replace
   return { subject, text, html, headers: { 'List-Unsubscribe': `<${unsub}>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' } };
 }
 
+const parseFromAddr = (v: string) => { const m = v.match(/^\s*"?([^"<]*?)"?\s*<([^>]+)>\s*$/); return m ? { name: m[1].trim() || undefined, email: m[2].trim() } : { email: v.trim() }; };
+
+/** Brevo-compatible transactional API (POST /v3/smtp/email). Errors carry the HTTP status, like SMTP response codes. */
+async function sendViaApi(c: SenderConf, to: string, msg: ReturnType<typeof renderInvite>): Promise<string | undefined> {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 20000);
+  try {
+    const r = await fetch(`${c.apiUrl}/v3/smtp/email`, {
+      method: 'POST', signal: ctrl.signal,
+      headers: { 'api-key': c.apiKey!, 'Content-Type': 'application/json', accept: 'application/json' },
+      body: JSON.stringify({ sender: parseFromAddr(c.from), replyTo: c.replyTo ? { email: asAddress(c.replyTo) } : undefined, to: [{ email: to }], subject: msg.subject, textContent: msg.text, htmlContent: msg.html, headers: msg.headers, tags: ['teacher-invite'] }),
+    });
+    const d = await r.json().catch(() => ({})) as { message?: string; messageId?: string };
+    if (!r.ok) throw Object.assign(new Error(`Email API ${r.status}: ${d.message || r.statusText}`), { status: r.status });
+    return d.messageId;
+  } finally { clearTimeout(t); }
+}
+
 async function send(c: SenderConf, to: string, msg: ReturnType<typeof renderInvite>): Promise<string | undefined> {
+  if (c.kind === 'api' || c.kind === 'outreach-api') return sendViaApi(c, to, msg);
   const info = await transport(c).sendMail({ from: c.from, to, replyTo: c.replyTo, subject: msg.subject, text: msg.text, html: msg.html, headers: msg.headers });
   return info.messageId;
 }
 
 /** SMTP problems: login refused (stop sending), temporary (try later), or this address refused (mark failed). */
 function classify(e: unknown): 'auth' | 'temporary' | 'address' {
-  const err = e as { code?: string; responseCode?: number; message?: string };
+  const err = e as { code?: string; responseCode?: number; message?: string; status?: number };
+  if (err.status) return err.status === 401 || err.status === 403 ? 'auth' : err.status === 400 ? 'address' : 'temporary';
+  // Hosting that blocks outgoing mail connections: nothing will work until the sender changes.
+  if (err.code === 'EACCES' || err.code === 'ECONNREFUSED') return 'auth';
   if (err.code === 'EAUTH' || err.responseCode === 535 || err.responseCode === 534 || err.responseCode === 530) return 'auth';
   if (err.responseCode && err.responseCode >= 500 && err.responseCode < 600) return 'address';
   return 'temporary';
@@ -445,6 +474,8 @@ export async function teacherSummary() {
     sender: senderConf(s.settings)?.from || null,
     senderKind: senderConf(s.settings)?.kind || null,
     separateSender: separateReady() ? process.env.CANDIDATE_MAIL_FROM || null : null,
+    apiSender: apiReady() ? process.env.TEACHER_MAIL_FROM || null : null,
+    outreachApiSender: outreachApiReady() ? process.env.OUTREACH_MAIL_FROM || null : null,
     mainMailbox: mainReady() ? asAddress(process.env.SMTP_USER) || null : null,
     whyNone: await whyNoneSummary(p),
     settings: s.settings, finder: { ...s.finder, queue: undefined, queued: s.finder.queue.length },
@@ -483,6 +514,7 @@ export async function saveTeacherSettings(raw: Partial<TeacherSettings>): Promis
     if (raw.pagesPerSite != null) s.settings.pagesPerSite = Math.max(2, Math.min(30, Math.round(Number(raw.pagesPerSite)) || SETTINGS.pagesPerSite));
     if (raw.includeFreeMail != null) s.settings.includeFreeMail = !!raw.includeFreeMail;
     if (raw.useMainSmtp != null) { s.settings.useMainSmtp = !!raw.useMainSmtp; g.__teacherTransport = null; }
+    if (raw.useOutreachApi != null) s.settings.useOutreachApi = !!raw.useOutreachApi;
     return s.settings;
   });
 }

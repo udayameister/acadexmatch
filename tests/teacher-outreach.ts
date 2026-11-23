@@ -155,6 +155,36 @@ const FACULTY = `<html><head><title>Faculty | Department of Computer Science and
     await persist.writeJson('teacher-outreach-state', null);
   }
 
+  // ---- email web API (GoDaddy blocks SMTP): a separate account, or the outreach account when chosen
+  {
+    const http = await import('http');
+    const apiGot: { key: string; body: { sender: { email: string }; to: { email: string }[]; subject: string; tags: string[] } }[] = [];
+    const api = http.createServer((req, res) => { let b = ''; req.on('data', c => { b += c; }); req.on('end', () => { apiGot.push({ key: String(req.headers['api-key']), body: JSON.parse(b) }); res.setHeader('content-type', 'application/json'); res.end(JSON.stringify({ messageId: '<x@brevo>' })); }); });
+    await new Promise<void>(r => api.listen(0, '127.0.0.1', () => r()));
+    const url = `http://127.0.0.1:${(api.address() as { port: number }).port}`;
+    const keep = { ...process.env };
+    for (const k of ['CANDIDATE_SMTP_HOST', 'CANDIDATE_SMTP_USER', 'CANDIDATE_SMTP_PASS', 'CANDIDATE_MAIL_FROM', 'SMTP_HOST']) delete process.env[k];
+    Object.assign(process.env, { OUTREACH_EMAIL_API_KEY: 'outreach-key', OUTREACH_EMAIL_API_URL: url, OUTREACH_MAIL_FROM: 'AcadeXMatch <hello@outreach.acadexmatch.com>' });
+    await persist.writeJson('teacher-outreach-state', null);
+    assert.equal((await to.teacherSummary()).senderConfigured, false, 'outreach account only when chosen');
+    await to.saveTeacherSettings({ useOutreachApi: true });
+    assert.equal((await to.teacherSummary()).senderKind, 'outreach-api');
+    await to.sendTeacherTest('me@example.com');
+    assert.equal(apiGot[0].key, 'outreach-key');
+    assert.equal(apiGot[0].body.sender.email, 'hello@outreach.acadexmatch.com');
+    assert.deepEqual(apiGot[0].body.tags, ['teacher-invite']);
+    // A separate teacher account takes precedence.
+    Object.assign(process.env, { TEACHER_EMAIL_API_KEY: 'teacher-key', TEACHER_EMAIL_API_URL: url, TEACHER_MAIL_FROM: 'Udayakumar from AcadeXMatch <invite@acadexmatch.com>' });
+    assert.equal((await to.teacherSummary()).senderKind, 'api');
+    await to.sendTeacherTest('me@example.com');
+    assert.equal(apiGot[1].key, 'teacher-key');
+    assert.equal(apiGot[1].body.sender.email, 'invite@acadexmatch.com');
+    for (const k of ['TEACHER_EMAIL_API_KEY', 'TEACHER_EMAIL_API_URL', 'TEACHER_MAIL_FROM', 'OUTREACH_EMAIL_API_KEY', 'OUTREACH_EMAIL_API_URL', 'OUTREACH_MAIL_FROM']) delete process.env[k];
+    Object.assign(process.env, keep);
+    await persist.writeJson('teacher-outreach-state', null);
+    api.close();
+  }
+
   // ---- sending
   const p = await persist.sqlPool();
   await to.teacherSummary(); // creates the tables
