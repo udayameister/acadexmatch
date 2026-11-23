@@ -12,6 +12,7 @@ import DonationSection from '@/components/DonationSection';
 import HomeEventPosters from '@/components/HomeEventPosters';
 import SocialSection from '@/components/SocialSection';
 import LatestPosts from '@/components/LatestPosts';
+import FreeToolsSection from '@/components/FreeTools';
 import { Reveal, CountUp, RotatingText, ServiceMarquee, type MarqueeItem } from '@/components/HomeMotion';
 import { HeroBackdropFx, HeroHeadline, JourneySwitcher, LiveVacancyToast, PointerEffects, ScoreWeights, ScrollProgress, useTypedPlaceholder } from '@/components/HomeInteractive';
 import { StorageService, isDeadlinePassed, institutionFreeActive, eventsFreeActive } from '@/lib/storage';
@@ -417,6 +418,9 @@ export default function HomePage() {
           </div>
         </section>
       )}
+
+      {/* ───────────────────────── Free tools ───────────────────────── */}
+      <FreeToolsSection />
 
       {/* ───────────────────────── Highlighted events, as posters ───────────────────────── */}
       <HomeEventPosters />

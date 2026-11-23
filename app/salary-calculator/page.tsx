@@ -4,6 +4,7 @@ import React, { Suspense, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { CITIES, CityClass, DEFAULT_DA_PERCENT, PAY_LEVELS, basicAfter, calculateSalary, inr } from '@/lib/salary';
 import { Calculator, Info } from 'lucide-react';
+import SalaryExtras from '@/components/SalaryExtras';
 
 const field = 'w-full px-3 py-2.5 rounded-xl bg-white border border-slate-300 text-sm text-slate-900 focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100';
 
@@ -41,8 +42,8 @@ function Calculator_() {
     <div className="w-full max-w-5xl mx-auto px-4 sm:px-8 py-10 space-y-6">
       <div>
         <p className="text-sm font-semibold text-brand-700 inline-flex items-center gap-3"><span className="gold-rule" />Tools</p>
-        <h1 className="text-3xl sm:text-4xl font-bold text-brand-800 mt-2 flex items-center gap-3"><Calculator className="w-8 h-8 text-gold-500" /> Faculty salary calculator</h1>
-        <p className="text-slate-600 mt-2 max-w-3xl">Estimate monthly pay under the 7th CPC academic pay matrix used by UGC and AICTE. Change the DA rate, city and deductions to match your situation.</p>
+        <h1 className="text-3xl sm:text-4xl font-bold text-brand-800 mt-2 flex items-center gap-3"><Calculator className="w-8 h-8 text-gold-500" /> Faculty salary calculator, DA arrears &amp; pay commission</h1>
+        <p className="text-slate-600 mt-2 max-w-3xl">Estimate monthly pay under the 7th CPC academic pay matrix used by UGC and AICTE. Change the DA rate, city and deductions to match your situation. Below: <a href="#da-arrears" className="underline">DA arrears</a>, <a href="#increment" className="underline">next increment date</a> and a <a href="#pay-commission" className="underline">pay commission estimator</a>.</p>
       </div>
 
       <div className="grid lg:grid-cols-12 gap-6">
@@ -109,11 +110,12 @@ function Calculator_() {
             </div>
             <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-600 flex gap-2">
               <Info className="w-4 h-4 shrink-0 mt-0.5 text-slate-500" />
-              <p>This is an estimate for central / UGC-scale posts. State universities and private institutions may pay differently, and the DA rate changes twice a year ({DEFAULT_DA_PERCENT}% from January 2026; check the latest order). Increments are taken as 3% a year, rounded up to the next ₹100. Income tax, other allowances (such as CPDA, research or academic allowances) and other deductions are not included.</p>
+              <p>This is an estimate for central / UGC-scale posts. State universities and private institutions may pay differently, and the DA rate changes twice a year ({DEFAULT_DA_PERCENT}% from 1 July 2026 under the Finance Ministry order of 29 October 2026; check the latest order). Increments are taken as 3% a year, to the nearest ₹100 cell of the pay matrix. Income tax, other allowances (such as CPDA, research or academic allowances) and other deductions are not included.</p>
             </div>
           </section>
         )}
       </div>
+      {r && <SalaryExtras basic={r.basic} ta={r.ta} hraPct={r.hraPct} gross={r.gross} />}
     </div>
   );
 }

@@ -22,6 +22,7 @@ const LINKS: Record<'public' | UserRole, NavLinkItem[]> = {
     { href: '/jobs', label: 'Find Jobs' },
     { href: '/institutes', label: 'Institutions' },
     { href: '/events', label: 'Events' },
+    { href: '/tools', label: 'Free tools' },
     { href: '/blog', label: 'Blog' },
     { href: '/premium', label: 'Plans' },
     { href: '/#for-institutions', label: 'For Institutions' },
@@ -135,17 +136,17 @@ export default function Navbar() {
 
   return (
     <header className="print:hidden sticky top-0 z-40 bg-ivory/90 backdrop-blur-md border-b border-slate-200/80 w-full">
-      <div className="max-w-7xl mx-auto px-4 sm:px-8 h-16 flex items-center justify-between gap-3 sm:gap-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-8 h-16 flex items-center justify-between gap-3 sm:gap-4 2xl:gap-6">
         <Link href={user ? homePathForRole(user.role) : '/'} className="shrink-0" aria-label="AcadeXMatch home">
           <BrandLogo />
         </Link>
 
-        <nav className="hidden lg:flex items-center gap-1">
+        <nav className="hidden xl:flex items-center gap-1">
           {links.map(item => (
             <Link
               key={item.href}
               href={item.href}
-              className={`px-3 xl:px-3.5 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition ${
+              className={`px-2 2xl:px-3.5 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition ${
                 isActive(item.href) ? 'text-brand-900 bg-brand-50' : 'text-brand-800/85 hover:text-brand-900 hover:bg-brand-50'
               }`}
             >
@@ -226,8 +227,8 @@ export default function Navbar() {
                       </Link>
                     </>
                   )}
-                  <Link href="/salary-calculator" className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50">
-                    <Calculator className="w-4 h-4 text-slate-400" /> Salary calculator
+                  <Link href="/tools" className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50">
+                    <Calculator className="w-4 h-4 text-slate-400" /> Free tools
                   </Link>
                   <button onClick={handleLogout} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-crimson-600 hover:bg-crimson-50">
                     <LogOut className="w-4 h-4" /> Sign out
@@ -248,7 +249,7 @@ export default function Navbar() {
 
           <button
             onClick={() => setMobileOpen(o => !o)}
-            className="lg:hidden p-2 rounded-lg text-slate-600 hover:bg-slate-100"
+            className="xl:hidden p-2 rounded-lg text-slate-600 hover:bg-slate-100"
             aria-label="Toggle menu"
             aria-expanded={mobileOpen}
           >
@@ -258,7 +259,7 @@ export default function Navbar() {
       </div>
 
       {mobileOpen && (
-        <nav className="lg:hidden border-t border-slate-200 bg-white px-4 py-3 space-y-1">
+        <nav className="xl:hidden border-t border-slate-200 bg-white px-4 py-3 space-y-1">
           {links.map(item => (
             <Link
               key={item.href}

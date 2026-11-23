@@ -31,22 +31,79 @@ export const CITIES: { name: string; cls: CityClass; tpta: boolean }[] = [
   { name: 'Vijayawada', cls: 'Y', tpta: false }, { name: 'Visakhapatnam', cls: 'Y', tpta: false }, { name: 'Warangal', cls: 'Y', tpta: false },
 ];
 
-/** DA rate in force from 1 January 2026 (central government). Users can change it in the calculator. */
-export const DEFAULT_DA_PERCENT = 60;
+/**
+ * Central government DA (% of basic pay) by the date it took effect. Latest: 63% from 1 July 2026
+ * (Ministry of Finance OM No. 1/2(i)/2026-E.II(B), 29 October 2026). UGC-scale teachers in central institutions
+ * follow these rates; states announce their own.
+ */
+export const DA_HISTORY: { from: string; pct: number }[] = [
+  { from: '2024-01-01', pct: 50 }, { from: '2024-07-01', pct: 53 }, { from: '2025-01-01', pct: 55 },
+  { from: '2025-07-01', pct: 58 }, { from: '2026-01-01', pct: 60 }, { from: '2026-07-01', pct: 63 },
+];
+/** DA rate in force now (central government). Users can change it in the calculator. */
+export const DEFAULT_DA_PERCENT = DA_HISTORY[DA_HISTORY.length - 1].pct;
+export const daOn = (isoDate: string) => [...DA_HISTORY].reverse().find(d => d.from <= isoDate)?.pct ?? DA_HISTORY[0].pct;
 
 export function hraPercent(cls: CityClass, daPercent: number): number {
   const table = daPercent >= 50 ? { X: 30, Y: 20, Z: 10 } : daPercent >= 25 ? { X: 27, Y: 18, Z: 9 } : { X: 24, Y: 16, Z: 8 };
   return table[cls];
 }
 
-/** Basic pay after `years` annual increments (3%, rounded up to the next ₹100), capped at the level maximum. */
+/** The next cell of the pay matrix: +3%, rounded to the nearest ₹100 (e.g. Level 10: 57,700 → 59,400 → 61,200). */
+export const nextCell = (pay: number) => Math.round((pay * 1.03) / 100) * 100;
+
+/** Basic pay after `years` annual increments, capped at the level maximum. */
 export function basicAfter(level: PayLevel, years: number): number {
   let pay = level.entry;
   for (let i = 0; i < Math.max(0, Math.floor(years)); i++) {
-    pay = Math.ceil((pay * 1.03) / 100) * 100;
+    pay = nextCell(pay);
     if (pay >= level.max) return level.max;
   }
   return pay;
+}
+
+// ------------------------------------------------------------------ DA arrears
+
+export interface ArrearsInput { basic: number; oldPct: number; newPct: number; from: string; to: string; ta: number; nps: boolean }
+/** Arrears of a DA increase for whole months from `from` to `to` (YYYY-MM), with DA on transport allowance. */
+export function daArrears(i: ArrearsInput) {
+  const [fy, fm] = i.from.split('-').map(Number), [ty, tm] = i.to.split('-').map(Number);
+  const months = Math.max(0, (ty - fy) * 12 + (tm - fm) + 1);
+  const diff = Math.max(0, i.newPct - i.oldPct) / 100;
+  const perMonthDa = Math.round(i.basic * diff);
+  const perMonthTa = Math.round(i.ta * diff);
+  const gross = (perMonthDa + perMonthTa) * months;
+  const nps = i.nps ? Math.round(perMonthDa * months * 0.1) : 0;
+  return { months, perMonthDa, perMonthTa, gross, nps, net: gross - nps };
+}
+
+// ------------------------------------------------------------------ increment date
+
+/**
+ * Next annual increment under the 7th CPC rules (two dates, 1 January and 1 July): joining, promotion or
+ * upgradation between 2 January and 1 July → 1 January of the next year; between 2 July and 1 January → 1 July.
+ * Later increments fall on the same date every year.
+ */
+export function nextIncrementDate(joinedIso: string, todayIso: string): string {
+  const d = new Date(`${joinedIso}T00:00:00Z`);
+  const y = d.getUTCFullYear(), m = d.getUTCMonth() + 1, day = d.getUTCDate();
+  // 2 Jan – 1 Jul → 1 Jan next year; 2 Jul – 31 Dec → 1 Jul next year; 1 Jan → 1 Jul same year.
+  let first: string;
+  if (m === 1 && day === 1) first = `${y}-07-01`;
+  else if (m < 7 || (m === 7 && day === 1)) first = `${y + 1}-01-01`;
+  else first = `${y + 1}-07-01`;
+  let next = first;
+  while (next <= todayIso) next = `${Number(next.slice(0, 4)) + 1}${next.slice(4)}`;
+  return next;
+}
+
+// ------------------------------------------------------------------ pay commission estimator
+
+/** Illustrative pay after a pay revision: basic × fitment factor (to the nearest ₹100); DA starts again at 0%. */
+export function payRevision(basic: number, fitment: number, hraPct: number, ta: number) {
+  const newBasic = Math.round((basic * fitment) / 100) * 100;
+  const hra = Math.round((newBasic * hraPct) / 100);
+  return { newBasic, hra, ta, gross: newBasic + hra + ta };
 }
 
 export interface SalaryInput {

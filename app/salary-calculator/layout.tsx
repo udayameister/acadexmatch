@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: '7th CPC Faculty Salary Calculator (Assistant Professor Pay)',
-  description: 'Estimate the monthly salary of an Assistant Professor, Associate Professor or Professor under the 7th CPC academic pay levels, with DA and HRA.',
+  title: 'Faculty Salary Calculator, DA Arrears & 8th Pay Commission Estimator',
+  description: 'Estimate the monthly salary of an Assistant Professor, Associate Professor or Professor under the 7th CPC academic pay levels with DA 63% and HRA; calculate DA arrears, your next increment date and pay under a new pay commission.',
   alternates: { canonical: '/salary-calculator' },
   openGraph: { url: '/salary-calculator' },
 };

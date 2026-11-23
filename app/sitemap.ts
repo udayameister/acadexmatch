@@ -1,3 +1,4 @@
+import { FREE_TOOLS } from '@/lib/tools';
 import type { MetadataRoute } from 'next';
 import { STORAGE_KEYS } from '@/lib/storage';
 import { withDb } from '@/lib/server/db';
@@ -36,6 +37,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${SITE_URL}/conferences` },
     { url: `${SITE_URL}/blog`, ...(posts[0]?.publishAt ? { lastModified: new Date(posts[0].publishAt) } : {}) },
     { url: `${SITE_URL}/salary-calculator` },
+    { url: `${SITE_URL}/tools` },
+    ...FREE_TOOLS.filter(t => t.live && t.href.startsWith('/tools/')).map(t => ({ url: `${SITE_URL}${t.href}` })),
     { url: `${SITE_URL}/premium` },
     { url: `${SITE_URL}/about` },
     { url: `${SITE_URL}/terms` },

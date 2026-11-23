@@ -75,6 +75,7 @@ export default function Footer() {
         { href: '/premium', label: 'Plans & Premium' },
         { href: '/events', label: 'FDPs, workshops & seminars' },
         { href: '/conferences', label: 'Conferences' },
+        { href: '/tools', label: 'Free tools' },
         { href: '/salary-calculator', label: 'Salary calculator' },
         { href: '/terms', label: 'Terms of Service' },
         { href: '/privacy', label: 'Privacy Policy' },
