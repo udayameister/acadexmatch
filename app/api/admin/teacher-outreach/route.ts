@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin, sameOrigin } from '@/lib/server/auth';
 import {
   teacherSummary, listTeachers, teacherFinderPreview, startTeacherFinder, stopTeacherFinder, saveTeacherSettings,
-  saveTeacherTemplate, sendTeacherTest, setTeacherSending, removeTeacher, defaultTemplate,
+  saveTeacherTemplate, sendTeacherTest, setTeacherSending, removeTeacher, defaultTemplate, testTeacherSite,
 } from '@/lib/server/teacherOutreach';
 import { suppress } from '@/lib/server/outreach';
 
@@ -37,11 +37,12 @@ export async function POST(req: NextRequest) {
   const denied = await requireAdmin(req);
   if (denied) return denied;
   const b = await req.json().catch(() => ({})) as Record<string, unknown>;
-  const filter = { state: b.state ? String(b.state) : undefined, category: b.category ? String(b.category) : undefined };
+  const filter = { state: b.state ? String(b.state) : undefined, category: b.category ? String(b.category) : undefined, recheck: b.recheck === true };
   try {
     switch (b.action) {
       case 'preview': return NextResponse.json({ colleges: await teacherFinderPreview(filter) });
       case 'startFinder': return NextResponse.json({ finder: await startTeacherFinder(filter, Number(b.limit) || 100) });
+      case 'testSite': return NextResponse.json(await testTeacherSite(String(b.url || '')));
       case 'stopFinder': await stopTeacherFinder(); return NextResponse.json({ ok: true });
       case 'settings': return NextResponse.json({ settings: await saveTeacherSettings(b as never) });
       case 'template': return NextResponse.json({ template: await saveTeacherTemplate({ subject: String(b.subject || ''), body: String(b.body || '') }) });

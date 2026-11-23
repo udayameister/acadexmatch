@@ -36,6 +36,24 @@ function decodeEntities(s: string): string {
     .replace(/&(amp|commat|period|nbsp);/gi, (_, e) => ({ amp: '&', commat: '@', period: '.', nbsp: ' ' } as Record<string, string>)[e.toLowerCase()]);
 }
 
+/** Cloudflare "email protection": hex string whose first byte is the XOR key. */
+export function cfDecode(hex: string): string {
+  if (!/^[0-9a-f]{4,}$/i.test(hex) || hex.length % 2) return '';
+  const key = parseInt(hex.slice(0, 2), 16);
+  let out = '';
+  for (let i = 2; i < hex.length; i += 2) out += String.fromCharCode(parseInt(hex.slice(i, i + 2), 16) ^ key);
+  return out;
+}
+/**
+ * Writes out addresses hidden by Cloudflare's email protection (very common on college WordPress sites):
+ * <a href="/cdn-cgi/l/email-protection#hex">[email protected]</a> and <span class="__cf_email__" data-cfemail="hex">.
+ */
+export function revealCloudflareEmails(html: string): string {
+  return html
+    .replace(/<a\b[^>]*href\s*=\s*["'][^"']*\/cdn-cgi\/l\/email-protection#([0-9a-f]+)["'][^>]*>[\s\S]*?<\/a>/gi, (_, h: string) => ` ${cfDecode(h)} `)
+    .replace(/<[a-z]+\b[^>]*data-cfemail\s*=\s*["']([0-9a-f]+)["'][^>]*>[\s\S]*?<\/[a-z]+>/gi, (_, h: string) => ` ${cfDecode(h)} `);
+}
+
 /** Turns "principal [at] abc [dot] ac [dot] in" and similar into normal addresses. */
 export function deobfuscate(text: string): string {
   return text
@@ -68,6 +86,7 @@ export function extractEmails(html: string, pageUrl: string): FoundEmail[] {
   try { host = new URL(pageUrl).hostname; } catch { /* ignore */ }
   const college = host ? baseDomain(host) : '';
   const found = new Set<string>();
+  html = revealCloudflareEmails(html);
   for (const m of html.matchAll(/mailto:([^"'?\s>]+)/gi)) { const e = cleanEmail(decodeEntities(m[1])); if (e) found.add(e); }
   const text = deobfuscate(decodeEntities(html.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, ' ').replace(/<[^>]+>/g, ' ')));
   for (const m of text.matchAll(EMAIL_RE)) { const e = cleanEmail(m[0]); if (e) found.add(e); }

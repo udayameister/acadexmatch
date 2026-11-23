@@ -5,7 +5,7 @@
  */
 import assert from 'assert';
 import net from 'net';
-import { extractTeachers, facultyLinks } from '../lib/outreach/faculty';
+import { extractTeachers, facultyLinks, type Rejected } from '../lib/outreach/faculty';
 
 const FACULTY = `<html><head><title>Faculty | Department of Computer Science and Engineering</title></head><body>
 <h2>Department of Computer Science and Engineering</h2>
@@ -36,6 +36,27 @@ const FACULTY = `<html><head><title>Faculty | Department of Computer Science and
   assert(!by['meena.p@gmail.com'], 'Gmail off by default');
   assert(extractTeachers(FACULTY, 'https://www.abc.ac.in/cse/faculty', { includeFreeMail: true }).some(x => x.email === 'meena.p@gmail.com'), 'Gmail next to a designation when allowed');
   assert.deepEqual(facultyLinks(FACULTY, 'https://www.abc.ac.in/'), ['https://www.abc.ac.in/ece/faculty']);
+  // Cloudflare-protected addresses are decoded; staff mail on another domain is accepted when 3+ teachers use it.
+  const { cfDecode } = await import('../lib/outreach/extract');
+  const enc = (e: string, key = 0x5a) => key.toString(16).padStart(2, '0') + [...e].map(ch => (ch.charCodeAt(0) ^ key).toString(16).padStart(2, '0')).join('');
+  assert.equal(cfDecode(enc('kavitha.r@xyz.ac.in')), 'kavitha.r@xyz.ac.in');
+  const cf = `<h2>Faculty – Department of Physics</h2><table>
+<tr><td>Dr. R. Kavitha</td><td>Assistant Professor</td><td><a href="/cdn-cgi/l/email-protection#${enc('kavitha.r@xyz.ac.in')}">[email&#160;protected]</a></td></tr>
+<tr><td>Dr. S. Mani</td><td>Associate Professor</td><td><span class="__cf_email__" data-cfemail="${enc('mani.s@xyz.ac.in', 0x21)}">[email&#160;protected]</span></td></tr>
+<tr><td>Mr. P. Arun</td><td>Assistant Professor</td><td>arun.p@xyzmail.edu.in</td></tr>
+<tr><td>Ms. K. Devi</td><td>Assistant Professor</td><td>devi.k@xyzmail.edu.in</td></tr>
+<tr><td>Dr. T. Raj</td><td>Professor</td><td>raj.t@xyzmail.edu.in</td></tr>
+<tr><td>Mr. Q. Lone</td><td>Assistant Professor</td><td>lone@other.org</td></tr></table>`;
+  const rejects: Rejected[] = [];
+  const got2 = extractTeachers(cf, 'https://www.xyz.ac.in/physics/faculty', { rejects }).map(x => x.email).sort();
+  assert.deepEqual(got2, ['arun.p@xyzmail.edu.in', 'devi.k@xyzmail.edu.in', 'kavitha.r@xyz.ac.in', 'mani.s@xyz.ac.in', 'raj.t@xyzmail.edu.in']);
+  assert.deepEqual(rejects, [{ email: 'lone@other.org', reason: 'other domain' }], 'a lone outside address is still skipped, with the reason');
+  const r2: Rejected[] = [];
+  extractTeachers(FACULTY, 'https://www.abc.ac.in/cse/faculty', { rejects: r2 });
+  assert(r2.some(x => x.email === 'meena.p@gmail.com' && /Gmail/.test(x.reason)));
+  assert(r2.some(x => x.email === 'raman@abc.ac.in' && x.reason === 'non-teaching staff'));
+  assert(r2.some(x => x.email === 'hodcse@abc.ac.in' && /office/.test(x.reason)));
+
   // A page with no teaching context: addresses alone are not enough.
   assert.equal(extractTeachers('<p>Write to ramesh@abc.ac.in for the fest.</p>', 'https://www.abc.ac.in/events').length, 0);
 
@@ -97,6 +118,28 @@ const FACULTY = `<html><head><title>Faculty | Department of Computer Science and
   const blocked = await to.findTeachersFor(rec, { fetcher: async (url: string) => url.endsWith('robots.txt') ? { ok: true, status: 200, text: 'User-agent: *\nDisallow: /', url } : fetcher(url), delayMs: 0 });
   assert.equal(blocked.teachers.length, 0);
   assert.match(blocked.note, /robots/);
+
+  // ---- the site's own mailbox, only when the administrator chooses it
+  {
+    const keep = { ...process.env };
+    for (const k of ['CANDIDATE_SMTP_HOST', 'CANDIDATE_SMTP_USER', 'CANDIDATE_SMTP_PASS', 'CANDIDATE_MAIL_FROM']) delete process.env[k];
+    Object.assign(process.env, { SMTP_HOST: '127.0.0.1', SMTP_PORT: keep.CANDIDATE_SMTP_PORT, SMTP_SECURE: 'false', SMTP_USER: 'info@acadexmatch.com', SMTP_PASS: 'x' });
+    await persist.writeJson('teacher-outreach-state', null);
+    assert.equal((await to.teacherSummary()).senderConfigured, false, 'not without consent');
+    await assert.rejects(to.setTeacherSending(true), /Choose the mailbox/);
+    await to.saveTeacherSettings({ useMainSmtp: true });
+    const sm = await to.teacherSummary();
+    assert.equal(sm.senderConfigured, true);
+    assert.equal(sm.sender, 'Udayakumar from AcadeXMatch <info@acadexmatch.com>');
+    assert.equal(sm.senderKind, 'main');
+    const before = got.length;
+    await to.sendTeacherTest('me@example.com');
+    assert.equal(got.length, before + 1);
+    assert.match(got[got.length - 1].data, /From: Udayakumar from AcadeXMatch <info@acadexmatch\.com>/);
+    got.length = before;
+    Object.assign(process.env, keep);
+    await persist.writeJson('teacher-outreach-state', null);
+  }
 
   // ---- sending
   const p = await persist.sqlPool();

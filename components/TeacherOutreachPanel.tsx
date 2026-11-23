@@ -5,8 +5,9 @@ import { AlertTriangle, CheckCircle2, Download, ExternalLink, Globe, GraduationC
 
 interface Finder { running: boolean; filter: { state?: string; category?: string }; done: number; total: number; found: number; skipped: number; pages: number; queued: number; startedAt?: string; finishedAt?: string; lastError?: string }
 interface Summary {
-  senderConfigured: boolean; sender: string | null;
-  settings: { dailyLimit: number; includeFreeMail: boolean; pagesPerSite: number };
+  senderConfigured: boolean; sender: string | null; senderKind: 'separate' | 'main' | null; separateSender: string | null; mainMailbox: string | null;
+  whyNone: { reason: string; n: number }[];
+  settings: { dailyLimit: number; includeFreeMail: boolean; pagesPerSite: number; useMainSmtp: boolean };
   finder: Finder; template: { subject: string; body: string };
   sending: boolean; sendingSince?: string; lastError: string | null; sentToday: number;
   counts: Record<string, number>; visited: number; visitedWithTeachers: number; pagesRead: number; joined: number;
@@ -35,7 +36,9 @@ export default function TeacherOutreachPanel() {
   const [err, setErr] = useState('');
   const [msg, setMsg] = useState('');
   const [busy, setBusy] = useState('');
-  const [filter, setFilter] = useState<{ state: string; category: string; limit: number }>({ state: '', category: '', limit: 100 });
+  const [filter, setFilter] = useState<{ state: string; category: string; limit: number; recheck: boolean }>({ state: '', category: '', limit: 100, recheck: false });
+  const [testUrl, setTestUrl] = useState('');
+  const [test, setTest] = useState<{ note: string; teachers: { email: string; name: string | null; designation: string | null; source: string }[]; pages: { url: string; status: number; teachers: number; links: number; rejected: { email: string; reason: string }[] }[] } | null>(null);
   const [preview, setPreview] = useState<number | null>(null);
   const [tpl, setTpl] = useState<{ subject: string; body: string } | null>(null);
   const [testTo, setTestTo] = useState('');
@@ -67,9 +70,9 @@ export default function TeacherOutreachPanel() {
   }, [s?.finder.running, s?.sending, load, loadList]);
   useEffect(() => {
     setPreview(null);
-    const t = setTimeout(() => { api({ action: 'preview', state: filter.state, category: filter.category }).then(d => setPreview(d.colleges)).catch(() => setPreview(null)); }, 300);
+    const t = setTimeout(() => { api({ action: 'preview', state: filter.state, category: filter.category, recheck: filter.recheck }).then(d => setPreview(d.colleges)).catch(() => setPreview(null)); }, 300);
     return () => clearTimeout(t);
-  }, [filter.state, filter.category]);
+  }, [filter.state, filter.category, filter.recheck]);
 
   const flash = (m: string) => { setMsg(m); setErr(''); setTimeout(() => setMsg(''), 6000); };
   const run = async (key: string, fn: () => Promise<unknown>, ok?: string) => {
@@ -116,25 +119,35 @@ export default function TeacherOutreachPanel() {
           <li>Each address is emailed once, ever. Every email says where the address was found and has a one-click unsubscribe; unsubscribes join the shared do-not-email list.</li>
           <li>People who already have an AcadeXMatch account, colleges registered on AcadeXMatch and anyone on the do-not-email list are skipped.</li>
           <li>Only addresses on the college&apos;s own domain{s.settings.includeFreeMail ? ', plus Gmail-type addresses printed next to a teaching designation,' : ''} are collected. robots.txt is respected and sites are read slowly.</li>
-          <li>Sending uses its own mail account (CANDIDATE_SMTP_*), never the Brevo outreach account or the sign-in mail, because Brevo does not allow addresses collected from websites.</li>
+          <li>Sending uses an SMTP mailbox you choose below — never the Brevo outreach account or the sign-in mail service, because their rules do not allow addresses collected from websites.</li>
           <li>A teacher&apos;s own address is personal data under the DPDP Act 2023. Keep the daily limit modest, honour every removal request, and delete this list when the campaign is over.</li>
         </ul>
       </section>
 
-      {!s.senderConfigured ? (
-        <section className="p-5 rounded-2xl bg-crimson-50 border border-crimson-200 text-sm text-crimson-900 space-y-2">
-          <h3 className="font-semibold flex items-center gap-2"><Mail className="w-4 h-4" /> Sender not set up yet — finding addresses works, sending does not</h3>
-          <p>Use a mail account meant for one-to-one outreach (not Brevo, not ZeptoMail, not info@acadexmatch.com), ideally on a separate domain such as <code className="bg-white px-1 rounded">invite.acadexmatch.com</code> with SPF and DKIM set up. Then add these secrets in GoDaddy (Settings → Secrets → Publish) and publish:</p>
-          <pre className="bg-white p-3 rounded-lg text-xs overflow-x-auto">{`CANDIDATE_SMTP_HOST   e.g. smtp.your-provider.com
-CANDIDATE_SMTP_PORT   587 (or 465)
+      <section className={card}>
+        <h3 className="font-semibold text-slate-900 flex items-center gap-2"><Mail className="w-4 h-4 text-brand-700" /> Sender</h3>
+        {s.senderConfigured
+          ? <p className="text-sm p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 flex items-center gap-2"><CheckCircle2 className="w-4 h-4 shrink-0" /> Invitations are sent from <strong>{s.sender}</strong> {s.senderKind === 'main' ? '(the site’s own mailbox)' : '(separate outreach mailbox)'}.</p>
+          : <p className="text-sm p-3 rounded-xl bg-crimson-50 border border-crimson-200 text-crimson-900 flex items-center gap-2"><AlertTriangle className="w-4 h-4 shrink-0" /> No mailbox chosen yet — finding teachers works, sending does not.</p>}
+        {!s.separateSender && s.mainMailbox && (
+          <label className="flex items-start gap-2 text-sm text-slate-800 p-3 rounded-xl border border-slate-200">
+            <input type="checkbox" className="mt-0.5 w-4 h-4" checked={s.settings.useMainSmtp} disabled={busy === 'smtp'}
+              onChange={e => { const on = e.target.checked; if (on && !window.confirm(`Send teacher invitations from ${s.mainMailbox}?\n\nThis is the site's own mailbox. Keep the daily limit low (25 or fewer): many unanswered or reported emails can hurt how other mail from this address is delivered.`)) return; run('smtp', () => api({ action: 'settings', useMainSmtp: on }), on ? `Invitations will be sent from ${s.mainMailbox}.` : 'Stopped using the site mailbox.'); }} />
+            <span>Use the site&apos;s mailbox <strong>{s.mainMailbox}</strong> for invitations <span className="block text-xs text-slate-500 mt-0.5">Quickest way to start. Keep it to about 25 a day; replies come to that mailbox.</span></span>
+          </label>
+        )}
+        <details className="text-sm text-slate-700">
+          <summary className="cursor-pointer font-semibold">{s.separateSender ? 'Separate outreach mailbox in use' : 'Better: a separate outreach mailbox'}</summary>
+          <p className="mt-2">A mailbox used only for invitations (for example <code className="bg-slate-100 px-1 rounded">invite@acadexmatch.com</code>, or one on a separate domain) protects the main address. Add these in GoDaddy (Settings → Secrets → Publish) and publish; it then takes over automatically:</p>
+          <pre className="bg-slate-50 p-3 rounded-lg text-xs overflow-x-auto mt-2">{`CANDIDATE_SMTP_HOST   e.g. smtp.titan.email
+CANDIDATE_SMTP_PORT   465
 CANDIDATE_SMTP_USER   the mailbox login
-CANDIDATE_SMTP_PASS   its password / app password
-CANDIDATE_MAIL_FROM   Udayakumar from AcadeXMatch <udaya@invite.acadexmatch.com>
+CANDIDATE_SMTP_PASS   its password (type it in GoDaddy yourself)
+CANDIDATE_MAIL_FROM   Udayakumar from AcadeXMatch <invite@acadexmatch.com>
 CANDIDATE_REPLY_TO    (optional) where replies should go`}</pre>
-        </section>
-      ) : (
-        <p className="text-sm p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 flex items-center gap-2"><CheckCircle2 className="w-4 h-4" /> Sender: {s.sender}</p>
-      )}
+          <p className="text-xs text-slate-500 mt-1">Brevo and ZeptoMail are not used: their rules do not allow addresses collected from websites.</p>
+        </details>
+      </section>
 
       <section className={card}>
         <h3 className="font-semibold text-slate-900 flex items-center gap-2"><Globe className="w-4 h-4 text-brand-700" /> 1. Find teachers on college websites</h3>
@@ -148,8 +161,34 @@ CANDIDATE_REPLY_TO    (optional) where replies should go`}</pre>
             <input type="number" min={1} max={1000} className={`${input} w-28`} value={filter.limit} onChange={e => setFilter({ ...filter, limit: Number(e.target.value) })} /></label>
           {f.running
             ? <button className={ghost} disabled={busy === 'stop'} onClick={() => run('stop', () => api({ action: 'stopFinder' }), 'Stopping after the colleges in progress.')}><Square className="w-4 h-4" /> Stop</button>
-            : <button className={primary} disabled={busy === 'find' || preview === 0} onClick={() => run('find', () => api({ action: 'startFinder', state: filter.state, category: filter.category, limit: filter.limit }), 'Finder started. It works in the background; you can leave this page.')}>{busy === 'find' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />} Find teachers</button>}
-          <span className="text-xs text-slate-500">{preview == null ? '' : `${fmt(preview)} colleges with a website not visited yet`}</span>
+            : <button className={primary} disabled={busy === 'find' || preview === 0} onClick={() => run('find', () => api({ action: 'startFinder', state: filter.state, category: filter.category, limit: filter.limit, recheck: filter.recheck }), 'Finder started. It works in the background; you can leave this page.')}>{busy === 'find' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />} Find teachers</button>}
+          <span className="text-xs text-slate-500">{preview == null ? '' : `${fmt(preview)} colleges with a website ${filter.recheck ? 'to visit (including ones where none were found)' : 'not visited yet'}`}</span>
+        </div>
+        <label className="inline-flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" className="w-4 h-4" checked={filter.recheck} onChange={e => setFilter({ ...filter, recheck: e.target.checked })} /> Also re-check colleges where no teachers were found (the finder has improved)</label>
+        {s.whyNone.length > 0 && (
+          <div className="text-xs text-slate-600">
+            <p className="font-semibold text-slate-800 mb-1">Why {fmt(s.visited - s.visitedWithTeachers)} visited colleges gave no teachers</p>
+            <ul className="flex flex-wrap gap-x-4 gap-y-1">{s.whyNone.slice(0, 8).map(w => <li key={w.reason}>{w.reason}: <strong>{fmt(w.n)}</strong></li>)}</ul>
+          </div>
+        )}
+        <div className="pt-3 border-t border-slate-100 space-y-2">
+          <p className="text-sm font-semibold text-slate-800">Test one website</p>
+          <div className="flex flex-wrap gap-2">
+            <input className={`${input} flex-1 min-w-[16rem]`} placeholder="https://www.college.ac.in" value={testUrl} onChange={e => setTestUrl(e.target.value)} />
+            <button className={ghost} disabled={!testUrl || busy === 'test-site'} onClick={() => run('test-site', async () => setTest(await api({ action: 'testSite', url: testUrl })))}>{busy === 'test-site' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />} Test (saves nothing)</button>
+          </div>
+          {test && (
+            <div className="text-xs space-y-2">
+              <p className="font-semibold text-slate-800">{test.note}</p>
+              {test.teachers.length > 0 && <ul className="space-y-0.5">{test.teachers.slice(0, 20).map(t => <li key={t.email}>✓ {t.name || '—'} · {t.designation || ''} · <span className="text-brand-800">{t.email}</span></li>)}</ul>}
+              <ol className="space-y-1">{test.pages.map((pg, i) => (
+                <li key={i} className="p-2 rounded-lg bg-slate-50 border border-slate-100">
+                  <a href={pg.url} target="_blank" rel="noreferrer" className="underline break-all">{pg.url}</a> — {pg.status && pg.status >= 400 ? `error ${pg.status}` : `${pg.teachers} teachers, ${pg.links} faculty links`}
+                  {pg.rejected.length > 0 && <ul className="mt-1 text-slate-500">{pg.rejected.slice(0, 8).map(r => <li key={r.email}>skipped {r.email} — {r.reason}</li>)}{pg.rejected.length > 8 && <li>and {pg.rejected.length - 8} more</li>}</ul>}
+                </li>
+              ))}</ol>
+            </div>
+          )}
         </div>
         {(f.running || f.total > 0) && (
           <div className="space-y-1">

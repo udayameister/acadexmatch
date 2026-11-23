@@ -16,13 +16,17 @@ import { allAisheRecords } from './aishe';
 import { outreachDb, suppressedSet, registered, fetchText, siteUrl, unsubscribeLink } from './outreach';
 import { STORAGE_KEYS } from '@/lib/storage';
 import { robotsAllows } from '@/lib/outreach/extract';
-import { extractTeachers, facultyLinks, type FoundTeacher } from '@/lib/outreach/faculty';
+import { extractTeachers, facultyLinks, type FoundTeacher, type Rejected } from '@/lib/outreach/faculty';
 import type { AisheRecord, UserAccount } from '@/types';
 
 const KEY = 'teacher-outreach-state';
-const g = globalThis as unknown as { __teacherTables?: Promise<void>; __teacherFinder?: Promise<void> | null; __teacherSender?: boolean; __teacherTransport?: Transporter | null };
+const g = globalThis as unknown as { __teacherTables?: Promise<void>; __teacherFinder?: Promise<void> | null; __teacherSender?: boolean; __teacherTransport?: Transporter | null; __teacherTransportKey?: string };
 
-export interface TeacherSettings { dailyLimit: number; includeFreeMail: boolean; pagesPerSite: number }
+export interface TeacherSettings {
+  dailyLimit: number; includeFreeMail: boolean; pagesPerSite: number;
+  /** Send through the site's own mailbox (SMTP_*) when no separate CANDIDATE_SMTP_* account is set. Chosen by the administrator. */
+  useMainSmtp: boolean;
+}
 export interface TeacherFinder {
   running: boolean; stopRequested?: boolean; filter: { state?: string; category?: string };
   queue: string[]; total: number; done: number; found: number; skipped: number; pages: number;
@@ -34,7 +38,7 @@ interface State {
   sending: boolean; sendingSince?: string; lastError?: string; day: { date: string; sent: number };
 }
 
-const SETTINGS: TeacherSettings = { dailyLimit: 50, includeFreeMail: false, pagesPerSite: 12 };
+const SETTINGS: TeacherSettings = { dailyLimit: 50, includeFreeMail: false, pagesPerSite: 20, useMainSmtp: false };
 const blankFinder = (): TeacherFinder => ({ running: false, filter: {}, queue: [], total: 0, done: 0, found: 0, skipped: 0, pages: 0 });
 
 export function defaultTemplate(): TeacherTemplate {
@@ -95,7 +99,8 @@ const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
  * Visits one college: home page → faculty / department pages → (one level deeper) department faculty lists.
  * At most `pages` pages, robots.txt respected, ~1 second between requests to the same site.
  */
-export async function findTeachersFor(rec: AisheRecord, opts: { fetcher?: typeof fetchText; delayMs?: number; pages?: number; includeFreeMail?: boolean } = {}): Promise<{ teachers: (FoundTeacher & { source: string })[]; pages: number; note: string }> {
+export interface PageReport { url: string; status: number; teachers: number; rejected: Rejected[]; links: number }
+export async function findTeachersFor(rec: AisheRecord, opts: { fetcher?: typeof fetchText; delayMs?: number; pages?: number; includeFreeMail?: boolean; report?: PageReport[] } = {}): Promise<{ teachers: (FoundTeacher & { source: string })[]; pages: number; note: string }> {
   const get = opts.fetcher || fetchText;
   const start = siteUrl(rec.website);
   if (!start) return { teachers: [], pages: 0, note: 'No website' };
@@ -115,12 +120,25 @@ export async function findTeachersFor(rec: AisheRecord, opts: { fetcher?: typeof
     if (pages) await sleep(opts.delayMs ?? 1000);
     const page = await get(url);
     pages++;
-    if (!page.ok || !page.text) { if (!depth) return { teachers: [], pages, note: page.status ? `Website answered ${page.status}` : 'Website not reachable' }; continue; }
-    for (const t of extractTeachers(page.text, page.url, { includeFreeMail: opts.includeFreeMail })) if (!found.has(t.email)) found.set(t.email, { ...t, source: page.url });
-    if (depth < 2) for (const l of facultyLinks(page.text, page.url, depth ? 6 : 10)) if (!seen.has(l)) queue.push({ url: l, depth: depth + 1 });
+    if (!page.ok || !page.text) {
+      opts.report?.push({ url, status: page.status, teachers: 0, rejected: [], links: 0 });
+      if (!depth) return { teachers: [], pages, note: page.status ? `Website answered ${page.status}` : 'Website not reachable' };
+      continue;
+    }
+    const rejected: Rejected[] = [];
+    const here = extractTeachers(page.text, page.url, { includeFreeMail: opts.includeFreeMail, rejects: rejected });
+    for (const t of here) if (!found.has(t.email)) found.set(t.email, { ...t, source: page.url });
+    const links = depth < 2 ? facultyLinks(page.text, page.url, depth ? 8 : 12) : [];
+    for (const l of links) if (!seen.has(l)) queue.push({ url: l, depth: depth + 1 });
+    opts.report?.push({ url: page.url, status: page.status, teachers: here.length, rejected, links: links.length });
+    // A page that only links out (JavaScript site, empty home page) is worth noting.
+    if (!depth && !links.length && !here.length && pages === 1 && page.text.length < 3000) return { teachers: [], pages, note: 'Home page has no links to follow (probably built with JavaScript)' };
   }
   const teachers = [...found.values()].slice(0, 300);
-  return { teachers, pages, note: teachers.length ? `${teachers.length} teachers found on ${pages} pages` : `No teachers' addresses on ${pages} pages` };
+  if (teachers.length) return { teachers, pages, note: `${teachers.length} teachers found on ${pages} pages` };
+  const why = (opts.report || []).flatMap(r => r.rejected.map(x => x.reason));
+  const top = why.length ? [...why.reduce((m, r) => m.set(r, (m.get(r) || 0) + 1), new Map<string, number>())].sort((a, b) => b[1] - a[1])[0][0] : '';
+  return { teachers, pages, note: top ? `No teachers' addresses on ${pages} pages (skipped: ${top})` : `No addresses on ${pages} pages` };
 }
 
 async function saveTeachers(rec: AisheRecord, list: (FoundTeacher & { source: string })[], pages: number, note: string): Promise<number> {
@@ -140,9 +158,10 @@ async function saveTeachers(rec: AisheRecord, list: (FoundTeacher & { source: st
 }
 
 /** Colleges to visit: has a website, not registered on AcadeXMatch, not visited for teachers in 180 days. */
-async function collegesFor(filter: TeacherFinder['filter']): Promise<AisheRecord[]> {
+async function collegesFor(filter: TeacherFinder['filter'] & { recheck?: boolean }): Promise<AisheRecord[]> {
   const p = await db();
-  const [rows] = await p.query<RowDataPacket[]>('SELECT aishe_code FROM acx_teacher_crawled WHERE crawled_at > (NOW() - INTERVAL 180 DAY)');
+  // "Re-check": colleges where nothing was found count as not visited (after the finder improves).
+  const [rows] = await p.query<RowDataPacket[]>(`SELECT aishe_code FROM acx_teacher_crawled WHERE crawled_at > (NOW() - INTERVAL 180 DAY)${filter.recheck ? ' AND found > 0' : ''}`);
   const recent = new Set(rows.map(r => String(r.aishe_code)));
   const reg = await registered();
   return (await allAisheRecords()).filter(r =>
@@ -150,11 +169,11 @@ async function collegesFor(filter: TeacherFinder['filter']): Promise<AisheRecord
     (!filter.state || r.state === filter.state) && (!filter.category || r.category === filter.category));
 }
 
-export async function teacherFinderPreview(filter: TeacherFinder['filter']): Promise<number> {
+export async function teacherFinderPreview(filter: TeacherFinder['filter'] & { recheck?: boolean }): Promise<number> {
   return (await collegesFor(filter)).length;
 }
 
-export async function startTeacherFinder(filter: TeacherFinder['filter'], limit: number): Promise<TeacherFinder> {
+export async function startTeacherFinder(filter: TeacherFinder['filter'] & { recheck?: boolean }, limit: number): Promise<TeacherFinder> {
   const list = (await collegesFor(filter)).slice(0, Math.max(1, Math.min(1000, Math.round(limit) || 100)));
   if (!list.length) throw new Error('No colleges to visit for this choice: every college with a website here is on AcadeXMatch already or was visited in the last 180 days.');
   const st = await updateState(s => {
@@ -214,18 +233,37 @@ export function runTeacherFinder(): Promise<void> {
 
 // ------------------------------------------------------------------ sender (separate from every other mail)
 
-export function teacherSenderConfigured(): boolean {
-  return !!(process.env.CANDIDATE_SMTP_HOST && process.env.CANDIDATE_SMTP_USER && process.env.CANDIDATE_SMTP_PASS && process.env.CANDIDATE_MAIL_FROM);
-}
-function transport(): Transporter {
-  if (!g.__teacherTransport) {
+interface SenderConf { kind: 'separate' | 'main'; host: string; port: number; secure: boolean; user: string; pass: string; from: string; replyTo?: string }
+const separateReady = () => !!(process.env.CANDIDATE_SMTP_HOST && process.env.CANDIDATE_SMTP_USER && process.env.CANDIDATE_SMTP_PASS && process.env.CANDIDATE_MAIL_FROM);
+const mainReady = () => !!(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
+const asAddress = (v?: string) => (v || '').match(/<([^>]+)>/)?.[1] || (v || '').trim();
+/** The mailbox that sends teacher invitations: a separate account if set up, else the site's mailbox if the administrator allowed it. */
+function senderConf(settings: TeacherSettings): SenderConf | null {
+  if (separateReady()) {
     const port = Number(process.env.CANDIDATE_SMTP_PORT || 587);
+    return { kind: 'separate', host: process.env.CANDIDATE_SMTP_HOST!, port, secure: process.env.CANDIDATE_SMTP_SECURE ? process.env.CANDIDATE_SMTP_SECURE === 'true' : port === 465, user: process.env.CANDIDATE_SMTP_USER!, pass: process.env.CANDIDATE_SMTP_PASS!, from: process.env.CANDIDATE_MAIL_FROM!, replyTo: process.env.CANDIDATE_REPLY_TO || undefined };
+  }
+  if (settings.useMainSmtp && mainReady()) {
+    const port = Number(process.env.SMTP_PORT || 587);
+    const user = process.env.SMTP_USER!;
+    // The mailbox can only send as itself: use its own address with a friendly name.
+    const from = /@/.test(user) ? `Udayakumar from AcadeXMatch <${user}>` : process.env.MAIL_FROM || user;
+    return { kind: 'main', host: process.env.SMTP_HOST!, port, secure: process.env.SMTP_SECURE ? process.env.SMTP_SECURE === 'true' : port === 465, user, pass: process.env.SMTP_PASS!, from };
+  }
+  return null;
+}
+/** Whether invitations can be sent (needs the saved settings for the "use the site's mailbox" choice). */
+export async function teacherSenderReady(): Promise<boolean> { return !!senderConf((await readState()).settings); }
+/** Kept for callers that only check the separate account. */
+export function teacherSenderConfigured(): boolean { return separateReady(); }
+function transport(c: SenderConf): Transporter {
+  const key = `${c.kind}|${c.host}|${c.port}|${c.user}`;
+  if (!g.__teacherTransport || g.__teacherTransportKey !== key) {
     g.__teacherTransport = nodemailer.createTransport({
-      host: process.env.CANDIDATE_SMTP_HOST, port,
-      secure: process.env.CANDIDATE_SMTP_SECURE ? process.env.CANDIDATE_SMTP_SECURE === 'true' : port === 465,
-      auth: { user: process.env.CANDIDATE_SMTP_USER, pass: process.env.CANDIDATE_SMTP_PASS },
+      host: c.host, port: c.port, secure: c.secure, auth: { user: c.user, pass: c.pass },
       connectionTimeout: 20000, greetingTimeout: 20000, socketTimeout: 30000,
     });
+    g.__teacherTransportKey = key;
   }
   return g.__teacherTransport;
 }
@@ -260,8 +298,8 @@ ${body.split(/\n{2,}/).map(p => `<p style="margin:0 0 14px">${linkify(p).replace
   return { subject, text, html, headers: { 'List-Unsubscribe': `<${unsub}>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' } };
 }
 
-async function send(to: string, msg: ReturnType<typeof renderInvite>): Promise<string | undefined> {
-  const info = await transport().sendMail({ from: process.env.CANDIDATE_MAIL_FROM, to, replyTo: process.env.CANDIDATE_REPLY_TO || undefined, subject: msg.subject, text: msg.text, html: msg.html, headers: msg.headers });
+async function send(c: SenderConf, to: string, msg: ReturnType<typeof renderInvite>): Promise<string | undefined> {
+  const info = await transport(c).sendMail({ from: c.from, to, replyTo: c.replyTo, subject: msg.subject, text: msg.text, html: msg.html, headers: msg.headers });
   return info.messageId;
 }
 
@@ -278,12 +316,14 @@ async function registeredEmails(): Promise<Set<string>> {
 }
 
 export async function sendTeacherTest(to: string, tpl?: Partial<TeacherTemplate>): Promise<void> {
-  if (!teacherSenderConfigured()) throw new Error('The teacher-invitation sender is not set up yet (CANDIDATE_SMTP_* settings).');
   if (!/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(to)) throw new Error('Enter a valid email address for the test.');
   const s = await readState();
+  const c = senderConf(s.settings);
+  if (!c) throw new Error('No mailbox is set up for teacher invitations yet — choose one under “Sender”.');
   const t = { subject: tpl?.subject || s.template.subject, body: tpl?.body || s.template.body };
   const msg = renderInvite(t, { email: to, name: 'Dr. A. Sample', college: 'Sample College of Engineering', department: 'Computer Science', source_url: 'https://www.example.ac.in/cse/faculty' });
-  await send(to, { ...msg, subject: `[TEST] ${msg.subject}` });
+  try { await send(c, to, { ...msg, subject: `[TEST] ${msg.subject}` }); }
+  catch (e) { throw new Error(`The mail server refused: ${String((e as Error).message || e).slice(0, 250)}`); }
 }
 
 /**
@@ -291,12 +331,14 @@ export async function sendTeacherTest(to: string, tpl?: Partial<TeacherTemplate>
  * Each address is emailed once: it is marked before the message goes out, so a crash never sends twice.
  */
 export async function teacherSendDue(): Promise<{ sent: number }> {
-  if (g.__teacherSender || !teacherSenderConfigured()) return { sent: 0 };
+  if (g.__teacherSender) return { sent: 0 };
   g.__teacherSender = true;
   let sent = 0;
   try {
     const s0 = await readState();
     if (!s0.sending) return { sent: 0 };
+    const conf = senderConf(s0.settings);
+    if (!conf) return { sent: 0 };
     const today = new Date().toISOString().slice(0, 10);
     const used = s0.day.date === today ? s0.day.sent : 0;
     const room = Math.min(25, s0.settings.dailyLimit - used);
@@ -319,7 +361,7 @@ export async function teacherSendDue(): Promise<{ sent: number }> {
       const [claim] = await p.query("UPDATE acx_teacher_contacts SET status = 'sending' WHERE email = ? AND status = 'new'", [email]) as unknown as [{ affectedRows: number }];
       if (claim.affectedRows !== 1) continue;
       try {
-        const id = await send(email, renderInvite(s0.template, row));
+        const id = await send(conf, email, renderInvite(s0.template, row));
         await p.query("UPDATE acx_teacher_contacts SET status = 'sent', sent_at = NOW(), message_id = ?, error = NULL WHERE email = ?", [(id || '').slice(0, 200), email]);
         sent++;
       } catch (e) {
@@ -351,6 +393,34 @@ async function settleStuck(): Promise<void> {
 
 // ------------------------------------------------------------------ admin
 
+/** Why visited colleges gave no teachers, grouped (from the notes the finder saves). */
+async function whyNoneSummary(p: Awaited<ReturnType<typeof db>>): Promise<{ reason: string; n: number }[]> {
+  const [rows] = await p.query<RowDataPacket[]>('SELECT note FROM acx_teacher_crawled WHERE found = 0');
+  const groups = new Map<string, number>();
+  for (const r of rows) {
+    const note = String(r.note || '');
+    const reason = /skipped: ([^)]+)\)/.exec(note)?.[1]
+      || (/answered (\d)/.exec(note) ? `Website error (${/answered (\d+)/.exec(note)![1]})` : '')
+      || (/not reachable/.test(note) ? 'Website not reachable' : '')
+      || (/robots/.test(note) ? 'robots.txt does not allow it' : '')
+      || (/JavaScript/.test(note) ? 'Built with JavaScript (no links)' : '')
+      || (/No website/.test(note) ? 'No website' : '')
+      || 'No addresses on the pages read';
+    groups.set(reason, (groups.get(reason) || 0) + 1);
+  }
+  return [...groups].map(([reason, n]) => ({ reason, n })).sort((a, b) => b.n - a.n);
+}
+
+/** Administrator: tries the finder on one website and reports page by page what it found and skipped. Saves nothing. */
+export async function testTeacherSite(url: string): Promise<{ teachers: (FoundTeacher & { source: string })[]; pages: PageReport[]; note: string }> {
+  const s = await readState();
+  const site = siteUrl(url);
+  if (!site) throw new Error('Enter a website address, e.g. https://www.college.ac.in');
+  const report: PageReport[] = [];
+  const r = await findTeachersFor({ code: 'TEST', name: 'Test', website: site } as AisheRecord, { pages: s.settings.pagesPerSite, includeFreeMail: s.settings.includeFreeMail, report, delayMs: 500 });
+  return { teachers: r.teachers, pages: report, note: r.note };
+}
+
 export async function teacherSummary() {
   const s = await readState();
   const p = await db();
@@ -364,8 +434,12 @@ export async function teacherSummary() {
   const today = new Date().toISOString().slice(0, 10);
   const aishe = await allAisheRecords().catch(() => [] as AisheRecord[]);
   return {
-    senderConfigured: teacherSenderConfigured(),
-    sender: process.env.CANDIDATE_MAIL_FROM || null,
+    senderConfigured: !!senderConf(s.settings),
+    sender: senderConf(s.settings)?.from || null,
+    senderKind: senderConf(s.settings)?.kind || null,
+    separateSender: separateReady() ? process.env.CANDIDATE_MAIL_FROM || null : null,
+    mainMailbox: mainReady() ? asAddress(process.env.SMTP_USER) || null : null,
+    whyNone: await whyNoneSummary(p),
     settings: s.settings, finder: { ...s.finder, queue: undefined, queued: s.finder.queue.length },
     template: s.template, sending: s.sending, sendingSince: s.sendingSince, lastError: s.lastError || null,
     sentToday: s.day.date === today ? s.day.sent : 0,
@@ -401,6 +475,7 @@ export async function saveTeacherSettings(raw: Partial<TeacherSettings>): Promis
     if (raw.dailyLimit != null) s.settings.dailyLimit = Math.max(1, Math.min(500, Math.round(Number(raw.dailyLimit)) || SETTINGS.dailyLimit));
     if (raw.pagesPerSite != null) s.settings.pagesPerSite = Math.max(2, Math.min(30, Math.round(Number(raw.pagesPerSite)) || SETTINGS.pagesPerSite));
     if (raw.includeFreeMail != null) s.settings.includeFreeMail = !!raw.includeFreeMail;
+    if (raw.useMainSmtp != null) { s.settings.useMainSmtp = !!raw.useMainSmtp; g.__teacherTransport = null; }
     return s.settings;
   });
 }
@@ -414,7 +489,7 @@ export async function saveTeacherTemplate(raw: Partial<TeacherTemplate>): Promis
 }
 
 export async function setTeacherSending(on: boolean): Promise<void> {
-  if (on && !teacherSenderConfigured()) throw new Error('Set up the teacher-invitation sender first (CANDIDATE_SMTP_HOST, CANDIDATE_SMTP_USER, CANDIDATE_SMTP_PASS, CANDIDATE_MAIL_FROM in GoDaddy).');
+  if (on && !senderConf((await readState()).settings)) throw new Error('Choose the mailbox that sends the invitations first (under “Sender”).');
   await updateState(s => { s.sending = on; s.sendingSince = on ? new Date().toISOString() : undefined; if (on) s.lastError = undefined; });
   if (on) void teacherSendDue();
 }

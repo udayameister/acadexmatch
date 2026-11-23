@@ -3,7 +3,7 @@
  * Used by the administrator's "Teacher invitations" tool. Role addresses (principal@, office@, hodcse@ …)
  * are left to the institution outreach; only an address shown next to a teacher's name or designation counts.
  */
-import { baseDomain, cleanEmail, deobfuscate } from './extract';
+import { baseDomain, cleanEmail, deobfuscate, revealCloudflareEmails } from './extract';
 
 export interface FoundTeacher {
   email: string;
@@ -35,7 +35,7 @@ function decodeEntities(s: string): string {
 
 /** Page text with one line per block (table row, list item, card), mailto addresses written out. */
 export function pageLines(html: string): string[] {
-  const withMail = html
+  const withMail = revealCloudflareEmails(html)
     .replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>|<noscript[\s\S]*?<\/noscript>|<!--[\s\S]*?-->/gi, ' ')
     .replace(/<a\b[^>]*href\s*=\s*["']mailto:([^"'?]+)[^"']*["'][^>]*>/gi, (_, e: string) => ` ${e} `)
     .replace(/<(?:br|hr)\b[^>]*>/gi, '\n')
@@ -79,42 +79,61 @@ export function isFacultyPage(url: string, lines: string[]): boolean {
  * Only addresses on the college's own domain unless `includeFreeMail` (then a Gmail etc. address must sit next to a
  * teaching designation).
  */
-export function extractTeachers(html: string, pageUrl: string, opts: { includeFreeMail?: boolean } = {}): FoundTeacher[] {
+export type RejectReason = 'other domain' | 'Gmail-type (switched off)' | 'office or department address' | 'non-teaching staff' | 'no name or designation next to it';
+export interface Rejected { email: string; reason: RejectReason }
+
+export function extractTeachers(html: string, pageUrl: string, opts: { includeFreeMail?: boolean; rejects?: Rejected[] } = {}): FoundTeacher[] {
   let host = '';
   try { host = new URL(pageUrl).hostname; } catch { /* ignore */ }
   const college = host ? baseDomain(host) : '';
   const lines = pageLines(html);
   const facultyPage = isFacultyPage(pageUrl, lines);
   const pageDept = lines.slice(0, 60).map(l => l.match(DEPARTMENT)?.[1]).find(Boolean) || null;
-  const out = new Map<string, FoundTeacher>();
   const EMAIL = /[a-z0-9][a-z0-9._%+-]{0,63}@[a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,}/gi;
+  const hasEmail = (l: string) => { EMAIL.lastIndex = 0; const r = EMAIL.test(l); EMAIL.lastIndex = 0; return r; };
+
+  // First pass: every address with the teacher details around it.
+  type Cand = FoundTeacher & { local: string; domain: string; nonTeaching: boolean };
+  const cands = new Map<string, Cand>();
   lines.forEach((line, i) => {
     for (const m of line.matchAll(EMAIL)) {
       const email = cleanEmail(m[0]);
-      if (!email || out.has(email)) continue;
+      if (!email || cands.has(email)) continue;
       const [local, domain] = email.split('@');
-      const onCollegeDomain = !!college && baseDomain(domain) === college;
-      const freeMail = FREE_MAIL.test(domain);
-      if (!onCollegeDomain && !(freeMail && opts.includeFreeMail)) continue;
-      if (ROLE_LOCAL.test(local)) continue;
       // The address's own "card": this line and up to 4 before / 2 after, stopping at another address.
       const before: string[] = [];
-      for (let k = i - 1; k >= Math.max(0, i - 4); k--) { if (EMAIL.test(lines[k])) { EMAIL.lastIndex = 0; break; } EMAIL.lastIndex = 0; before.unshift(lines[k]); }
+      for (let k = i - 1; k >= Math.max(0, i - 4) && !hasEmail(lines[k]); k--) before.unshift(lines[k]);
       const after: string[] = [];
-      for (let k = i + 1; k <= Math.min(lines.length - 1, i + 2); k++) { if (EMAIL.test(lines[k])) { EMAIL.lastIndex = 0; break; } EMAIL.lastIndex = 0; after.push(lines[k]); }
+      for (let k = i + 1; k <= Math.min(lines.length - 1, i + 2) && !hasEmail(lines[k]); k++) after.push(lines[k]);
       const sameLine = line.replace(m[0], ' ');
       const card = [...before, sameLine, ...after].join('\n');
-      if (NON_TEACHING.test(card)) continue;
       const designation = designationIn(sameLine) || designationIn([...before].reverse().join('\n')) || designationIn(after.join('\n'));
       const nameMatch = sameLine.match(NAME) || [...before].reverse().map(l => l.match(NAME)).find(Boolean) || after.map(l => l.match(NAME)).find(Boolean);
       const name = nameMatch ? tidy(nameMatch[1]).slice(0, 80) : null;
-      if (!designation && !(facultyPage && name)) continue;
-      if (freeMail && !designation) continue;
-      const department = card.match(DEPARTMENT)?.[1] ? tidy(card.match(DEPARTMENT)![1]) : pageDept ? tidy(pageDept) : null;
-      out.set(email, { email, name, designation, department: department ? department.slice(0, 80) : null, onCollegeDomain, freeMail });
+      const dm = card.match(DEPARTMENT)?.[1];
+      const department = dm ? tidy(dm) : pageDept ? tidy(pageDept) : null;
+      cands.set(email, { email, name, designation, department: department ? department.slice(0, 80) : null, onCollegeDomain: !!college && baseDomain(domain) === college, freeMail: FREE_MAIL.test(domain), local, domain, nonTeaching: NON_TEACHING.test(card) });
     }
   });
-  return [...out.values()];
+  // Staff addresses are often on a different domain from the website (site on .edu.in, mail on .ac.in):
+  // a non-Gmail domain used by at least 3 teachers on the page counts as the college's own.
+  const perDomain = new Map<string, number>();
+  for (const c of cands.values()) if (!c.freeMail && !c.onCollegeDomain && c.designation && !ROLE_LOCAL.test(c.local)) perDomain.set(baseDomain(c.domain), (perDomain.get(baseDomain(c.domain)) || 0) + 1);
+  const staffDomains = new Set([...perDomain].filter(([, n]) => n >= 3).map(([d]) => d));
+
+  const out: FoundTeacher[] = [];
+  const reject = (email: string, reason: RejectReason) => { opts.rejects?.push({ email, reason }); };
+  for (const c of cands.values()) {
+    const ownDomain = c.onCollegeDomain || staffDomains.has(baseDomain(c.domain));
+    if (!ownDomain && !c.freeMail) { reject(c.email, 'other domain'); continue; }
+    if (c.freeMail && !opts.includeFreeMail) { reject(c.email, 'Gmail-type (switched off)'); continue; }
+    if (ROLE_LOCAL.test(c.local)) { reject(c.email, 'office or department address'); continue; }
+    if (c.nonTeaching) { reject(c.email, 'non-teaching staff'); continue; }
+    if (!c.designation && !(facultyPage && c.name)) { reject(c.email, 'no name or designation next to it'); continue; }
+    if (c.freeMail && !c.designation) { reject(c.email, 'no name or designation next to it'); continue; }
+    out.push({ email: c.email, name: c.name, designation: c.designation, department: c.department, onCollegeDomain: ownDomain, freeMail: c.freeMail });
+  }
+  return out;
 }
 
 const FACULTY_HINT = /faculty|staff|people|teaching|our-?team|profiles?|members|directory|departments?|dept|academics?|school-of|schools/i;
