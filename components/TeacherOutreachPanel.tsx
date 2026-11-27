@@ -119,7 +119,7 @@ export default function TeacherOutreachPanel() {
           <li>Each address is emailed once, ever. Every email says where the address was found and has a one-click unsubscribe; unsubscribes join the shared do-not-email list.</li>
           <li>People who already have an AcadeXMatch account, colleges registered on AcadeXMatch and anyone on the do-not-email list are skipped.</li>
           <li>Only addresses on the college&apos;s own domain{s.settings.includeFreeMail ? ', plus Gmail-type addresses printed next to a teaching designation,' : ''} are collected. robots.txt is respected and sites are read slowly.</li>
-          <li>Sending uses an SMTP mailbox you choose below — never the Brevo outreach account or the sign-in mail service, because their rules do not allow addresses collected from websites.</li>
+          <li>Sending uses the sender chosen below (a separate Brevo key, or the outreach Brevo account if you switch it on) — never the sign-in mail service. Brevo's rules are strict about addresses collected from websites, so keep the daily limit modest and watch for bounces.</li>
           <li>A teacher&apos;s own address is personal data under the DPDP Act 2023. Keep the daily limit modest, honour every removal request, and delete this list when the campaign is over.</li>
         </ul>
       </section>
